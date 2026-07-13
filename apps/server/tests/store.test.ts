@@ -1,4 +1,4 @@
-import{beforeEach,describe,expect,it}from"vitest";
+import{afterEach,beforeEach,describe,expect,it,vi}from"vitest";
 import{mkdtempSync,rmSync}from"node:fs";
 import{tmpdir}from"node:os";
 import{join}from"node:path";
@@ -7,8 +7,11 @@ import{fileURLToPath}from"node:url";
 import{ackHandoff,authenticateDevice,authenticateGrant,completePairing,createHandoff,latestHandoff,resetStore,revokeConnectionGrant,revokeDeviceToken,startPairing}from"../src/store.js";
 describe("페어링과 handoff",()=>{
  beforeEach(resetStore);
+ afterEach(()=>vi.restoreAllMocks());
  it("서버 생성 기기·토큰·일회용 코드·opaque grant",()=>{const pairing=startPairing();expect(authenticateDevice(pairing.deviceToken)).toBe(pairing.deviceId);const completed=completePairing(pairing.code);expect(completed?.connectionGrant).toBeTruthy();expect(authenticateGrant(completed!.connectionGrant)).toBe(pairing.deviceId);expect(completePairing(pairing.code)).toBeNull()});
  it("idempotency와 ACK",()=>{const first=createHandoff("d",{items:[1]},"same-key");const retry=createHandoff("d",{items:[1]},"same-key");expect(first.id).toBe(retry.id);expect(latestHandoff("d")?.id).toBe(first.id);expect(ackHandoff("d",first.id)).toBe(true);expect(latestHandoff("d")).toBeNull()});
+ it("페어링 코드와 연결 grant의 TTL을 강제한다",()=>{let now=1_000_000;vi.spyOn(Date,"now").mockImplementation(()=>now);const expiredCode=startPairing(100);now+=101;expect(completePairing(expiredCode.code,"ttl-client")).toBeNull();const active=startPairing(1_000);const completed=completePairing(active.code,"ttl-client",100)!;expect(authenticateGrant(completed.connectionGrant)).toBe(active.deviceId);now+=101;expect(authenticateGrant(completed.connectionGrant)).toBeNull()});
+ it("handoff TTL 이후에는 전송 기록을 반환하지 않는다",()=>{let now=2_000_000;vi.spyOn(Date,"now").mockImplementation(()=>now);const handoff=createHandoff("ttl-device",{items:[1]},"ttl-handoff",100);expect(latestHandoff("ttl-device")?.id).toBe(handoff.id);now+=101;expect(latestHandoff("ttl-device")).toBeNull()});
  it("한 클라이언트의 코드 대입이 다른 클라이언트를 막지 않는다",()=>{const pairing=startPairing();for(let attempt=0;attempt<30;attempt+=1)expect(completePairing(String(100000+attempt),"client-a")).toBeNull();expect(completePairing(pairing.code,"client-a")).toBeNull();expect(completePairing(pairing.code,"client-b")?.connectionGrant).toBeTruthy()});
  it("코드별 제한이 다른 유효 코드를 막지 않는다",()=>{const pairing=startPairing();for(let attempt=0;attempt<5;attempt+=1)expect(completePairing("000000",`client-${attempt}`)).toBeNull();expect(completePairing(pairing.code,"fresh-client")?.connectionGrant).toBeTruthy()});
  it("기기 토큰 폐기 시 연결 grant와 handoff도 함께 폐기한다",()=>{const pairing=startPairing();const completed=completePairing(pairing.code,"client")!;createHandoff(pairing.deviceId,{items:[1]},"revoke-test");expect(revokeDeviceToken(pairing.deviceToken)).toBe(true);expect(authenticateDevice(pairing.deviceToken)).toBeNull();expect(authenticateGrant(completed.connectionGrant)).toBeNull();expect(latestHandoff(pairing.deviceId)).toBeNull()});

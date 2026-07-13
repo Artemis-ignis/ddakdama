@@ -6,13 +6,13 @@
 
 - ESLint: 통과
 - TypeScript strict 검사: 통과
-- Vitest: 30/30 통과
+- Vitest: 39/39 통과
   - core 9개
-  - extension 10개
-  - server 11개
-- Playwright 실제 Chromium: 14/14 통과
-  - MV3 확장 프로그램 6개
-  - 실제 Side Panel 컴포넌트·시각 회귀 8개
+  - extension 13개
+  - server 17개
+- Playwright 실제 Chromium: 18/18 통과
+  - MV3 확장 프로그램 7개
+  - 실제 Side Panel 컴포넌트·시각 회귀 11개
 - MCP HTTP 스모크 테스트: 통과
   - 페어링
   - 장바구니 계획 전송
@@ -39,6 +39,11 @@
 - content script가 import 없는 독립 IIFE 번들로 생성됨
 - 서버 재시작 후 페어링·grant·handoff 상태 복원 테스트 통과
 - 페어링 시도 제한과 연결 해제 시 관련 인증 상태 폐기 검증
+- 최신 쿠팡 상세가격의 지연 렌더링과 구매 영역 밖 미끼 가격 배제 검증
+- 정확하지 않은 브랜드·제품명·용량·포장 후보의 자동 선택 차단
+- 부분 사전검사 CTA의 상품 종류·실물수량·금액 일치 검증
+- 2개 묶음 결과의 실물 수량 설명과 부분 실패 재시도 우선순위 검증
+- 공식 MCP Apps bridge 기반 위젯 도구 호출과 6자리 페어링 UI 계약 검증
 
 ## 검증 구분
 

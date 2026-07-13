@@ -8,6 +8,8 @@
 - MCP 서버는 필수이고 UI는 검색·수량·가격·진행 상태를 사용자 친화적으로 보여주는 위젯으로 구성합니다.
 - 도구에는 read-only 여부, 외부 상태 변경 여부와 idempotency를 명시합니다.
 - 대화에 필요한 값은 `structuredContent`, 위젯 전용 비공개 값은 `_meta`로 분리합니다.
+- 위젯의 도구 호출은 MCP Apps JSON-RPC 브리지(`ui/initialize`, `ui/notifications/initialized`, `tools/call`)를 우선하고 `window.openai`는 호환 보조 경로로만 둡니다.
+- 연결은 일반 사용자가 서버 주소나 토큰을 입력하지 않는 일회용 6자리 코드 방식으로 구성합니다.
 - ChatGPT 연결에는 원격 HTTPS `/mcp` 주소가 필요합니다.
 - 2026-07-13 최신 공식 도움말과 실제 화면을 다시 확인한 결과, 사용자 정의 MCP 앱 Developer mode는 Business 및 Enterprise/Edu 워크스페이스 대상입니다.
 - Business는 관리자/소유자가 `Workspace settings → Apps → Create`에서 활성화하고 앱을 만듭니다.

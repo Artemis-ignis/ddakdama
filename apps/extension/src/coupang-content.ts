@@ -6,7 +6,11 @@ const securityRequired=()=>/captcha|access denied|로봇|보안 확인|접근이
 const loginRequired=()=>/\/login|member\/login/i.test(location.pathname)||Boolean(document.querySelector("form[action*='login'],input[type='password']"));
 function detail(){
  const title=document.querySelector<HTMLElement>(".prod-buy-header__title,[data-testid='product-title'],h1")?.innerText.trim()??"";
- const priceText=document.querySelector<HTMLElement>(".total-price strong,.prod-sale-price .total-price,[data-testid='price']")?.innerText??"";
+ const purchaseArea=document.querySelector<HTMLElement>(".prod-buy,.prod-atf,[data-testid='product-purchase'],.product-main")??document.body;
+ const priceContainer=[...purchaseArea.querySelectorAll<HTMLElement>(".price-container")].find(container=>!container.closest(".related-products,[class*='recommend'],[class*='similar']"));
+ const currentPrice=priceContainer?.querySelector<HTMLElement>(".final-price .price-amount,.price-amount.final-price-amount");
+ const legacyPrice=purchaseArea.querySelector<HTMLElement>(".total-price strong,.prod-sale-price .total-price,[data-testid='price']");
+ const priceText=currentPrice?.innerText??legacyPrice?.innerText??"";
  const add=[...document.querySelectorAll<HTMLButtonElement>("button")].find(button=>/장바구니/.test(button.innerText)&&!button.disabled);
  const optionRequired=[...document.querySelectorAll("select,[role='combobox']")].some(element=>!(element as HTMLSelectElement).value);
  return{...currentIdentity(),title,price:won(priceText),unitsPerPackage:parseUnitsPerPackage(title),inStock:!!add,optionRequired,canAdd:!!add&&!optionRequired,securityRequired:securityRequired(),loginRequired:loginRequired()};

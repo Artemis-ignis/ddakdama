@@ -27,6 +27,17 @@ Copy-Item -Force (Join-Path $root "apps\extension\manifest.json") -Destination $
 Compress-Archive -Path (Join-Path $extensionStage "*") -DestinationPath $extensionZip
 $webstoreManifest = Get-Content (Join-Path $extensionStage "manifest.json") -Raw -Encoding utf8 | ConvertFrom-Json
 $webstoreManifest.host_permissions = @($webstoreManifest.host_permissions | Where-Object { $_ -notmatch '^http://localhost:' })
+$productionServerOrigin = $env:VITE_DDAKDAMA_SERVER_ORIGIN
+if ($productionServerOrigin) {
+  $parsedServerOrigin = $null
+  if (-not [Uri]::TryCreate($productionServerOrigin, [UriKind]::Absolute, [ref]$parsedServerOrigin) -or $parsedServerOrigin.Scheme -ne "https") {
+    throw "VITE_DDAKDAMA_SERVER_ORIGIN은 HTTPS 원본 주소여야 합니다: $productionServerOrigin"
+  }
+  $serverPermission = $parsedServerOrigin.GetLeftPart([UriPartial]::Authority).TrimEnd('/') + "/*"
+  $webstoreManifest.host_permissions = @($webstoreManifest.host_permissions + $serverPermission | Select-Object -Unique)
+} else {
+  Write-Warning "No production server origin was provided. Set VITE_DDAKDAMA_SERVER_ORIGIN=https://... before packaging a GPT-enabled Web Store build."
+}
 $webstoreManifest | ConvertTo-Json -Depth 20 | Set-Content -Encoding utf8 (Join-Path $extensionStage "manifest.json")
 Compress-Archive -Path (Join-Path $extensionStage "*") -DestinationPath $webstoreExtensionZip
 Remove-Item -LiteralPath $extensionStage -Recurse -Force

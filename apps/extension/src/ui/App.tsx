@@ -1,75 +1,750 @@
-import{useEffect,useMemo,useRef,useState}from"react";
-import{Check,ChevronDown,ChevronRight,Link2,LoaderCircle,Search,ShoppingBag,SlidersHorizontal,TriangleAlert}from"lucide-react";
-import{parseShoppingList,type ShoppingRequestLine}from"@ddakdama/core";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  CircleHelp,
+  Link2,
+  LoaderCircle,
+  RefreshCw,
+  Search,
+  ShoppingBag,
+  Unlink,
+} from "lucide-react";
+import { parseShoppingList, type ShoppingRequestLine } from "@ddakdama/core";
+import {
+  candidateMatchesRequest,
+  selectBestCandidate,
+} from "../candidate-selection.js";
 
-const SAMPLE=`닥터지 레드 블레미쉬 포 맨 진정 올인원 150ml
+const SAMPLE = `닥터지 레드 블레미쉬 포 맨 진정 올인원 150ml
 스킨1004 히알루 시카 워터핏 선 세럼 50ml 2개
 라운드랩 1025 독도 클렌저 150ml 2개
 TS 골드플러스 샴푸 500g
 닥터스베스트 고흡수 마그네슘 100mg 240정`;
-const SERVER_ORIGIN=(import.meta.env.VITE_DDAKDAMA_SERVER_ORIGIN||"http://localhost:8787").replace(/\/$/,"");
-export type SearchCandidate={id:string;productId:string;vendorItemId:string|null;itemId:string|null;title:string;currentPrice:number|null;unitsPerPackage:number;productUrl:string;imageUrl:string|null;rocketDelivery:boolean;rating:number|null;reviewCount:number|null;advertised:boolean;source:"BROWSER"|"PARTNERS"};
-export type SearchGroup={requestLineId:string;results:SearchCandidate[];error?:string};
-export type PreviewState={groups?:SearchGroup[];step?:number;preflight?:boolean;preflightResults?:Array<{id:string;status:string;verifiedPrice?:number}>;cartResults?:Array<{id:string;status:string}>;notice?:string};
-type CartJob={id:string;productUrl:string;productId:string;vendorItemId:string|null;itemId:string|null;cartPurchaseQuantity:number;expectedBrand:string|null;expectedProductName:string;expectedUnitsPerPackage:number;expectedUnitSize:string|null;expectedStrength:string|null;expectedPackageContent:string|null;status:"QUEUED"};
-type CartResult={id:string;status:string;productUrl?:string;expectedProductName?:string;beforeQuantity?:number;afterQuantity?:number;verifiedPrice?:number;cartPrice?:number;expectedSubtotal?:number;priceDifference?:number};
-type RecoverableJournal={runId:string;jobs:CartJob[];results:CartResult[]};
-const stateLabel=(line:ShoppingRequestLine)=>line.packageContentCount?`${line.strengthValue}${line.strengthUnit} · ${line.packageContentCount}${line.packageContentUnit} · 1병`:`${line.unitSizeValue}${line.unitSizeUnit} · 실물 ${line.requestedPhysicalUnits}개`;
-const statusMessage=(status?:string)=>({PRICE_UNVERIFIED:"현재 판매가격을 확인하지 못해 담지 않았습니다.",PRODUCT_MISMATCH:"요청 규격과 실제 상품이 일치하지 않습니다.",QUANTITY_MISMATCH:"요청 수량과 실제 장바구니 수량이 다릅니다.",OPTION_REQUIRED:"필수 옵션을 직접 선택해야 합니다.",OUT_OF_STOCK:"현재 품절이거나 재고를 확인하지 못했습니다.",LOGIN_REQUIRED:"쿠팡 로그인이 필요합니다.",SECURITY_CHECK_REQUIRED:"쿠팡 보안 확인을 직접 완료해 주세요.",CART_VERIFICATION_FAILED:"장바구니 수량 변화를 확인하지 못했습니다."}[status??""]??"상품을 담지 못했습니다.");
-const resultMessage=(result:CartResult)=>{if(result.status!=="SUCCESS")return statusMessage(result.status);const parts=[`수량 ${result.beforeQuantity??0} → ${result.afterQuantity??0}`];if(result.verifiedPrice)parts.push(`상세 확인가 ${result.verifiedPrice.toLocaleString()}원`);if(result.cartPrice)parts.push(`장바구니 표시가 ${result.cartPrice.toLocaleString()}원`);if(result.priceDifference!==undefined)parts.push(`차액 ${result.priceDifference>0?"+":""}${result.priceDifference.toLocaleString()}원`);return parts.join(" · ")};
-const normalize=(value:string)=>value.toLowerCase().replace(/[^0-9a-z가-힣]/g,"");
-function candidateScore(line:ShoppingRequestLine,candidate:SearchCandidate){
- const title=normalize(candidate.title);let score=0;for(const token of line.productName.split(/\s+/))if(title.includes(normalize(token)))score+=8;
- if(line.unitSizeValue&&title.includes(normalize(`${line.unitSizeValue}${line.unitSizeUnit}`)))score+=35;
- if(line.strengthValue&&title.includes(normalize(`${line.strengthValue}${line.strengthUnit}`)))score+=25;
- if(line.packageContentCount&&title.includes(normalize(`${line.packageContentCount}${line.packageContentUnit}`)))score+=35;
- if(line.requestedPhysicalUnits%candidate.unitsPerPackage===0)score+=25;else score-=50;
- if(candidate.currentPrice)score+=10;if(candidate.rocketDelivery)score+=4;if(candidate.advertised)score-=5;return score;
-}
-function selectBest(line:ShoppingRequestLine,results:SearchCandidate[]){return[...results].filter(x=>x.currentPrice&&line.requestedPhysicalUnits%x.unitsPerPackage===0).sort((a,b)=>candidateScore(line,b)-candidateScore(line,a)||((a.currentPrice??Infinity)*(line.requestedPhysicalUnits/a.unitsPerPackage))-((b.currentPrice??Infinity)*(line.requestedPhysicalUnits/b.unitsPerPackage)))[0]??null}
 
-export function App({preview}:{preview?:PreviewState}={}){
- const[input,setInput]=useState(SAMPLE);const[lines,setLines]=useState(()=>parseShoppingList(SAMPLE));const[expanded,setExpanded]=useState(0);const[step,setStep]=useState(preview?.step??1);const[notice,setNotice]=useState<string|null>(preview?.notice??null);const[groups,setGroups]=useState<SearchGroup[]>(preview?.groups??[]);const[selectedIds,setSelectedIds]=useState<Record<string,string>>({});const[searching,setSearching]=useState(false);const[preflight,setPreflight]=useState(preview?.preflight??false);const[preflightResults,setPreflightResults]=useState<CartResult[]>(preview?.preflightResults??(preview?.preflight?lines.map(line=>({id:line.id,status:"READY"})):[]));const[adding,setAdding]=useState(false);const[cartResults,setCartResults]=useState<CartResult[]>(preview?.cartResults??[]);const[pairingCode,setPairingCode]=useState<string|null>(null);const[pairingBusy,setPairingBusy]=useState(false);const[recoverable,setRecoverable]=useState<RecoverableJournal|null>(null);
- const cartRunId=useRef<string|null>(null);
- useEffect(()=>{if(typeof chrome==="undefined"||!chrome.runtime?.sendMessage)return;void chrome.runtime.sendMessage({type:"DDAKDAMA_GET_CART_JOURNAL"}).then(response=>setRecoverable(response?.journal??null)).catch(()=>undefined)},[]);
- const selected=useMemo(()=>Object.fromEntries(lines.map(line=>{const results=groups.find(g=>g.requestLineId===line.id)?.results??[];return[line.id,results.find(item=>item.id===selectedIds[line.id])??selectBest(line,results)]})),[lines,groups,selectedIds]);
- const verifiedCount=lines.filter(line=>selected[line.id]?.currentPrice).length;
- const total=lines.reduce((sum,line)=>{const item=selected[line.id];return sum+(item?.currentPrice??0)*(item?line.requestedPhysicalUnits/item.unitsPerPackage:0)},0);
- const preflightReadyCount=preflightResults.filter(result=>result.status==="READY").length;const hasPreflightIssues=preflightResults.some(result=>result.status!=="READY");
- const makeJobs=():CartJob[]=>lines.map(line=>{const item=selected[line.id]!;return{id:line.id,productUrl:item.productUrl,productId:item.productId,vendorItemId:item.vendorItemId,itemId:item.itemId,cartPurchaseQuantity:line.requestedPhysicalUnits/item.unitsPerPackage,expectedBrand:line.brand,expectedProductName:line.productName,expectedUnitsPerPackage:item.unitsPerPackage,expectedUnitSize:line.unitSizeValue?`${line.unitSizeValue}${line.unitSizeUnit}`:null,expectedStrength:line.strengthValue?`${line.strengthValue}${line.strengthUnit}`:null,expectedPackageContent:line.packageContentCount?`${line.packageContentCount}${line.packageContentUnit}`:null,status:"QUEUED"}});
- const parse=()=>{const next=parseShoppingList(input);const sourceLines=input.split(/\r?\n/).filter(value=>value.trim()).length;cartRunId.current=null;setLines(next);setGroups([]);setSelectedIds({});setPreflight(false);setPreflightResults([]);setCartResults([]);setStep(1);setNotice(next.length===sourceLines&&next.length>0?"상품과 수량을 정확히 나눴습니다.":"일부 줄을 다시 확인해 주세요.")};
- const searchAll=async()=>{setSearching(true);setNotice(null);cartRunId.current=null;setPreflight(false);setPreflightResults([]);setCartResults([]);try{if(typeof chrome==="undefined"||!chrome.runtime?.sendMessage){setNotice("Chrome 확장 프로그램에서 실제 상품 검색을 사용할 수 있습니다.");return}const response=await chrome.runtime.sendMessage({type:"DDAKDAMA_SEARCH_ALL",items:lines});setGroups(response?.output??[]);setSelectedIds({});setStep(2);setNotice((response?.output??[]).every((g:SearchGroup)=>g.results.length)?"모든 상품의 실제 후보를 찾았습니다.":"일부 상품은 후보를 찾지 못했습니다.")}catch{setNotice("쿠팡 검색을 완료하지 못했습니다. 다시 시도해 주세요.")}finally{setSearching(false)}};
- const finishRun=async(results:CartResult[])=>{setCartResults(results);setRecoverable(null);const success=results.filter(result=>result.status==="SUCCESS").length;setStep(4);setNotice(success===lines.length?`요청한 상품 ${success}종을 모두 검증해 담았습니다.`:`성공 ${success}종 · 실패 ${lines.length-success}종입니다. 실패 상품을 확인해 주세요.`);await chrome.runtime.sendMessage({type:"DDAKDAMA_OPEN_CART"})};
- const executeJobs=async(jobs:CartJob[],seed:CartResult[]=[] )=>{setAdding(true);try{cartRunId.current??=crypto.randomUUID();const response=await chrome.runtime.sendMessage({type:"DDAKDAMA_RUN_CART_JOBS",runId:cartRunId.current,jobs});const completed=response?.results??[];const combined=lines.map(line=>completed.find((result:CartResult)=>result.id===line.id)??seed.find(result=>result.id===line.id)??{id:line.id,status:"UNKNOWN_ERROR"});await finishRun(combined)}catch{setNotice("장바구니 작업을 완료하지 못했습니다. 쿠팡 로그인과 열린 상품 페이지를 확인해 주세요.")}finally{setAdding(false)}};
- const addToCart=async()=>{
-  if(adding)return;const jobs=makeJobs();
-  if(preflight){const readyIds=new Set(preflightResults.filter(result=>result.status==="READY").map(result=>result.id));const readyJobs=jobs.filter(job=>readyIds.has(job.id));if(!readyJobs.length){setNotice("자동으로 담을 수 있는 상품이 없습니다. 문제 상품을 확인해 주세요.");return}await executeJobs(readyJobs,preflightResults.filter(result=>result.status!=="READY"));return}
-  setAdding(true);try{const response=await chrome.runtime.sendMessage({type:"DDAKDAMA_PREFLIGHT",jobs});const results=response?.results??[];setPreflightResults(results);const ready=results.filter((result:CartResult)=>result.status==="READY").length;const verifiedTotal=results.reduce((sum:number,result:CartResult)=>sum+(result.status==="READY"?result.verifiedPrice??0:0)*(jobs.find(job=>job.id===result.id)?.cartPurchaseQuantity??0),0);setPreflight(true);setStep(3);setNotice(ready===lines.length?`상품 ${lines.length}종 · 실물 ${lines.reduce((sum,line)=>sum+line.requestedPhysicalUnits,0)}개 · 상세페이지 확인가 기준 ${verifiedTotal.toLocaleString()}원입니다. 아래 버튼을 한 번 더 누르면 실제 쿠팡 장바구니가 변경됩니다.`:`사전검사 통과 ${ready}종 · 확인 필요 ${lines.length-ready}종입니다. 문제 상품은 제외되며, 가능한 상품만 담을지는 마스터가 직접 선택합니다.`)}catch{setNotice("상품 상세정보를 확인하지 못했습니다. 다시 시도해 주세요.")}finally{setAdding(false)}
- };
- const resumeJournal=async()=>{if(!recoverable||adding)return;setAdding(true);try{cartRunId.current=recoverable.runId;const response=await chrome.runtime.sendMessage({type:"DDAKDAMA_RESUME_CART_JOURNAL"});if(!response?.ok)throw new Error("RESUME_FAILED");await finishRun(response.results??[])}catch{setNotice("중단된 작업을 이어가지 못했습니다. 현재 장바구니를 확인해 주세요.")}finally{setAdding(false)}};
- const clearJournal=async()=>{await chrome.runtime.sendMessage({type:"DDAKDAMA_CLEAR_CART_JOURNAL"});setRecoverable(null);setNotice("중단된 작업 기록을 정리했습니다. 실제 장바구니 상품은 변경하지 않았습니다.")};
- const startPairing=async()=>{setPairingBusy(true);try{const response=await fetch(`${SERVER_ORIGIN}/api/pairing/start`,{method:"POST",headers:{"content-type":"application/json"},body:"{}"});if(!response.ok)throw new Error("PAIRING_START_FAILED");const data=await response.json() as{code:string;deviceId:string;deviceToken:string};await chrome.storage.local.set({"ddakdama-device-id":data.deviceId,"ddakdama-device-token":data.deviceToken});setPairingCode(data.code);setNotice("ChatGPT의 딱담아 앱에 아래 6자리 연결 코드를 입력해 주세요.")}catch{setNotice("GPT 앱 연결을 시작하지 못했습니다. 딱담아 서버가 실행 중인지 확인해 주세요.")}finally{setPairingBusy(false)}};
- const importFromGpt=async()=>{setPairingBusy(true);try{const stored=await chrome.storage.local.get(["ddakdama-device-token"]);const token=String(stored["ddakdama-device-token"]??"");if(!token){setNotice("먼저 GPT 앱 연결 코드를 만들어 주세요.");return}const response=await fetch(`${SERVER_ORIGIN}/api/handoffs/latest`,{headers:{authorization:`Bearer ${token}`}});if(!response.ok)throw new Error("HANDOFF_FETCH_FAILED");const data=await response.json() as{handoff:null|{id:string;payload:{items?:Array<{rawText?:string}>}}};if(!data.handoff){setNotice("GPT 앱에서 새로 보낸 쇼핑 목록이 없습니다.");return}const raw=(data.handoff.payload.items??[]).map(item=>item.rawText?.trim()).filter(Boolean).join("\n");if(!raw)throw new Error("EMPTY_HANDOFF");cartRunId.current=null;setInput(raw);setLines(parseShoppingList(raw));setGroups([]);setSelectedIds({});setPreflight(false);setPreflightResults([]);setCartResults([]);setStep(1);await fetch(`${SERVER_ORIGIN}/api/handoffs/${encodeURIComponent(data.handoff.id)}/ack`,{method:"POST",headers:{authorization:`Bearer ${token}`}});setNotice("GPT 앱에서 보낸 쇼핑 목록을 가져왔습니다.")}catch{setNotice("GPT 앱 목록을 가져오지 못했습니다. 연결 상태를 확인해 주세요.")}finally{setPairingBusy(false)}};
- const openCart=()=>chrome?.tabs?.create?chrome.tabs.create({url:"https://cart.coupang.com/cartView.pang"}):window.open("https://cart.coupang.com/cartView.pang");
- const openProduct=(lineId:string)=>{const url=selected[lineId]?.productUrl;if(!url)return;if(chrome?.tabs?.create)void chrome.tabs.create({url});else window.open(url)};
- const openResultProduct=(result:CartResult)=>{const url=result.productUrl??selected[result.id]?.productUrl;if(!url)return;if(chrome?.tabs?.create)void chrome.tabs.create({url});else window.open(url)};
- const retryLine=async(lineId:string)=>{const job=makeJobs().find(candidate=>candidate.id===lineId);if(!job)return;setAdding(true);try{const response=await chrome.runtime.sendMessage({type:"DDAKDAMA_RUN_CART_JOBS",runId:crypto.randomUUID(),jobs:[job]});const result=response?.results?.[0];if(!result)throw new Error("EMPTY_RESULT");setCartResults(current=>[...current.filter(item=>item.id!==lineId),result]);setNotice(result.status==="SUCCESS"?"해당 상품을 다시 검증해 정확한 수량으로 담았습니다.":statusMessage(result.status));await chrome.runtime.sendMessage({type:"DDAKDAMA_OPEN_CART"})}catch{setNotice("재시도하지 못했습니다. 상품 페이지에서 상태를 확인해 주세요.")}finally{setAdding(false)}};
- return <main className="app-shell">
-  <header className="topbar"><div className="brand"><span className="brand-mark">딱</span><strong>딱담아</strong></div><button className="text-button" onClick={openCart}><ShoppingBag size={20}/>장바구니<ChevronRight size={17}/></button></header>
-  <nav className="stepper" aria-label="진행 단계">{["목록","상품 확인","담기 전 확인","완료"].map((label,i)=><div className={i+1<=step?"step active":"step"} key={label}><span>{i+1<step?<Check size={14}/>:i+1}</span><small>{label}</small></div>)}</nav>
-  <section className="gpt-connect" aria-label="GPT 앱 연결"><div className="gpt-copy"><span className="gpt-icon"><Link2 size={17}/></span><div><strong>GPT 앱과 이어서 담기</strong><small>{pairingCode?<>연결 코드 <b>{pairingCode}</b></>:"ChatGPT에서 만든 목록을 바로 가져오세요."}</small></div></div><div className="gpt-actions"><button onClick={startPairing} disabled={pairingBusy}>{pairingCode?"새 코드":"연결"}</button><button className="gpt-import" onClick={importFromGpt} disabled={pairingBusy}>{pairingBusy?<LoaderCircle className="spin" size={14}/>:null}목록 가져오기</button></div></section>
-  {recoverable&&<section className="recovery" aria-label="중단된 장바구니 작업"><div><strong>중단된 담기 작업이 있어요</strong><small>완료한 상품은 건너뛰고, 현재 장바구니 수량을 다시 확인한 뒤 남은 수량만 이어서 담습니다.</small></div><div><button type="button" onClick={clearJournal}>기록 지우기</button><button type="button" className="resume" disabled={adding} onClick={resumeJournal}>안전하게 이어서 담기</button></div></section>}
-  <section className="intro"><div><h1>상품 {lines.length}종 <span>·</span> 실물 {lines.reduce((s,x)=>s+x.requestedPhysicalUnits,0)}개</h1><p>규격과 수량을 나눠 정확한 상품만 담아요.</p></div><div className="verified"><Check size={15}/>파싱 완료</div></section>
-  <section className="list-input"><label htmlFor="shopping-list">붙여넣은 목록</label><textarea id="shopping-list" value={input} onChange={e=>setInput(e.target.value)}/><div className="input-actions"><button onClick={()=>setInput(SAMPLE)}>예시 불러오기</button><button onClick={parse}>다시 인식</button><button className="parse-button" onClick={searchAll} disabled={searching}>{searching?<LoaderCircle className="spin" size={15}/>:<Search size={15}/>}실제 상품 찾기</button></div></section>
-  {notice&&<div className="notice"><Check size={18}/><span>{notice}</span><button onClick={()=>setNotice(null)}>닫기</button></div>}
-  <div className="section-head"><h2>선택된 상품</h2><button><SlidersHorizontal size={16}/>추천순</button></div>
-  <section className="products">{lines.map((line,i)=>{const item=selected[line.id];const purchaseQty=item?line.requestedPhysicalUnits/item.unitsPerPackage:0;return <article className={expanded===i?"product expanded":"product"} data-testid={`product-${i}`} key={line.id}>
-   <button className="product-head" onClick={()=>setExpanded(expanded===i?-1:i)}><span className={item?"check":"check pending"}>{item?<Check size={15}/>:i+1}</span><span className="product-copy"><strong>{item?.title??line.productName}</strong><small>{stateLabel(line)}</small></span><span className="price">{item?.currentPrice?`${(item.currentPrice*purchaseQty).toLocaleString()}원`:"가격 확인 전"}</span><ChevronDown className="chevron" size={18}/></button>
-   {expanded===i&&<div className="product-detail"><div className="verified-row">{item?.currentPrice?<span><Check size={14}/>검색 가격 확인됨</span>:<span className="waiting">실제 후보를 검색해 주세요</span>}{item?.rocketDelivery&&<b>로켓배송</b>}</div><dl><div><dt>요청 사양</dt><dd>{line.packageContentCount?`${line.strengthValue}${line.strengthUnit}, ${line.packageContentCount}${line.packageContentUnit} × 1병`:`${line.unitSizeValue}${line.unitSizeUnit} ${item&&item.unitsPerPackage>1?`${item.unitsPerPackage}개 묶음`:"단품"} × ${purchaseQty||line.requestedPhysicalUnits}개`} = 실물 {line.requestedPhysicalUnits}개</dd></div><div><dt>검증 단계</dt><dd>{item?"상품 상세페이지에서 현재 가격·재고·옵션을 다시 확인합니다.":"검색 전에는 자동으로 담지 않습니다."}</dd></div></dl>{(groups.find(group=>group.requestLineId===line.id)?.results.length??0)>0&&<div className="candidate-list" aria-label={`${line.productName} 상품 후보`}>{(groups.find(group=>group.requestLineId===line.id)?.results??[]).slice(0,3).map(candidate=>{const exact=line.requestedPhysicalUnits%candidate.unitsPerPackage===0;const active=item?.id===candidate.id;return <button type="button" className={active?"candidate active":"candidate"} key={candidate.id} onClick={()=>{cartRunId.current=null;setPreflight(false);setPreflightResults([]);setCartResults([]);setSelectedIds(current=>({...current,[line.id]:candidate.id}))}} disabled={!candidate.currentPrice||!exact}><span className="candidate-title">{candidate.title}</span><span className="candidate-meta">{candidate.currentPrice?`${candidate.currentPrice.toLocaleString()}원`:"가격 확인 실패"} · {candidate.unitsPerPackage===1?"단품":`${candidate.unitsPerPackage}개 묶음`}{candidate.rocketDelivery?" · 로켓배송":""}</span><span className="candidate-state">{active?"선택됨":!exact?"수량 불일치":"선택"}</span></button>})}</div>}<div className="match"><span>{item?`매칭 점수 ${candidateScore(line,item)}`:"확인 대기"}</span><span>{item?selectedIds[line.id]?"직접 선택":"추천 선택":"미선택"}</span></div></div>}
-  </article>})}</section>
-  <aside className="preflight"><TriangleAlert size={18}/><div><strong>{preflight?"실제 장바구니 변경 전 최종 승인":"담기 전 최종 확인"}</strong><p>{preflight?`상세페이지 검증을 통과한 상품만 순차적으로 담습니다. 결제는 자동으로 진행하지 않습니다.`:"검색 가격은 예상가입니다. 실제 상품 페이지에서 가격·재고·옵션·규격을 확인해야 담을 수 있습니다."}</p>{preflightResults.length>0&&<p>사전검사 통과 {preflightResults.filter(result=>result.status==="READY").length}종 · 확인 필요 {preflightResults.filter(result=>result.status!=="READY").length}종</p>}{cartResults.length>0&&<p>성공 {cartResults.filter(x=>x.status==="SUCCESS").length}종 · 실패 {cartResults.filter(x=>x.status!=="SUCCESS").length}종</p>}</div></aside>
-  {preflightResults.some(result=>result.status!=="READY")&&cartResults.length===0&&<section className="preflight-issues" aria-label="사전검사 확인 필요 상품"><div className="issue-list">{preflightResults.filter(result=>result.status!=="READY").map(result=>{const line=lines.find(item=>item.id===result.id);return <div key={result.id}><span><strong>{line?.productName??result.id}</strong><small>{statusMessage(result.status)}</small></span><button type="button" onClick={()=>openProduct(result.id)}>상품 페이지</button></div>})}</div><div className="issue-actions"><button type="button" onClick={()=>{setPreflight(false);setPreflightResults([]);setNotice("장바구니 변경을 취소했습니다.")}}>취소</button><button type="button" onClick={()=>openProduct(preflightResults.find(result=>result.status!=="READY")?.id??"")}>문제 상품 확인</button><button type="button" className="continue" disabled={adding||!preflightResults.some(result=>result.status==="READY")} onClick={addToCart}>가능한 {preflightResults.filter(result=>result.status==="READY").length}종만 담기</button></div></section>}
-  {cartResults.length>0&&<section className="cart-results" aria-label="장바구니 처리 결과">{cartResults.map(result=>{const line=lines.find(item=>item.id===result.id);return <div className={result.status==="SUCCESS"?"result-line success":"result-line failure"} key={result.id}><div><strong>{line?.productName??result.expectedProductName??result.id}</strong><small>{resultMessage(result)}</small>{result.status!=="SUCCESS"&&<span className="result-actions"><button type="button" onClick={()=>openResultProduct(result)}>상품 페이지</button><button type="button" disabled={adding||!line} onClick={()=>retryLine(result.id)}>다시 시도</button></span>}</div><b>{result.status==="SUCCESS"?"성공":"확인 필요"}</b></div>})}</section>}
-  <footer className="sticky-summary"><div className="summary-stats"><div><small>예상 합계</small><strong data-testid="estimated-total">{verifiedCount?`${total.toLocaleString()}원`:"확인 전"}</strong></div><div><small>{preflight?"상세 검증":"검색 가격"}</small><strong className={preflightReadyCount===lines.length||verifiedCount===lines.length?"green":""}>{preflight?`${preflightReadyCount}/${lines.length}`:`${verifiedCount}/${lines.length}`}</strong></div></div><button className="primary" disabled={verifiedCount!==lines.length||adding||hasPreflightIssues} onClick={addToCart}>{adding?<><LoaderCircle className="spin" size={18}/>{preflight?"담는 중…":"상세 확인 중…"}</>:<>{preflight?`${lines.length}종 최종 확인 후 담기`:"장바구니에 정확히 담기"}<ChevronRight size={19}/></>}</button><p className="affiliate">쿠팡 파트너스 활동을 통해 일정액의 수수료를 받을 수 있습니다.</p></footer>
- </main>
+const SERVER_ORIGIN = (import.meta.env.VITE_DDAKDAMA_SERVER_ORIGIN || "http://localhost:8787").replace(/\/$/, "");
+const STEP_LABELS = ["목록", "상품 확인", "담기 전 확인", "완료"];
+
+export type SearchCandidate = {
+  id: string;
+  productId: string;
+  vendorItemId: string | null;
+  itemId: string | null;
+  title: string;
+  currentPrice: number | null;
+  unitsPerPackage: number;
+  productUrl: string;
+  imageUrl: string | null;
+  rocketDelivery: boolean;
+  rating: number | null;
+  reviewCount: number | null;
+  advertised: boolean;
+  source: "BROWSER" | "PARTNERS";
+};
+
+export type SearchGroup = { requestLineId: string; results: SearchCandidate[]; error?: string };
+export type PreviewState = {
+  groups?: SearchGroup[];
+  step?: number;
+  preflight?: boolean;
+  preflightResults?: Array<{ id: string; status: string; verifiedPrice?: number }>;
+  cartResults?: Array<{ id: string; status: string }>;
+  notice?: string;
+};
+
+type CartJob = {
+  id: string;
+  productUrl: string;
+  productId: string;
+  vendorItemId: string | null;
+  itemId: string | null;
+  cartPurchaseQuantity: number;
+  expectedBrand: string | null;
+  expectedProductName: string;
+  expectedUnitsPerPackage: number;
+  expectedUnitSize: string | null;
+  expectedStrength: string | null;
+  expectedPackageContent: string | null;
+  status: "QUEUED";
+};
+
+type CartResult = {
+  id: string;
+  status: string;
+  productUrl?: string;
+  expectedProductName?: string;
+  beforeQuantity?: number;
+  afterQuantity?: number;
+  verifiedPrice?: number;
+  cartPrice?: number;
+  expectedSubtotal?: number;
+  priceDifference?: number;
+};
+
+type RecoverableJournal = { runId: string; jobs: CartJob[]; results: CartResult[] };
+type PairingState = "idle" | "code" | "connected" | "unavailable";
+
+const physicalUnits = (lines: ShoppingRequestLine[]) =>
+  lines.reduce((sum, line) => sum + line.requestedPhysicalUnits, 0);
+
+const stateLabel = (line: ShoppingRequestLine) =>
+  line.packageContentCount
+    ? `${line.strengthValue}${line.strengthUnit} · ${line.packageContentCount}${line.packageContentUnit} · 1병`
+    : `${line.unitSizeValue}${line.unitSizeUnit} · 실물 ${line.requestedPhysicalUnits}개`;
+
+const statusMessage = (status?: string) =>
+  ({
+    PRICE_UNVERIFIED: "현재 판매가격을 확인하지 못해 자동으로 담지 않았습니다.",
+    PRODUCT_MISMATCH: "요청한 규격과 상품 페이지의 규격이 일치하지 않습니다.",
+    QUANTITY_MISMATCH: "요청한 수량과 실제 장바구니 수량이 달라 확인이 필요합니다.",
+    OPTION_REQUIRED: "필수 옵션을 직접 선택해야 하는 상품입니다.",
+    OUT_OF_STOCK: "현재 품절이거나 재고를 확인하지 못했습니다.",
+    LOGIN_REQUIRED: "쿠팡 로그인이 필요합니다.",
+    SECURITY_CHECK_REQUIRED: "쿠팡의 보안 확인이 필요합니다.",
+    CART_VERIFICATION_FAILED: "장바구니 수량 변화를 확인하지 못했습니다.",
+  })[status ?? ""] ?? "상품을 담지 못했습니다.";
+
+const purchaseQuantity = (line: ShoppingRequestLine, item: SearchCandidate) =>
+  line.requestedPhysicalUnits / item.unitsPerPackage;
+
+const priceBreakdown = (price: number, line: ShoppingRequestLine, item: SearchCandidate) => {
+  const quantity = purchaseQuantity(line, item);
+  const subtotal = price * quantity;
+  return quantity > 1
+    ? `${price.toLocaleString()}원 × ${quantity}개 = ${subtotal.toLocaleString()}원`
+    : `${subtotal.toLocaleString()}원`;
+};
+
+const resultMessage = (result: CartResult, line?: ShoppingRequestLine, item?: SearchCandidate | null) => {
+  if (result.status !== "SUCCESS") return statusMessage(result.status);
+  if (!line || !item) return "요청한 수량을 장바구니에서 확인했습니다.";
+  const quantity = purchaseQuantity(line, item);
+  const packageLabel = item.unitsPerPackage > 1
+    ? `${item.unitsPerPackage}개 묶음 ${quantity}세트 담음`
+    : `단품 ${quantity}개 담음`;
+  const parts = [`${packageLabel} · 실물 ${line.requestedPhysicalUnits}개`];
+  if (result.verifiedPrice) parts.push(priceBreakdown(result.verifiedPrice, line, item));
+  const verifiedSubtotal = result.verifiedPrice ? result.verifiedPrice * quantity : null;
+  if (result.cartPrice && result.cartPrice !== verifiedSubtotal) parts.push(`장바구니 표시 ${result.cartPrice.toLocaleString()}원`);
+  if (result.priceDifference !== undefined) {
+    parts.push(`차액 ${result.priceDifference > 0 ? "+" : ""}${result.priceDifference.toLocaleString()}원`);
+  }
+  return parts.join(" · ");
+};
+
+function StepProgress({ step }: { step: number }) {
+  return (
+    <nav className="step-progress" aria-label="진행 단계">
+      <div className="step-progress-copy">
+        <strong>{STEP_LABELS[step - 1]}</strong>
+        <span>{step} / 4</span>
+      </div>
+      <div className="step-progress-track" aria-hidden="true">
+        <span style={{ width: `${step * 25}%` }} />
+      </div>
+      <div className="step-progress-labels">
+        {STEP_LABELS.map((label, index) => (
+          <span key={label} className={index + 1 === step ? "current" : index + 1 < step ? "done" : ""} aria-current={index + 1 === step ? "step" : undefined}>
+            {label}
+          </span>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+function ProductImage({ item }: { item: SearchCandidate | null }) {
+  return item?.imageUrl ? (
+    <img className="product-image" src={item.imageUrl} alt="" />
+  ) : (
+    <span className="product-image placeholder" aria-hidden="true"><ShoppingBag size={19} /></span>
+  );
+}
+
+export function App({ preview }: { preview?: PreviewState } = {}) {
+  const [input, setInput] = useState(SAMPLE);
+  const [lines, setLines] = useState(() => parseShoppingList(SAMPLE));
+  const [expanded, setExpanded] = useState(-1);
+  const [step, setStep] = useState(preview?.step ?? 1);
+  const [notice, setNotice] = useState<string | null>(preview?.notice ?? null);
+  const [groups, setGroups] = useState<SearchGroup[]>(preview?.groups ?? []);
+  const [selectedIds, setSelectedIds] = useState<Record<string, string>>({});
+  const [searching, setSearching] = useState(false);
+  const [, setPreflight] = useState(preview?.preflight ?? false);
+  const [preflightResults, setPreflightResults] = useState<CartResult[]>(
+    preview?.preflightResults ?? (preview?.preflight ? lines.map((line) => ({ id: line.id, status: "READY" })) : []),
+  );
+  const [adding, setAdding] = useState(false);
+  const [cartResults, setCartResults] = useState<CartResult[]>(preview?.cartResults ?? []);
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairingState, setPairingState] = useState<PairingState>("idle");
+  const [pairingBusy, setPairingBusy] = useState(false);
+  const [recoverable, setRecoverable] = useState<RecoverableJournal | null>(null);
+  const cartRunId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) return;
+    void chrome.runtime.sendMessage({ type: "DDAKDAMA_GET_CART_JOURNAL" })
+      .then((response) => setRecoverable(response?.journal ?? null))
+      .catch(() => undefined);
+    void chrome.storage.local.get(["ddakdama-device-token", "ddakdama-pairing-code", "ddakdama-pairing-expires-at"]).then((stored) => {
+      if (!stored["ddakdama-device-token"]) return;
+      const code = String(stored["ddakdama-pairing-code"] ?? "");
+      const expiresAt = Number(stored["ddakdama-pairing-expires-at"] ?? 0);
+      if (/^\d{6}$/.test(code) && expiresAt > Date.now()) {
+        setPairingCode(code);
+        setPairingState("code");
+      } else {
+        setPairingState("connected");
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 5_500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  const selected = useMemo(
+    () => Object.fromEntries(lines.map((line) => {
+      const results = groups.find((group) => group.requestLineId === line.id)?.results ?? [];
+      const manuallySelected = results.find((item) => item.id === selectedIds[line.id]);
+      return [line.id, manuallySelected && candidateMatchesRequest(line, manuallySelected)
+        ? manuallySelected
+        : selectBestCandidate(line, results)];
+    })) as Record<string, SearchCandidate | null>,
+    [lines, groups, selectedIds],
+  );
+
+  const selectedCount = lines.filter((line) => selected[line.id]).length;
+  const searchTotal = lines.reduce((sum, line) => {
+    const item = selected[line.id];
+    return sum + (item?.currentPrice ?? 0) * (item ? line.requestedPhysicalUnits / item.unitsPerPackage : 0);
+  }, 0);
+  const preflightReadyCount = preflightResults.filter((result) => result.status === "READY").length;
+  const preflightIssueCount = preflightResults.filter((result) => result.status !== "READY").length;
+  const preflightReadyIds = new Set(preflightResults.filter((result) => result.status === "READY").map((result) => result.id));
+  const preflightReadyPhysicalUnits = lines.reduce((sum, line) => sum + (preflightReadyIds.has(line.id) ? line.requestedPhysicalUnits : 0), 0);
+  const verifiedTotal = preflightResults.reduce((sum, result) => {
+    if (result.status !== "READY") return sum;
+    const line = lines.find((candidate) => candidate.id === result.id);
+    const item = selected[result.id];
+    if (!line || !item) return sum;
+    return sum + (result.verifiedPrice ?? 0) * (line.requestedPhysicalUnits / item.unitsPerPackage);
+  }, 0);
+
+  const resetAfterInput = (nextLines: ShoppingRequestLine[]) => {
+    cartRunId.current = null;
+    setLines(nextLines);
+    setGroups([]);
+    setSelectedIds({});
+    setPreflight(false);
+    setPreflightResults([]);
+    setCartResults([]);
+    setExpanded(-1);
+    setStep(1);
+  };
+
+  const parseOnly = () => {
+    const next = parseShoppingList(input);
+    resetAfterInput(next);
+    const sourceLines = input.split(/\r?\n/).filter((value) => value.trim()).length;
+    setNotice(next.length === sourceLines && next.length > 0
+      ? `상품 ${next.length}종 · 실물 ${physicalUnits(next)}개로 정확히 나눴습니다.`
+      : "일부 줄을 인식하지 못했습니다. 목록을 다시 확인해 주세요.");
+  };
+
+  const searchAll = async () => {
+    const next = parseShoppingList(input);
+    resetAfterInput(next);
+    if (!next.length) {
+      setNotice("상품 목록을 한 줄에 하나씩 입력해 주세요.");
+      return;
+    }
+    setSearching(true);
+    setNotice(null);
+    try {
+      if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) {
+        setNotice("Chrome 확장 프로그램에서 실제 상품 검색을 사용할 수 있습니다.");
+        return;
+      }
+      const response = await chrome.runtime.sendMessage({ type: "DDAKDAMA_SEARCH_ALL", items: next });
+      const output = (response?.output ?? []) as SearchGroup[];
+      setGroups(output);
+      setSelectedIds({});
+      setStep(2);
+      const exact = next.filter((line) => selectBestCandidate(line, output.find((group) => group.requestLineId === line.id)?.results ?? [])).length;
+      setNotice(exact === next.length
+        ? "요청한 규격과 수량이 정확히 일치하는 상품을 찾았습니다."
+        : `정확히 일치하는 상품 ${exact}종 · 직접 확인이 필요한 상품 ${next.length - exact}종입니다.`);
+    } catch {
+      setNotice("쿠팡 검색을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const makeJobs = (): CartJob[] => lines.flatMap((line) => {
+    const item = selected[line.id];
+    if (!item) return [];
+    return [{
+      id: line.id,
+      productUrl: item.productUrl,
+      productId: item.productId,
+      vendorItemId: item.vendorItemId,
+      itemId: item.itemId,
+      cartPurchaseQuantity: line.requestedPhysicalUnits / item.unitsPerPackage,
+      expectedBrand: line.brand,
+      expectedProductName: line.productName,
+      expectedUnitsPerPackage: item.unitsPerPackage,
+      expectedUnitSize: line.unitSizeValue ? `${line.unitSizeValue}${line.unitSizeUnit}` : null,
+      expectedStrength: line.strengthValue ? `${line.strengthValue}${line.strengthUnit}` : null,
+      expectedPackageContent: line.packageContentCount ? `${line.packageContentCount}${line.packageContentUnit}` : null,
+      status: "QUEUED" as const,
+    }];
+  });
+
+  const runPreflight = async () => {
+    if (adding || selectedCount !== lines.length) return;
+    setAdding(true);
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "DDAKDAMA_PREFLIGHT", jobs: makeJobs() });
+      const results = (response?.results ?? []) as CartResult[];
+      setPreflightResults(results);
+      setPreflight(true);
+      setStep(3);
+      const ready = results.filter((result) => result.status === "READY").length;
+      setNotice(ready === lines.length
+        ? `상품 ${lines.length}종의 현재 가격과 규격을 확인했습니다.`
+        : `${lines.length - ready}개 상품은 현재 가격 또는 규격을 다시 확인해야 합니다.`);
+    } catch {
+      setNotice("상품 상세정보를 확인하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const finishRun = async (results: CartResult[]) => {
+    setCartResults(results);
+    setRecoverable(null);
+    const success = results.filter((result) => result.status === "SUCCESS").length;
+    setStep(4);
+    setNotice(success === lines.length
+      ? `요청한 상품 ${success}종을 모두 검증해 담았습니다.`
+      : `성공 ${success}종 · 실패 ${lines.length - success}종입니다. 실패 상품을 확인해 주세요.`);
+    await chrome.runtime.sendMessage({ type: "DDAKDAMA_OPEN_CART" });
+  };
+
+  const executeJobs = async (jobs: CartJob[], seed: CartResult[] = []) => {
+    if (adding || !jobs.length) return;
+    setAdding(true);
+    try {
+      cartRunId.current ??= crypto.randomUUID();
+      const response = await chrome.runtime.sendMessage({
+        type: "DDAKDAMA_RUN_CART_JOBS",
+        runId: cartRunId.current,
+        jobs,
+      });
+      const completed = (response?.results ?? []) as CartResult[];
+      const combined = lines.map((line) =>
+        completed.find((result) => result.id === line.id)
+        ?? seed.find((result) => result.id === line.id)
+        ?? { id: line.id, status: "UNKNOWN_ERROR" });
+      await finishRun(combined);
+    } catch {
+      setNotice("장바구니 작업을 완료하지 못했습니다. 쿠팡 로그인과 열린 상품 페이지를 확인해 주세요.");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const executeReady = async (partial: boolean) => {
+    const readyIds = new Set(preflightResults.filter((result) => result.status === "READY").map((result) => result.id));
+    const readyJobs = makeJobs().filter((job) => readyIds.has(job.id));
+    if (!partial && readyJobs.length !== lines.length) return;
+    await executeJobs(readyJobs, preflightResults.filter((result) => result.status !== "READY"));
+  };
+
+  const resumeJournal = async () => {
+    if (!recoverable || adding) return;
+    setAdding(true);
+    try {
+      cartRunId.current = recoverable.runId;
+      const response = await chrome.runtime.sendMessage({ type: "DDAKDAMA_RESUME_CART_JOURNAL" });
+      if (!response?.ok) throw new Error("RESUME_FAILED");
+      await finishRun(response.results ?? []);
+    } catch {
+      setNotice("중단된 작업을 이어가지 못했습니다. 현재 장바구니를 확인해 주세요.");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const clearJournal = async () => {
+    await chrome.runtime.sendMessage({ type: "DDAKDAMA_CLEAR_CART_JOURNAL" });
+    setRecoverable(null);
+    setNotice("중단된 작업 기록을 정리했습니다. 실제 장바구니 상품은 변경하지 않았습니다.");
+  };
+
+  const startPairing = async () => {
+    setPairingBusy(true);
+    try {
+      const response = await fetch(`${SERVER_ORIGIN}/api/pairing/start`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+      if (!response.ok) throw new Error("PAIRING_START_FAILED");
+      const data = await response.json() as { code: string; deviceId: string; deviceToken: string; expiresAt?: number };
+      await chrome.storage.local.set({
+        "ddakdama-device-id": data.deviceId,
+        "ddakdama-device-token": data.deviceToken,
+        "ddakdama-pairing-code": data.code,
+        "ddakdama-pairing-expires-at": data.expiresAt ?? Date.now() + 10 * 60_000,
+      });
+      setPairingCode(data.code);
+      setPairingState("code");
+      setNotice("ChatGPT의 딱담아 앱에 이 6자리 코드를 입력해 주세요.");
+    } catch {
+      setPairingState("unavailable");
+      setNotice("GPT 앱 연결을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setPairingBusy(false);
+    }
+  };
+
+  const importFromGpt = async () => {
+    setPairingBusy(true);
+    try {
+      const stored = await chrome.storage.local.get(["ddakdama-device-token"]);
+      const token = String(stored["ddakdama-device-token"] ?? "");
+      if (!token) {
+        setNotice("먼저 연결 코드를 만들어 ChatGPT 앱에 입력해 주세요.");
+        return;
+      }
+      const response = await fetch(`${SERVER_ORIGIN}/api/handoffs/latest`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("HANDOFF_FETCH_FAILED");
+      const data = await response.json() as { handoff: null | { id: string; payload: { items?: Array<{ rawText?: string }> } } };
+      if (!data.handoff) {
+        setPairingState("connected");
+        await chrome.storage.local.remove(["ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
+        setNotice("연결됐습니다. ChatGPT 딱담아 앱에서 목록을 보낸 뒤 다시 눌러 주세요.");
+        return;
+      }
+      const raw = (data.handoff.payload.items ?? []).map((item) => item.rawText?.trim()).filter(Boolean).join("\n");
+      if (!raw) throw new Error("EMPTY_HANDOFF");
+      setInput(raw);
+      resetAfterInput(parseShoppingList(raw));
+      await fetch(`${SERVER_ORIGIN}/api/handoffs/${encodeURIComponent(data.handoff.id)}/ack`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}` },
+      });
+      setPairingState("connected");
+      await chrome.storage.local.remove(["ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
+      setNotice("ChatGPT 앱에서 보낸 쇼핑 목록을 불러왔습니다.");
+    } catch {
+      setPairingState("unavailable");
+      setNotice("GPT 앱 목록을 가져오지 못했습니다. 새 연결 코드를 만들어 다시 연결해 주세요.");
+    } finally {
+      setPairingBusy(false);
+    }
+  };
+
+  const disconnectGpt = async () => {
+    setPairingBusy(true);
+    try {
+      const stored = await chrome.storage.local.get(["ddakdama-device-token"]);
+      const token = String(stored["ddakdama-device-token"] ?? "");
+      if (token) {
+        await fetch(`${SERVER_ORIGIN}/api/device/revoke`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${token}` },
+        });
+      }
+    } finally {
+      await chrome.storage.local.remove(["ddakdama-device-id", "ddakdama-device-token", "ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
+      setPairingCode(null);
+      setPairingState("idle");
+      setPairingBusy(false);
+      setNotice("GPT 앱 연결을 해제했습니다.");
+    }
+  };
+
+  const openCart = () => chrome?.tabs?.create
+    ? chrome.tabs.create({ url: "https://cart.coupang.com/cartView.pang" })
+    : window.open("https://cart.coupang.com/cartView.pang");
+  const openProduct = (lineId: string) => {
+    const url = selected[lineId]?.productUrl;
+    if (url && chrome?.tabs?.create) void chrome.tabs.create({ url });
+  };
+  const openResultProduct = (result: CartResult) => {
+    const url = result.productUrl ?? selected[result.id]?.productUrl;
+    if (url && chrome?.tabs?.create) void chrome.tabs.create({ url });
+  };
+
+  const retryLine = async (lineId: string) => {
+    const job = makeJobs().find((candidate) => candidate.id === lineId);
+    if (!job || adding) return;
+    setAdding(true);
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "DDAKDAMA_RUN_CART_JOBS",
+        runId: crypto.randomUUID(),
+        jobs: [job],
+      });
+      const result = response?.results?.[0] as CartResult | undefined;
+      if (!result) throw new Error("EMPTY_RESULT");
+      setCartResults((current) => [...current.filter((item) => item.id !== lineId), result]);
+      setNotice(result.status === "SUCCESS" ? "해당 상품을 정확한 수량으로 담았습니다." : statusMessage(result.status));
+      await chrome.runtime.sendMessage({ type: "DDAKDAMA_OPEN_CART" });
+    } catch {
+      setNotice("재시도하지 못했습니다. 상품 페이지에서 상태를 확인해 주세요.");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const retryFailed = async () => {
+    const failedIds = new Set(cartResults.filter((result) => result.status !== "SUCCESS").map((result) => result.id));
+    const jobs = makeJobs().filter((job) => failedIds.has(job.id));
+    if (!jobs.length || adding) return;
+    cartRunId.current = null;
+    await executeJobs(jobs, cartResults.filter((result) => result.status === "SUCCESS"));
+  };
+
+  const goBack = () => {
+    if (step === 4) setStep(3);
+    else if (step === 3) { setStep(2); setPreflight(false); setPreflightResults([]); }
+    else if (step === 2) setStep(1);
+  };
+
+  const renderGptConnection = () => (
+    <section className={`gpt-bridge ${pairingState}`} aria-label="GPT 앱 연결">
+      <span className="gpt-bridge-icon"><Link2 size={19} /></span>
+      <div className="gpt-bridge-copy">
+        <strong>ChatGPT에서 목록 받기</strong>
+        {pairingState === "code" && pairingCode ? (
+          <small>딱담아 앱에 연결 코드 <b>{pairingCode}</b> 입력</small>
+        ) : pairingState === "connected" ? (
+          <small><CheckCircle2 size={13} /> 연결됨 · 보낸 목록을 바로 받을 수 있어요</small>
+        ) : (
+          <small>6자리 코드 한 번이면 연결돼요</small>
+        )}
+      </div>
+      <div className="gpt-bridge-actions">
+        {pairingState === "idle" || pairingState === "unavailable" ? (
+          <button type="button" onClick={startPairing} disabled={pairingBusy}>연결하기</button>
+        ) : (
+          <button type="button" className="receive" onClick={importFromGpt} disabled={pairingBusy}>
+            {pairingBusy ? <LoaderCircle className="spin" size={15} /> : null}목록 받기
+          </button>
+        )}
+        {(pairingState === "code" || pairingState === "connected") && (
+          <button type="button" className="icon-button" onClick={disconnectGpt} aria-label="GPT 앱 연결 해제"><Unlink size={16} /></button>
+        )}
+      </div>
+    </section>
+  );
+
+  const renderSelection = () => (
+    <>
+      <section className="screen-heading">
+        <div><h1>선택된 상품</h1><p>규격과 수량이 모두 맞는 후보만 선택했어요.</p></div>
+        <span className={selectedCount === lines.length ? "status success" : "status warning"}>
+          {selectedCount === lines.length ? <Check size={15} /> : <CircleHelp size={15} />}
+          {selectedCount}/{lines.length}종
+        </span>
+      </section>
+      <section className="product-group" aria-label="선택된 상품">
+        {lines.map((line, index) => {
+          const item = selected[line.id];
+          const purchaseQty = item ? line.requestedPhysicalUnits / item.unitsPerPackage : 0;
+          const results = groups.find((group) => group.requestLineId === line.id)?.results ?? [];
+          return (
+            <article className={`product-row ${expanded === index ? "expanded" : ""} ${item ? "" : "needs-attention"}`} data-testid={`product-${index}`} key={line.id}>
+              <button className="product-row-main" type="button" onClick={() => setExpanded(expanded === index ? -1 : index)} aria-expanded={expanded === index}>
+                <span className={item ? "selection-check" : "selection-check empty"}>{item ? <Check size={14} /> : index + 1}</span>
+                <ProductImage item={item} />
+                <span className="product-row-copy">
+                  <strong>{item?.title ?? line.productName}</strong>
+                  <small>{stateLabel(line)}{item?.unitsPerPackage && item.unitsPerPackage > 1 ? ` · ${item.unitsPerPackage}개 묶음 × ${purchaseQty}` : ""}</small>
+                </span>
+                <span className="product-row-price">{item?.currentPrice ? <><b>{(item.currentPrice * purchaseQty).toLocaleString()}원</b>{purchaseQty > 1 && <small>{item.currentPrice.toLocaleString()}원 × {purchaseQty}</small>}</> : "직접 확인"}</span>
+                <ChevronDown className="row-chevron" size={18} />
+              </button>
+              {expanded === index && (
+                <div className="candidate-panel">
+                  <p className={item ? "match-copy" : "match-copy warning"}>
+                    {item ? "규격과 수량이 가장 잘 맞는 상품이에요." : "정확히 일치하는 상품이 없어 자동 선택하지 않았어요."}
+                  </p>
+                  <div className="candidate-list" aria-label={`${line.productName} 상품 후보`}>
+                    {results.slice(0, 4).map((candidate) => {
+                      const exact = candidateMatchesRequest(line, candidate);
+                      const active = item?.id === candidate.id;
+                      const candidatePurchaseQuantity = exact ? purchaseQuantity(line, candidate) : 0;
+                      return (
+                        <button
+                          type="button"
+                          className={`candidate-row ${active ? "active" : ""}`}
+                          key={candidate.id}
+                          onClick={() => {
+                            cartRunId.current = null;
+                            setPreflight(false);
+                            setPreflightResults([]);
+                            setCartResults([]);
+                            setSelectedIds((current) => ({ ...current, [line.id]: candidate.id }));
+                          }}
+                          disabled={!exact}
+                          aria-pressed={active}
+                        >
+                          <span className="candidate-radio">{active ? <Check size={12} /> : null}</span>
+                          <span><strong>{candidate.title}</strong><small>{candidate.currentPrice && exact ? priceBreakdown(candidate.currentPrice, line, candidate) : candidate.currentPrice ? `${candidate.currentPrice.toLocaleString()}원` : "가격 확인 실패"} · {candidate.unitsPerPackage === 1 ? `단품 × ${candidatePurchaseQuantity || "-"}` : `${candidate.unitsPerPackage}개 묶음 × ${candidatePurchaseQuantity || "-"}`}{candidate.rocketDelivery ? " · 로켓배송" : ""}</small></span>
+                          <b>{active ? "선택됨" : exact ? "선택" : "규격 불일치"}</b>
+                        </button>
+                      );
+                    })}
+                    {!results.length && <p className="empty-candidates">검색된 후보가 없습니다. 상품명을 다시 확인해 주세요.</p>}
+                  </div>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </section>
+    </>
+  );
+
+  const renderReview = () => {
+    const allReady = preflightReadyCount === lines.length && lines.length > 0;
+    const issues = preflightResults.filter((result) => result.status !== "READY");
+    return (
+      <>
+        <section className="screen-heading review-heading">
+          <div><h1>담기 전 확인</h1><p>실제 상품 페이지에서 가격·규격·재고를 확인했어요.</p></div>
+        </section>
+        <section className={allReady ? "review-summary success" : "review-summary error"} aria-live="polite">
+          {allReady ? <CheckCircle2 size={22} /> : <AlertCircle size={22} />}
+          <div>
+            <strong>{allReady ? `${lines.length}개 상품을 모두 확인했어요` : `${preflightIssueCount}개 상품을 다시 확인해야 해요`}</strong>
+            <p>{allReady ? "아래 버튼을 누를 때만 쿠팡 장바구니가 변경됩니다." : "문제가 있는 상품은 자동으로 담지 않았고 장바구니도 변경되지 않았습니다."}</p>
+          </div>
+        </section>
+        <section className="verification-group" aria-label="상세 검증 결과">
+          {lines.map((line) => {
+            const result = preflightResults.find((candidate) => candidate.id === line.id);
+            const ready = result?.status === "READY";
+            const item = selected[line.id];
+            return (
+              <div className="verification-row" key={line.id}>
+                <span className={ready ? "verification-dot ready" : "verification-dot"} />
+                <span><strong>{line.productName}</strong><small>{ready && result.verifiedPrice && item ? `${priceBreakdown(result.verifiedPrice, line, item)} · 상세 확인 완료` : ready ? "상세 확인 완료" : statusMessage(result?.status)}</small></span>
+                {!ready && <button type="button" onClick={() => openProduct(line.id)}>상품 페이지</button>}
+              </div>
+            );
+          })}
+        </section>
+        {!allReady && (
+          <div className="review-actions">
+            <button type="button" className="secondary-action" onClick={() => openProduct(issues[0]?.id ?? "")}>문제 상품 확인</button>
+            <button type="button" className="secondary-action" onClick={runPreflight} disabled={adding}>다시 확인</button>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const renderComplete = () => {
+    const success = cartResults.filter((result) => result.status === "SUCCESS").length;
+    const allSuccess = success === lines.length && lines.length > 0;
+    return (
+      <>
+        <section className={`complete-hero ${allSuccess ? "success" : "partial"}`}>
+          {allSuccess ? <CheckCircle2 size={30} /> : <AlertCircle size={30} />}
+          <h1>{allSuccess ? "정확하게 모두 담았어요" : "일부 상품을 담지 못했어요"}</h1>
+          <p>요청 {lines.length}종 · 성공 {success}종 · 실패 {lines.length - success}종</p>
+        </section>
+        <section className="result-group" aria-label="장바구니 처리 결과">
+          {cartResults.map((result) => {
+            const line = lines.find((item) => item.id === result.id);
+            const ok = result.status === "SUCCESS";
+            return (
+              <div className={`result-row ${ok ? "success" : "failure"}`} key={result.id}>
+                <span>{ok ? <Check size={14} /> : <AlertCircle size={15} />}</span>
+                <div><strong>{line?.productName ?? result.expectedProductName ?? result.id}</strong><small>{resultMessage(result, line, line ? selected[line.id] : null)}</small></div>
+                {!ok && <div className="result-row-actions"><button type="button" onClick={() => openResultProduct(result)}>상품 페이지</button><button type="button" disabled={adding || !line} onClick={() => retryLine(result.id)}>다시 시도</button></div>}
+              </div>
+            );
+          })}
+        </section>
+      </>
+    );
+  };
+
+  const actionBar = () => {
+    if (step === 1) return { label: "실제 상품 찾기", onClick: searchAll, disabled: searching || !lines.length, icon: <Search size={18} />, amountLabel: "인식 결과", amount: `${lines.length}종 · ${physicalUnits(lines)}개` };
+    if (step === 2) return { label: `${lines.length}종 상세 확인하기`, onClick: runPreflight, disabled: adding || selectedCount !== lines.length, icon: <ChevronRight size={19} />, amountLabel: "검색가 합계", amount: selectedCount ? `${searchTotal.toLocaleString()}원` : "확인 필요" };
+    if (step === 3) {
+      const allReady = preflightReadyCount === lines.length && lines.length > 0;
+      const canPartiallyAdd = !allReady && preflightReadyCount > 0;
+      return { label: allReady ? `${lines.length}종 장바구니에 담기` : canPartiallyAdd ? `확인된 ${preflightReadyCount}종 · 실물 ${preflightReadyPhysicalUnits}개 담기` : "다시 확인하기", onClick: allReady ? () => executeReady(false) : canPartiallyAdd ? () => executeReady(true) : runPreflight, disabled: adding, icon: allReady || canPartiallyAdd ? <ChevronRight size={19} /> : <RefreshCw size={17} />, amountLabel: allReady || canPartiallyAdd ? "검증 합계" : "확인 필요", amount: allReady || canPartiallyAdd ? `${verifiedTotal.toLocaleString()}원` : `${preflightIssueCount}개` };
+    }
+    const failed = cartResults.filter((result) => result.status !== "SUCCESS").length;
+    return failed
+      ? { label: `실패 ${failed}종 다시 시도`, onClick: retryFailed, disabled: adding, icon: <RefreshCw size={17} />, amountLabel: "미완료", amount: `${failed}종` }
+      : { label: "쿠팡 장바구니 보기", onClick: openCart, disabled: false, icon: <ShoppingBag size={18} />, amountLabel: "처리 결과", amount: `${lines.length}/${lines.length}종` };
+  };
+  const action = actionBar();
+
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <div className="brand"><span className="brand-mark">딱</span><strong>딱담아</strong></div>
+        <button className="cart-link" type="button" onClick={openCart}><ShoppingBag size={19} />장바구니<ChevronRight size={17} /></button>
+      </header>
+      <StepProgress step={step} />
+      {step > 1 && <button className="back-button" type="button" onClick={goBack}><ArrowLeft size={17} />이전</button>}
+
+      <div className="screen-content">
+        {step === 1 && (
+          <>
+            {renderGptConnection()}
+            {recoverable && (
+              <section className="recovery" aria-label="중단된 장바구니 작업">
+                <div><strong>중단된 담기 작업이 있어요</strong><small>현재 장바구니를 확인한 뒤 남은 수량만 이어서 담습니다.</small></div>
+                <div><button type="button" onClick={clearJournal}>기록 지우기</button><button type="button" className="resume" disabled={adding} onClick={resumeJournal}>이어서 담기</button></div>
+              </section>
+            )}
+            <section className="screen-heading list-heading">
+              <div><h1>상품 {lines.length}종 · 실물 {physicalUnits(lines)}개</h1><p>한 줄에 하나씩 붙여 넣으면 규격과 수량을 정확히 나눠요.</p></div>
+            </section>
+            <section className="list-input">
+              <label htmlFor="shopping-list">쇼핑 목록</label>
+              <textarea id="shopping-list" value={input} onChange={(event) => setInput(event.target.value)} spellCheck={false} />
+              <div className="input-actions"><button type="button" onClick={() => { setInput(SAMPLE); resetAfterInput(parseShoppingList(SAMPLE)); }}>예시 불러오기</button><button type="button" onClick={parseOnly}>다시 인식</button></div>
+            </section>
+            <div className="parsed-summary"><CheckCircle2 size={16} /><span>{lines.length}개 줄을 상품 {lines.length}종 · 실물 {physicalUnits(lines)}개로 인식했어요.</span></div>
+          </>
+        )}
+        {step === 2 && renderSelection()}
+        {step === 3 && renderReview()}
+        {step === 4 && renderComplete()}
+        {notice && <div className="notice" role="status" aria-live="polite"><span>{notice}</span><button type="button" onClick={() => setNotice(null)}>닫기</button></div>}
+        <p className="affiliate">쿠팡 파트너스 활동을 통해 일정액의 수수료를 받을 수 있습니다.</p>
+      </div>
+
+      <footer className="sticky-action">
+        <div className="action-summary"><small>{action.amountLabel}</small><strong data-testid="estimated-total">{action.amount}</strong></div>
+        <button className="primary-action" type="button" onClick={action.onClick} disabled={action.disabled}>
+          {adding || searching ? <LoaderCircle className="spin" size={18} /> : action.icon}{adding ? "확인 중…" : searching ? "상품 찾는 중…" : action.label}
+        </button>
+      </footer>
+    </main>
+  );
 }

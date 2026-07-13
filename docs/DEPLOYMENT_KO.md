@@ -7,6 +7,8 @@
 ## 운영 모드
 
 - `/mcp` 스트리밍을 지원하는 고정 HTTPS 도메인을 사용합니다.
+- 운영 확장 프로그램을 빌드할 때 서버 원본을 `VITE_DDAKDAMA_SERVER_ORIGIN=https://your-domain.example`로 지정한 뒤 `pnpm package`를 실행합니다. 이 값은 공개 주소이며 비밀키가 아닙니다.
+- 서버 원본을 지정하지 않은 Web Store ZIP은 localhost 권한을 제거하며 GPT 앱 연결을 비활성 상태로 유지합니다. 일반 쿠팡 검색·검토 흐름은 사용할 수 있습니다.
 - 파트너스 비밀키는 호스팅 Secret Manager에 저장합니다.
 - CORS 허용 origin, rate limit, 영속 TTL 저장소와 모니터링을 운영 환경에 맞게 제한합니다.
 - 공개 Chrome Web Store 빌드는 실제 사용자 혜택이 없는 한 제휴 기능을 비활성화합니다.

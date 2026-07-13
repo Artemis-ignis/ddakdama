@@ -107,7 +107,7 @@ export function startPairing(ttlMs = configuredTtl("PAIRING_TTL_SECONDS", 600_00
 export function completePairing(
   code: string,
   clientKey = "unknown",
-  grantTtlMs = 24 * 60 * 60_000,
+  grantTtlMs = configuredTtl("CONNECTION_GRANT_TTL_SECONDS", 24 * 60 * 60_000),
 ) {
   purge();
   if (!recordPairingAttempt(code, clientKey)) return null;
@@ -217,7 +217,7 @@ export function handoffStatus(deviceId: string, id: string) {
   purge();
   const item = handoffs.get(id);
   return item && item.deviceId === deviceId
-    ? { id: item.id, received: Boolean(item.ackedAt), expired: false }
+    ? { received: Boolean(item.ackedAt), expired: false }
     : null;
 }
 

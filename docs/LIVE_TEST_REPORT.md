@@ -11,6 +11,8 @@
 - Playwright 번들 Chromium에서 확장 로드와 MV3 서비스 워커 발견
 - 동적 extension ID의 실제 Side Panel 페이지 로드
 - Side Panel 컴포넌트의 후보·사전검사·전체 성공·부분 실패 시나리오
+- 실제 Chrome 플러그인으로 최종 부분 실패 화면의 실패 1종 재시도, 2개 묶음의 실물 2개 표기, 일반 UI의 MCP·서버 URL 미노출 확인
+- 실제 Chrome 플러그인으로 `연결하기` 클릭 후 6자리 코드와 `목록 받기` 동작 확인
 - 고정 목록 5종·실물 7개 파싱과 100mg/240정 분리
 - 최신 ChatGPT Pro 계정 실제 화면에서 사용자 정의 앱 Developer mode/Create 메뉴가 제공되지 않는 상태 확인
 
@@ -22,6 +24,7 @@
 - Product Search API 실패 시 브라우저 검색 fallback
 - Deep Link 실패 시 일반 쿠팡 URL fallback
 - GPT 앱 MCP 도구 스키마와 위젯 번들
+- 최신 쿠팡 구매 영역 가격 selector의 지연 렌더링·미끼 가격 배제
 
 ## USER APPROVAL REQUIRED
 

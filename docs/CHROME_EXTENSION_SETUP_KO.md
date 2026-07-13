@@ -6,4 +6,6 @@
 
 일반 사용자 화면에는 서버 주소, MCP URL, 토큰, API 키와 개발 로그가 표시되지 않습니다.
 
+GPT 앱은 확장 프로그램의 `연결하기`를 한 번 누르면 표시되는 6자리 숫자로 연결합니다. 연결 뒤에는 ChatGPT에서 목록을 보낸 다음 `목록 받기`만 누르면 됩니다. 로컬 개발 서버는 `launch-windows.bat`으로 함께 실행할 수 있습니다.
+
 자동 검증은 `pnpm test:extension`과 `pnpm test:preview`를 사용합니다. 전자는 공식 Playwright 번들 Chromium에 실제 확장을 로드하고, 후자는 동일한 Side Panel React 컴포넌트를 일반 HTTP에서 시각 검증합니다.

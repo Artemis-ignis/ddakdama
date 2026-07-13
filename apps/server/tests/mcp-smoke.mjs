@@ -20,25 +20,34 @@ const parsed = await client.callTool({
   name: "parse_shopping_list",
   arguments: {shopping_list: shoppingList},
 });
+const idempotencyKey = `runtime-smoke-${Date.now()}`;
+const sendArguments = {
+  items: parsed.structuredContent.items,
+  connection_grant: paired._meta.connectionGrant,
+  idempotency_key: idempotencyKey,
+};
 const sent = await client.callTool({
   name: "send_cart_plan",
-  arguments: {
-    items: parsed.structuredContent.items,
-    connection_grant: paired._meta.connectionGrant,
-    idempotency_key: `runtime-smoke-${Date.now()}`,
-  },
+  arguments: sendArguments,
 });
+const retried = await client.callTool({
+  name: "send_cart_plan",
+  arguments: sendArguments,
+});
+if (!sent._meta?.handoffId || sent._meta.handoffId !== retried._meta?.handoffId) throw new Error("SEND_NOT_IDEMPOTENT");
+if ("handoffId" in sent.structuredContent) throw new Error("INTERNAL_ID_EXPOSED");
 const latest = await fetch(`${origin}/api/handoffs/latest`, {
   headers: {authorization: `Bearer ${pairing.deviceToken}`},
 }).then((response) => response.json());
 if (!latest.handoff) throw new Error("HANDOFF_NOT_RECEIVED");
+if (latest.handoff.id !== sent._meta.handoffId) throw new Error("LATEST_HANDOFF_MISMATCH");
 const ack = await fetch(`${origin}/api/handoffs/${latest.handoff.id}/ack`, {
   method: "POST",
   headers: {authorization: `Bearer ${pairing.deviceToken}`},
 });
 const status = await client.callTool({
   name: "get_cart_plan_status",
-  arguments: {handoff_id: latest.handoff.id, connection_grant: paired._meta.connectionGrant},
+  arguments: {handoff_id: sent._meta.handoffId, connection_grant: paired._meta.connectionGrant},
 });
 const disconnected = await client.callTool({
   name: "disconnect_extension_device",
