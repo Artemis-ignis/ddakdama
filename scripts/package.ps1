@@ -27,6 +27,7 @@ Assert-StagingPath $extensionStage
 Remove-Item -LiteralPath $extensionStage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $extensionStage | Out-Null
 Copy-Item -Recurse -Force (Join-Path $root "apps\extension\dist") -Destination $extensionStage
+Copy-Item -Recurse -Force (Join-Path $root "apps\extension\assets") -Destination $extensionStage
 Copy-Item -Force (Join-Path $root "apps\extension\manifest.json") -Destination $extensionStage
 Compress-Archive -Path (Join-Path $extensionStage "*") -DestinationPath $extensionZip
 $webstoreManifest = Get-Content (Join-Path $extensionStage "manifest.json") -Raw -Encoding utf8 | ConvertFrom-Json
@@ -50,6 +51,7 @@ Assert-StagingPath $serverStage
 Remove-Item -LiteralPath $serverStage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path (Join-Path $serverStage "apps\server"),(Join-Path $serverStage "packages\core") | Out-Null
 Copy-Item -Recurse -Force (Join-Path $root "apps\server\dist") -Destination (Join-Path $serverStage "apps\server")
+Copy-Item -Recurse -Force (Join-Path $root "apps\server\assets") -Destination (Join-Path $serverStage "apps\server")
 Copy-Item -Force (Join-Path $root "apps\server\package.json"),(Join-Path $root "apps\server\.env.example") -Destination (Join-Path $serverStage "apps\server")
 Copy-Item -Recurse -Force (Join-Path $root "packages\core\dist") -Destination (Join-Path $serverStage "packages\core")
 Copy-Item -Force (Join-Path $root "packages\core\package.json") -Destination (Join-Path $serverStage "packages\core")

@@ -15,6 +15,7 @@ import {
   Unlink,
 } from "lucide-react";
 import { parseShoppingList, type ShoppingRequestLine } from "@ddakdama/core";
+import brandIcon from "../../assets/icon-48.png";
 import {
   candidateMatchesRequest,
   selectBestCandidate,
@@ -841,7 +842,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">딱</span><strong>딱담아</strong></div>
+        <div className="brand"><img className="brand-mark" src={brandIcon} alt="" aria-hidden="true" /><strong>딱담아</strong></div>
         <button className="cart-link" type="button" onClick={openCart}><ShoppingBag size={19} />장바구니<ChevronRight size={17} /></button>
       </header>
       <StepProgress step={step} />

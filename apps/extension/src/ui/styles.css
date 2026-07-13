@@ -29,7 +29,7 @@ button:focus-visible, textarea:focus-visible { outline: 3px solid rgba(49, 130, 
 .app-shell { position: relative; width: 100%; max-width: 460px; min-height: 100vh; margin: 0 auto; background: var(--surface); }
 .topbar { height: 64px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(229, 232, 235, .72); }
 .brand { display: flex; align-items: center; gap: 10px; font-size: 20px; letter-spacing: -.45px; }
-.brand-mark { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: var(--primary); color: #fff; font-size: 14px; font-weight: 800; letter-spacing: -.4px; }
+.brand-mark { display: block; width: 32px; height: 32px; border-radius: 10px; object-fit: cover; box-shadow: 0 2px 8px rgba(49, 130, 246, .18); }
 .cart-link { min-height: 44px; padding: 0; border: 0; background: transparent; display: flex; align-items: center; gap: 5px; color: #333d4b; font-size: 15px; font-weight: 700; cursor: pointer; }
 
 .step-progress { padding: 16px 20px 12px; background: #fff; }

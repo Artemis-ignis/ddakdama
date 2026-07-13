@@ -11,16 +11,16 @@
 - 위젯의 도구 호출은 MCP Apps JSON-RPC 브리지(`ui/initialize`, `ui/notifications/initialized`, `tools/call`)를 우선하고 `window.openai`는 호환 보조 경로로만 둡니다.
 - 연결은 일반 사용자가 서버 주소나 토큰을 입력하지 않는 일회용 6자리 코드 방식으로 구성합니다.
 - ChatGPT 연결에는 원격 HTTPS `/mcp` 주소가 필요합니다.
-- 2026-07-13 최신 공식 도움말 기준 Pro도 개발자 모드에서 읽기·검색 MCP를 연결할 수 있습니다. 쓰기·수정 도구를 포함한 Full MCP는 Business 및 Enterprise/Edu 대상입니다.
-- Business는 관리자/소유자가 `Workspace settings → Apps → Create`에서 활성화하고 앱을 만듭니다.
-- Enterprise/Edu는 관리자가 Connected Data 권한을 부여하고, 허용된 사용자가 `Settings → Apps → Advanced settings`에서 켤 수 있습니다.
-- 실제 확인한 개인 Pro 화면에서는 메뉴가 노출되지 않았지만 이는 관찰된 계정 상태로 기록합니다. 공식 지원 범위를 일반화해 부정하지 않으며, 딱담아 전체 페어링·전송 흐름은 Full MCP가 필요하므로 Business/Enterprise/Edu에서 최종 검증합니다.
+- 2026-07-13 공식 개발자 모드 안내 기준 Pro, Plus, Business, Enterprise, Education 계정은 웹에서 원격 MCP 앱을 연결할 수 있으며 개발자 모드에서 읽기·쓰기 도구를 모두 사용할 수 있습니다.
+- 개인 계정은 `Settings → Security and login → Developer mode`를 켠 뒤 `Settings → Plugins`에서 앱을 만듭니다.
+- 조직용 워크스페이스에서는 관리자가 개발자 모드와 허용 도구 정책을 제한할 수 있습니다.
+- 개인 Pro 계정의 실제 플러그인 생성 화면에서 `서버 URL`, `인증 없음`, 원격 `/mcp` 연결을 확인했고 딱담아 앱 등록을 완료했습니다.
 
 참고:
 
 - https://developers.openai.com/apps-sdk/quickstart
 - https://developers.openai.com/apps-sdk/deploy/connect-chatgpt
-- https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt-beta
+- https://platform.openai.com/docs/guides/developer-mode
 
 ## Chrome Web Store
 

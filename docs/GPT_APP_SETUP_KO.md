@@ -14,17 +14,16 @@
 
 ## 먼저 확인할 계정 조건
 
-2026-07-13 기준 OpenAI 공식 안내상 사용자 정의 MCP 앱의 개발자 모드는 ChatGPT Pro, Business, Enterprise/Edu에서 제공됩니다. 다만 Pro는 읽기·검색 도구만 연결할 수 있고, 딱담아의 페어링·목록 전송처럼 상태를 변경하는 전체 MCP 기능은 Business, Enterprise/Edu에서만 사용할 수 있습니다.
+2026-07-13 기준 OpenAI 공식 개발자 모드 안내에서는 ChatGPT Pro, Plus, Business, Enterprise, Education 계정이 웹에서 원격 MCP 앱을 연결할 수 있습니다. 개발자 모드에서는 읽기와 쓰기 도구를 모두 사용할 수 있지만, 조직용 워크스페이스는 관리자의 앱·도구 정책에 따라 제한될 수 있습니다.
 
-- Business: 워크스페이스 관리자 또는 소유자만 개발자 모드를 켜고 앱을 만들 수 있습니다.
-- Enterprise/Edu: 관리자가 권한을 부여한 사용자와 관리자/소유자가 사용할 수 있습니다.
-- Pro 개인 계정: 개발자 모드에서 읽기·검색 MCP는 연결할 수 있지만, `pair_extension_device`, `send_cart_plan` 같은 쓰기 도구는 사용할 수 없습니다.
+- Pro/Plus 개인 계정: `Settings → Security and login → Developer mode`를 켠 뒤 `Settings → Plugins`에서 개인용 앱을 만들 수 있습니다.
+- Business/Enterprise/Education: 워크스페이스 관리자가 개발자 모드와 허용 도구 정책을 제한할 수 있습니다.
 
-현재 계정에서 `Settings → Apps → Advanced settings`의 Developer mode가 보이지 않으면 계정·워크스페이스 정책을 확인합니다. 딱담아의 GPT→확장 프로그램 전송까지 사용하려면 Business 관리자/소유자 또는 권한을 받은 Enterprise/Edu 계정이 필요합니다.
+메뉴가 보이지 않으면 ChatGPT 웹을 사용 중인지, 지원 요금제인지, 조직 정책으로 개발자 모드가 차단되지 않았는지 확인합니다.
 
 공식 안내:
 
-- https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt-beta
+- https://platform.openai.com/docs/guides/developer-mode
 - https://developers.openai.com/apps-sdk/deploy/connect-chatgpt
 
 ## 로컬 서버 준비
@@ -34,25 +33,18 @@
 3. 개발 중에는 `tunnel-windows.bat`를 실행해 8787 포트를 공개 HTTPS 주소로 연결합니다.
 4. Quick Tunnel 주소는 재시작할 때 바뀔 수 있으므로 새 주소를 사용할 때 앱의 MCP URL도 갱신합니다.
 
-## 지원되는 워크스페이스에서 등록
+## ChatGPT에 등록
 
-### Business
-
-1. Business 워크스페이스의 관리자 또는 소유자 계정으로 전환합니다.
-2. `Workspace settings → Apps → Create`로 이동합니다.
-3. 개발자 모드 안내와 위험 고지를 확인하고 활성화합니다.
-4. 앱 이름을 `딱담아`로 입력합니다.
+1. `Settings → Security and login → Developer mode`를 켭니다.
+2. `Settings → Plugins` 또는 `https://chatgpt.com/plugins`로 이동합니다.
+3. `앱 만들기`를 누릅니다.
+4. 이름은 `딱담아`, 연결은 `서버 URL`, 인증은 `인증 없음`을 선택합니다.
 5. MCP URL에 `https://공개주소/mcp`를 입력합니다.
-6. 도구 목록과 위젯이 정상적으로 읽히는지 확인한 뒤 비공개 테스트 앱으로 생성합니다.
+6. 선택 아이콘은 `apps/extension/assets/icon-256.png`를 사용합니다. 이 파일은 256×256 PNG이며 10KB 미만입니다.
+7. 사용자 지정 MCP 서버 위험 고지를 확인하고 체크한 뒤 `만들기`를 누릅니다.
+8. 새 채팅의 앱 메뉴에서 `딱담아`를 선택해 도구와 위젯을 테스트합니다.
 
-### Enterprise/Edu
-
-1. 관리자가 `Workspace settings → Permissions & Roles → Connected Data`에서 Developer mode 권한을 허용합니다.
-2. 권한을 받은 사용자는 `Settings → Apps → Advanced settings`에서 Developer mode를 켭니다.
-3. 관리자/소유자는 `Workspace settings → Apps → Create`에서도 앱을 만들 수 있습니다.
-4. MCP URL에 `https://공개주소/mcp`를 입력합니다.
-
-메뉴 명칭은 베타 UI 변경에 따라 조금 달라질 수 있습니다. Pro에서도 읽기 전용 앱 테스트는 가능하지만, 딱담아 전체 흐름은 쓰기 도구를 허용하는 Business 또는 Enterprise/Edu 워크스페이스에서 등록해야 합니다.
+Quick Tunnel 주소는 재실행할 때 바뀌므로 주소가 바뀌면 플러그인의 MCP URL도 갱신해야 합니다.
 
 ## 딱담아 테스트 순서
 
@@ -67,12 +59,11 @@
 
 딱담아 위젯은 현재 MCP Apps 표준 브리지로 도구를 호출하고, 호환 환경에서만 ChatGPT 전용 브리지를 보조 경로로 사용합니다. 목록 분석과 전송은 같은 수량 스키마를 사용하므로 `100mg 240정`을 구매수량 240개로 바꾸지 않습니다.
 
-## Pro 계정에서 가능한 범위
+## 개인 Pro 계정에서 가능한 범위
 
-- MCP 서버 로컬 실행과 원격 HTTPS 상태 확인
-- MCP 클라이언트 스모크 테스트
-- ChatGPT 위젯 번들 및 도구 스키마 자동 테스트
-- Chrome 확장 프로그램과 페어링/handoff API 검증
-- 읽기·검색 권한만 사용하는 MCP 앱 연결
+- 딱담아 MCP 앱 등록과 위젯 실행
+- `parse_shopping_list`, `create_cart_plan` 같은 읽기 도구 호출
+- `pair_extension_device`, `send_cart_plan`, `disconnect_extension_device` 같은 쓰기 도구 호출
+- Chrome 확장 프로그램과 페어링 및 장바구니 계획 전달
 
-Pro 계정에서는 딱담아 앱 자체를 읽기 전용으로 연결할 수 있지만, GPT 앱에서 확장 프로그램을 페어링하고 목록을 보내는 쓰기 단계는 동작하지 않습니다. 전체 흐름에는 Business 또는 Enterprise/Edu가 필요하며, 이 제한을 우회하는 비공식 방식은 사용하지 않습니다.
+쓰기 도구는 ChatGPT가 실행 전에 확인을 요청할 수 있습니다. 실제 쿠팡 장바구니 변경은 계속 Chrome 확장 프로그램에서 사용자가 최종 승인하며, GPT 앱은 결제나 주문을 실행하지 않습니다.

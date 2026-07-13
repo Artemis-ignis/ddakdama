@@ -8,7 +8,19 @@
   "host_permissions": ["https://www.coupang.com/*", "https://m.coupang.com/*", "https://cart.coupang.com/*", "http://localhost:8787/*"],
   "background": {"service_worker": "dist/background.js", "type": "module"},
   "side_panel": {"default_path": "dist/index.html"},
-  "action": {"default_title": "딱담아 열기"},
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
+  "action": {
+    "default_title": "딱담아 열기",
+    "default_icon": {
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png"
+    }
+  },
   "content_scripts": [
     {
       "matches": ["https://www.coupang.com/*", "https://m.coupang.com/*", "https://cart.coupang.com/*"],
