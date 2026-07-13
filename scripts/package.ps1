@@ -14,8 +14,9 @@ New-Item -ItemType Directory -Force -Path $out | Out-Null
 $version = "1.0.0"
 $extensionZip = Join-Path $out "ddakdama-extension-dev-v$version.zip"
 $serverZip = Join-Path $out "ddakdama-server-v$version.zip"
+$chatgptZip = Join-Path $out "ddakdama-chatgpt-app-v$version.zip"
 $fullZip = Join-Path $out "ddakdama-full-v$version.zip"
-Remove-Item -LiteralPath $extensionZip,$serverZip,$fullZip -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $extensionZip,$serverZip,$chatgptZip,$fullZip -Force -ErrorAction SilentlyContinue
 $extensionStage = Join-Path $out "_extension"
 Assert-StagingPath $extensionStage
 Remove-Item -LiteralPath $extensionStage -Recurse -Force -ErrorAction SilentlyContinue
@@ -34,17 +35,21 @@ Copy-Item -Recurse -Force (Join-Path $root "packages\core\dist") -Destination (J
 Copy-Item -Force (Join-Path $root "packages\core\package.json") -Destination (Join-Path $serverStage "packages\core")
 Copy-Item -Force package.json,pnpm-workspace.yaml,pnpm-lock.yaml,start-windows.bat -Destination $serverStage
 Compress-Archive -Path (Join-Path $serverStage "*") -DestinationPath $serverZip
+New-Item -ItemType Directory -Force -Path (Join-Path $serverStage "docs") | Out-Null
+Copy-Item -Force (Join-Path $root "docs\GPT_APP_SETUP_KO.md"),(Join-Path $root "docs\OFFICIAL_DOCS_DECISIONS.md"),(Join-Path $root "PRIVACY.md"),(Join-Path $root "TERMS.md"),(Join-Path $root "SECURITY.md") -Destination (Join-Path $serverStage "docs")
+Compress-Archive -Path (Join-Path $serverStage "*") -DestinationPath $chatgptZip
 Remove-Item -LiteralPath $serverStage -Recurse -Force
 $stage = Join-Path $out "_full"
 Assert-StagingPath $stage
 Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
-Copy-Item -Recurse -Force apps,packages,docs,scripts -Destination $stage
-Copy-Item -Force package.json,pnpm-workspace.yaml,pnpm-lock.yaml,README.md,START_HERE_KO.md,SECURITY.md,PRIVACY.md,TERMS.md,RELEASE_NOTES.md,TEST_REPORT.md,sample-list.txt,setup-windows.bat,start-windows.bat,doctor-windows.bat,package-windows.bat,tunnel-windows.bat,launch-windows.bat,install-extension-windows.bat -Destination $stage
+Copy-Item -Recurse -Force apps,packages,docs,scripts,tests -Destination $stage
+Copy-Item -Force package.json,pnpm-workspace.yaml,pnpm-lock.yaml,eslint.config.js,playwright.config.ts,tsconfig.playwright.json,README.md,START_HERE_KO.md,SECURITY.md,PRIVACY.md,TERMS.md,LICENSE,VERSION,RELEASE_NOTES.md,TEST_REPORT.md,sample-list.txt,setup-windows.bat,start-windows.bat,doctor-windows.bat,package-windows.bat,tunnel-windows.bat,launch-windows.bat,install-extension-windows.bat -Destination $stage
 Get-ChildItem -Path $stage -Recurse -Directory -Filter node_modules | Remove-Item -Recurse -Force
+Get-ChildItem -Path $stage -Recurse -Directory -Filter preview-dist | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -File -Include .env,*.log | Remove-Item -Force
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $fullZip
 Remove-Item -LiteralPath $stage -Recurse -Force
-$hashes = Get-FileHash -Algorithm SHA256 $extensionZip,$serverZip,$fullZip
+$hashes = Get-FileHash -Algorithm SHA256 $extensionZip,$serverZip,$chatgptZip,$fullZip
 $hashes | ForEach-Object { "$($_.Hash)  $([IO.Path]::GetFileName($_.Path))" } | Set-Content -Encoding utf8 (Join-Path $out "SHA256SUMS.txt")
-Write-Host "딱담아 패키징 완료: $out"
+Write-Host "DdakDama packages ready: $out"

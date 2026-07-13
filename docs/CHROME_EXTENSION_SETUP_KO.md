@@ -5,3 +5,5 @@
 정상 화면에는 딱담아 로고, 4단계 진행 표시, `상품 5종 · 실물 7개`, GPT 앱 연결, 목록 입력과 상품 검색 버튼이 보입니다. 흰 화면이면 `pnpm build` 후 Chrome 확장 프로그램 카드에서 업데이트하고 사이드 패널을 닫았다 다시 여십시오.
 
 일반 사용자 화면에는 서버 주소, MCP URL, 토큰, API 키와 개발 로그가 표시되지 않습니다.
+
+자동 검증은 `pnpm test:extension`과 `pnpm test:preview`를 사용합니다. 전자는 공식 Playwright 번들 Chromium에 실제 확장을 로드하고, 후자는 동일한 Side Panel React 컴포넌트를 일반 HTTP에서 시각 검증합니다.

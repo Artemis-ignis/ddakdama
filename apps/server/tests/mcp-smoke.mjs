@@ -2,11 +2,10 @@ import {Client} from "@modelcontextprotocol/sdk/client/index.js";
 import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 const origin = process.env.DDAKDAMA_TEST_ORIGIN ?? "http://localhost:8787";
-const deviceId = `mcp-smoke-${Date.now()}`;
 const pairing = await fetch(`${origin}/api/pairing/start`, {
   method: "POST",
   headers: {"content-type": "application/json"},
-  body: JSON.stringify({deviceId}),
+  body: JSON.stringify({}),
 }).then((response) => response.json());
 
 const client = new Client({name: "ddakdama-smoke", version: "1.0.0"});
@@ -25,7 +24,7 @@ const sent = await client.callTool({
   name: "send_cart_plan",
   arguments: {
     items: parsed.structuredContent.items,
-    device_id: deviceId,
+    connection_grant: paired._meta.connectionGrant,
     idempotency_key: `runtime-smoke-${Date.now()}`,
   },
 });
@@ -39,7 +38,7 @@ const ack = await fetch(`${origin}/api/handoffs/${latest.handoff.id}/ack`, {
 });
 const status = await client.callTool({
   name: "get_cart_plan_status",
-  arguments: {handoff_id: latest.handoff.id},
+  arguments: {handoff_id: latest.handoff.id, connection_grant: paired._meta.connectionGrant},
 });
 
 console.log(JSON.stringify({

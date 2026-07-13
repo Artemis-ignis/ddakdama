@@ -8,3 +8,7 @@ coverage/
 dist/
 *.crx
 *.pem
+.tools/
+.playwright/
+output/playwright/
+apps/extension/preview-dist/

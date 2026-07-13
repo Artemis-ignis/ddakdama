@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 setlocal
 cd /d "%~dp0"
 echo [딱담아] 설치를 준비합니다.
@@ -6,7 +7,15 @@ where node >nul 2>nul || (echo Node.js LTS를 먼저 설치해 주세요.& pause
 where pnpm >nul 2>nul || (echo pnpm을 설치합니다.& call npm install -g pnpm)
 call pnpm install
 if errorlevel 1 goto :fail
+call pnpm exec playwright install chromium
+if errorlevel 1 goto :fail
+call pnpm lint
+if errorlevel 1 goto :fail
+call pnpm typecheck
+if errorlevel 1 goto :fail
 call pnpm test
+if errorlevel 1 goto :fail
+call pnpm test:e2e
 if errorlevel 1 goto :fail
 call pnpm build
 if errorlevel 1 goto :fail

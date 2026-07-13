@@ -42,8 +42,17 @@ Windows에서는 setup-windows.bat을 실행한 뒤 Chrome에서 apps/extension 
     pnpm lint
     pnpm typecheck
     pnpm test
+    pnpm test:e2e
     pnpm build
     pnpm package
+
+`pnpm package`가 만드는 배포물:
+
+- `dist/ddakdama-extension-dev-v1.0.0.zip`: Chrome 개발자 모드 설치용
+- `dist/ddakdama-server-v1.0.0.zip`: MCP·handoff·파트너스 서버
+- `dist/ddakdama-chatgpt-app-v1.0.0.zip`: GPT 앱 서버와 설치 문서
+- `dist/ddakdama-full-v1.0.0.zip`: 전체 소스·테스트·문서
+- `dist/SHA256SUMS.txt`: 네 ZIP의 SHA-256 체크섬
 
 ## 현재 검증 범위
 

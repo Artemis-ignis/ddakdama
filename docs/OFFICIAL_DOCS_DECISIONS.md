@@ -21,6 +21,15 @@
 
 참고: https://developer.chrome.com/docs/webstore/program-policies/affiliate-ads/
 
+## Chrome 확장 프로그램 자동 검증
+
+- Chrome 공식 E2E 지침: https://developer.chrome.com/docs/extensions/how-to/test/end-to-end-testing
+- Playwright 공식 Chrome Extensions 지침: https://playwright.dev/docs/chrome-extensions
+- Google Chrome과 Edge는 확장 사이드로드용 명령줄 플래그를 제거했으므로 Playwright 번들 Chromium persistent context를 사용한다.
+- 확장 경로는 `manifest.json`이 존재하는 `apps/extension` 루트다. `dist`만 로드하지 않는다.
+- MV3 서비스 워커 URL에서 동적 extension ID를 얻고 `chrome-extension://<id>/dist/index.html`을 실제 탐색한다.
+- Side Panel 기본 경로는 매니페스트 내부 상대경로를 사용한다: https://developer.chrome.com/docs/extensions/reference/api/sidePanel
+
 ## 쿠팡 파트너스
 
 공개 검색으로 신뢰할 수 있는 최신 공식 API 규격을 확인하지 못했다. 판매자 WING API와 파트너스 API를 혼동하지 않기 위해 endpoint를 추측하지 않는다. 로그인 후 공식 파트너스 API 문서를 확인하고 계정 권한과 현재 규격이 확인된 뒤 실제 adapter를 활성화한다.

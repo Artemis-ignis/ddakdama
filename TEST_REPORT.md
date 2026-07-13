@@ -6,7 +6,7 @@
 
 - ESLint: 통과
 - TypeScript: 통과
-- Vitest: 13/13 통과
+- Vitest: 22/22 통과 (core 6, extension 9, server 7)
 - MCP HTTP 실연결 스모크 테스트: 페어링·계획 전송·수신·ACK 통과
 - Vite 확장 프로그램 빌드: 통과
 - MCP 서버 빌드: 통과
@@ -14,6 +14,12 @@
 - 배포 ZIP 구조 검사: 매니페스트 1개, 서버 core workspace 포함, 실제 비밀파일·node_modules 미포함
 - pnpm audit: 알려진 취약점 0개
 - Vite 8.1.4, Vitest 4.1.10, esbuild 0.28.1 패치 버전 검증
+- Playwright 번들 Chromium 확장 E2E: 3/3 통과
+- 실제 Side Panel 컴포넌트 프리뷰 E2E·시각 스냅샷: 6/6 통과
+- MV3 서비스 워커, 동적 extension ID, Side Panel, storage, runtime message, content script 검증
+- 전체 자동 검증: Vitest 22개 + Playwright 9개, 총 31개 통과
+- 파트너스 Product Search/Deep Link 응답 정규화와 일반 링크 fallback 테스트 통과
+- 상세페이지 사전검사, SKU URL gate, 장바구니 작업 재개·중복 방지 단위 테스트 통과
 
 ## 라이브 읽기 검증
 

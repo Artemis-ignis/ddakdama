@@ -8,6 +8,12 @@
 - 실제 쿠팡 검색 화면의 상품명, productId, vendorItemId, 가격과 묶음 정보 읽기
 - 로컬 MCP 서버 health
 - 6자리 페어링, 계획 전송, 기기 토큰 수신, ACK
+- Playwright 번들 Chromium에서 확장 로드와 MV3 서비스 워커 발견
+- 동적 extension ID의 실제 Side Panel 페이지 렌더링
+- chrome.storage.local과 runtime message
+- 쿠팡 URL fixture에서 content script 자동 주입과 후보 구조화
+- 상세페이지 fixture에서 가격·옵션·품절·상품 식별 사전검사
+- 실제 Side Panel 컴포넌트의 후보·사전검사·전체 성공·부분 실패 시각 시나리오
 
 ## FIXTURE_VERIFIED
 
@@ -15,6 +21,8 @@
 - 100mg 함량과 240정 포장 규격 분리
 - 단품·2개 묶음 수량 계산과 3개 묶음 차단
 - 4/5 성공 시 PARTIAL_FAILURE
+- 서비스 워커 작업 재개 시 목표 수량을 기준으로 남은 수량만 처리
+- Product Search API 실패 시 브라우저 검색, Deep Link 실패 시 일반 쿠팡 URL fallback
 
 ## USER APPROVAL REQUIRED
 

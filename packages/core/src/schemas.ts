@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 export const shoppingRequestLineSchema = z.object({
-  id:z.string(), rawText:z.string(), normalizedText:z.string(), brand:z.string().nullable(), productName:z.string(), variantTokens:z.array(z.string()),
-  unitSizeValue:z.number().positive().nullable(), unitSizeUnit:z.enum(["mL","L","g","kg"]).nullable(),
-  strengthValue:z.number().positive().nullable(), strengthUnit:z.enum(["mg","mcg","IU","%"]).nullable(),
-  packageContentCount:z.number().int().positive().nullable(), packageContentUnit:z.enum(["정","캡슐","포","매","개입","스틱","패치"]).nullable(),
-  requestedPhysicalUnits:z.number().int().positive(), requestedPurchaseUnits:z.number().int().positive(),
-  parserConfidence:z.number().min(0).max(1), parseWarnings:z.array(z.string())
+  id:z.string().min(1).max(100), rawText:z.string().min(1).max(500), normalizedText:z.string().min(1).max(500), brand:z.string().max(100).nullable(), productName:z.string().min(1).max(300), variantTokens:z.array(z.string().max(100)).max(30),
+  unitSizeValue:z.number().positive().max(100_000).nullable(), unitSizeUnit:z.enum(["mL","L","g","kg"]).nullable(),
+  strengthValue:z.number().positive().max(100_000).nullable(), strengthUnit:z.enum(["mg","mcg","IU","%"]).nullable(),
+  packageContentCount:z.number().int().positive().max(10_000).nullable(), packageContentUnit:z.enum(["정","캡슐","포","매","개입","스틱","패치"]).nullable(),
+  requestedPhysicalUnits:z.number().int().positive().max(20), requestedPurchaseUnits:z.number().int().positive().max(20),
+  parserConfidence:z.number().min(0).max(1), parseWarnings:z.array(z.string().max(200)).max(20)
 });
 export type ShoppingRequestLine=z.infer<typeof shoppingRequestLineSchema>;
 
