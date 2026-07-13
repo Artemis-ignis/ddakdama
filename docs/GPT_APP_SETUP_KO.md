@@ -1,15 +1,65 @@
 # ChatGPT 앱 설정
 
-딱담아 GPT 앱은 일반 Custom GPT가 아니라 MCP 서버와 ChatGPT 내부 위젯으로 구성됩니다.
+딱담아 GPT 앱은 일반 Custom GPT가 아니라 OpenAI Apps SDK 기반의 MCP 앱입니다.
 
-1. start-windows.bat을 실행합니다.
-2. http://localhost:8787/health에서 ok: true를 확인합니다.
-3. 개발 중에는 `tunnel-windows.bat`을 실행해 8787 포트를 공개 HTTPS 주소로 연결합니다.
-4. ChatGPT의 **Settings → Apps & Connectors → Advanced settings**에서 Developer mode를 켭니다. 계정·워크스페이스에 따라 메뉴 이름이나 제공 여부가 다를 수 있습니다.
-5. 앱 관리 화면에서 개발자 앱을 만들고 `https://공개주소/mcp`를 등록합니다.
-6. 도구나 위젯 metadata를 바꾼 뒤에는 앱 상세 화면에서 새로고침합니다.
-7. ChatGPT에서 딱담아를 선택하고 쇼핑 목록을 입력합니다.
-8. 위젯에서 규격과 수량을 확인한 뒤 확장 프로그램으로 보냅니다.
-9. 실제 쿠팡 상품 검색과 장바구니 변경은 Chrome 확장 프로그램에서 승인합니다.
+## 먼저 확인할 계정 조건
 
-Developer mode나 앱 추가 메뉴가 없다면 조직 관리자 정책 또는 계정 제공 범위를 확인해야 합니다. Quick Tunnel 주소가 바뀌면 등록한 MCP URL도 갱신해야 합니다.
+2026-07-13 기준 OpenAI 공식 안내상 사용자 정의 MCP 앱의 개발자 모드는 ChatGPT Business, Enterprise 또는 Edu 워크스페이스에서 제공됩니다.
+
+- Business: 워크스페이스 관리자 또는 소유자만 개발자 모드를 켜고 앱을 만들 수 있습니다.
+- Enterprise/Edu: 관리자가 권한을 부여한 사용자와 관리자/소유자가 사용할 수 있습니다.
+- Pro 개인 계정: 현재 사용자 정의 MCP 앱을 등록하는 Developer mode/Create 메뉴가 제공되지 않습니다.
+
+현재 계정에서 `설정 → 플러그인` 또는 앱 화면에 `고급 설정`, `Developer mode`, `Create`가 없다면 서버나 브라우저 오류가 아닙니다. Business/Enterprise/Edu 워크스페이스 자격과 관리자 권한을 먼저 준비해야 합니다.
+
+공식 안내:
+
+- https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt-beta
+- https://developers.openai.com/apps-sdk/deploy/connect-chatgpt
+
+## 로컬 서버 준비
+
+1. `start-windows.bat`를 실행합니다.
+2. `http://localhost:8787/health`에서 `ok: true`를 확인합니다.
+3. 개발 중에는 `tunnel-windows.bat`를 실행해 8787 포트를 공개 HTTPS 주소로 연결합니다.
+4. Quick Tunnel 주소는 재시작할 때 바뀔 수 있으므로 새 주소를 사용할 때 앱의 MCP URL도 갱신합니다.
+
+## 지원되는 워크스페이스에서 등록
+
+### Business
+
+1. Business 워크스페이스의 관리자 또는 소유자 계정으로 전환합니다.
+2. `Workspace settings → Apps → Create`로 이동합니다.
+3. 개발자 모드 안내와 위험 고지를 확인하고 활성화합니다.
+4. 앱 이름을 `딱담아`로 입력합니다.
+5. MCP URL에 `https://공개주소/mcp`를 입력합니다.
+6. 도구 목록과 위젯이 정상적으로 읽히는지 확인한 뒤 비공개 테스트 앱으로 생성합니다.
+
+### Enterprise/Edu
+
+1. 관리자가 `Workspace settings → Permissions & Roles → Connected Data`에서 Developer mode 권한을 허용합니다.
+2. 권한을 받은 사용자는 `Settings → Apps → Advanced settings`에서 Developer mode를 켭니다.
+3. 관리자/소유자는 `Workspace settings → Apps → Create`에서도 앱을 만들 수 있습니다.
+4. MCP URL에 `https://공개주소/mcp`를 입력합니다.
+
+메뉴 명칭은 베타 UI 변경에 따라 조금 달라질 수 있습니다. 핵심은 개인 Pro 설정이 아니라 지원되는 워크스페이스의 Apps 관리 화면에서 등록하는 것입니다.
+
+## 딱담아 테스트 순서
+
+1. ChatGPT에서 딱담아 앱을 선택합니다.
+2. 고정 쇼핑 목록을 입력합니다.
+3. 위젯에서 요청 5종, 실물 7개가 표시되는지 확인합니다.
+4. 딱담아 Chrome 확장 프로그램에서 페어링 코드를 발급합니다.
+5. GPT 앱 위젯에 코드를 입력해 연결합니다.
+6. `딱담아로 보내기`를 눌러 계획을 전송합니다.
+7. 확장 프로그램에서 계획을 수신하고 쿠팡 후보·가격·수량을 검토합니다.
+8. 실제 장바구니 변경은 확장 프로그램에서 사용자가 최종 승인합니다.
+
+## 현재 Pro 계정에서 가능한 범위
+
+- MCP 서버 로컬 실행과 원격 HTTPS 상태 확인
+- MCP 클라이언트 스모크 테스트
+- ChatGPT 위젯 번들 및 도구 스키마 자동 테스트
+- Chrome 확장 프로그램과 페어링/handoff API 검증
+
+Pro 계정만으로는 ChatGPT 내부에 사용자 정의 딱담아 앱을 등록해 실행하는 마지막 단계까지 진행할 수 없습니다. 이 제한을 우회하는 비공식 방식은 사용하지 않습니다.
