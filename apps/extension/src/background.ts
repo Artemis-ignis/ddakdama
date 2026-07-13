@@ -38,17 +38,17 @@ async function runJob(job:Job,checkpoint:CartCheckpoint|undefined,persist:(value
 async function runCartJobs(runId:string,jobs:Job[]){
  const stored=await chrome.storage.local.get(journalKey);const previous=stored[journalKey] as Journal|undefined;
  const journal:Journal=previous?.runId===runId?previous:{runId,jobs,results:[],checkpoints:{},startedAt:Date.now(),updatedAt:Date.now()};
- const pendingJobs=jobs.filter(job=>!journal.results.some(result=>result.id===job.id));if(!pendingJobs.length)return journal.results;
+ const pendingJobs=jobs.filter(job=>!journal.results.some(result=>result.id===job.id&&result.status==="SUCCESS"));if(!pendingJobs.length)return journal.results;
  let productTabId:number|undefined;let cartTabId:number|undefined;
  try{productTabId=await createWorkerTab();cartTabId=await createWorkerTab();for(const job of pendingJobs){
    const result=await runJob(job,journal.checkpoints[job.id],async checkpoint=>{journal.checkpoints[job.id]=checkpoint;journal.updatedAt=Date.now();await chrome.storage.local.set({[journalKey]:journal})},productTabId,cartTabId).catch(error=>({...job,status:error instanceof Error?error.message:"UNKNOWN_ERROR"}));
-   journal.results.push(result);journal.updatedAt=Date.now();await chrome.storage.local.set({[journalKey]:journal});
+   journal.results=journal.results.filter(previousResult=>previousResult.id!==job.id);journal.results.push(result);journal.updatedAt=Date.now();await chrome.storage.local.set({[journalKey]:journal});
   }}finally{await closeWorkerTab(productTabId);await closeWorkerTab(cartTabId)}
  return journal.results;
 }
 async function recoverableJournal(){
  const stored=await chrome.storage.local.get(journalKey);const journal=stored[journalKey] as Journal|undefined;
- if(!journal||!validJobs(journal.jobs)||journal.results.length>=journal.jobs.length)return null;
+ if(!journal||!validJobs(journal.jobs)||journal.jobs.every(job=>journal.results.some(result=>result.id===job.id&&result.status==="SUCCESS")))return null;
  return journal;
 }
 async function searchOne(query:string,tabId:number){const url=new URL(searchBaseUrl);url.searchParams.set("q",query);await navigateWorkerTab(tabId,url.href);let lastResults:unknown[]=[];let pageHadProducts=false;for(let attempt=0;attempt<12;attempt+=1){const value=await sendToTab(tabId,{type:"DDAKDAMA_SEARCH_RESULTS"});if(value?.securityRequired)throw new Error("SECURITY_CHECK_REQUIRED");if(value?.loginRequired)throw new Error("LOGIN_REQUIRED");const results=Array.isArray(value?.results)?value.results:[];if(results.length){lastResults=results;if(results.some((candidate:{currentPrice?:number|null})=>Number(candidate.currentPrice)>0)||attempt>=6)return results}pageHadProducts=pageHadProducts||Number(value?.productLinkCount)>0;if(attempt<11)await new Promise(resolve=>setTimeout(resolve,150))}if(lastResults.length)return lastResults;throw new Error(pageHadProducts?"DOM_PARSE_FAILED":"NO_RESULTS")}

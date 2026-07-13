@@ -510,7 +510,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     try {
       const response = await chrome.runtime.sendMessage({
         type: "DDAKDAMA_RUN_CART_JOBS",
-        runId: crypto.randomUUID(),
+        runId: cartRunId.current ??= crypto.randomUUID(),
         jobs: [job],
       });
       const result = response?.results?.[0] as CartResult | undefined;
@@ -529,7 +529,6 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     const failedIds = new Set(cartResults.filter((result) => result.status !== "SUCCESS").map((result) => result.id));
     const jobs = makeJobs().filter((job) => failedIds.has(job.id));
     if (!jobs.length || adding) return;
-    cartRunId.current = null;
     await executeJobs(jobs, cartResults.filter((result) => result.status === "SUCCESS"));
   };
 
