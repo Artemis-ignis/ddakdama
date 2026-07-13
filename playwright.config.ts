@@ -12,7 +12,7 @@ export default defineConfig({
   {command:"node tests/playwright/cart-fixture-server.mjs",url:"http://127.0.0.1:4174/health",reuseExistingServer:true,timeout:30_000},
  ],
  projects:[
-  {name:"extension",testMatch:/extension\.spec\.ts/},
+  {name:"extension",testMatch:/(?:extension|tab-reuse)\.spec\.ts/},
   {name:"preview",testMatch:/preview\.spec\.ts/,use:{baseURL:"http://127.0.0.1:4173",viewport:{width:420,height:1000}}},
  ],
 });

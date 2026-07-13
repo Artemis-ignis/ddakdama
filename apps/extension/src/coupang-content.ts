@@ -21,7 +21,12 @@ function detail(){
  return{...currentIdentity(),title,price:won(priceText),unitsPerPackage:parseUnitsPerPackage(title),inStock:!!add,optionRequired,canAdd:!!add&&!optionRequired,securityRequired:securityRequired(),loginRequired:loginRequired()};
 }
 function cart():CartSnapshot[]{
- return[...document.querySelectorAll<HTMLElement>("[data-product-id],.cart-deal-item")].map(row=>{const link=row.querySelector<HTMLAnchorElement>('a[href*="/vp/products/"]');const url=link?new URL(link.href,location.origin):null;return{productId:row.dataset.productId??url?.pathname.match(/products\/(\d+)/)?.[1]??"",vendorItemId:url?.searchParams.get("vendorItemId")??null,itemId:url?.searchParams.get("itemId")??null,title:row.querySelector<HTMLElement>(".product-name,a")?.innerText.trim()??"",quantity:Number(row.querySelector<HTMLInputElement>("input[type='number']")?.value??row.querySelector<HTMLElement>("[data-quantity]")?.dataset.quantity??1),price:won(row.dataset.lineTotal??row.querySelector<HTMLElement>(".price-value,.unit-price-area,[data-line-total]")?.innerText??"")}}).filter(item=>item.productId);
+ const rows=[...document.querySelectorAll<HTMLElement>("[data-product-id],.cart-deal-item,[id^='item_'][data-vid]")];
+ return rows.map(row=>{
+  const links=[...row.querySelectorAll<HTMLAnchorElement>('a[href*="/vp/products/"]')];const link=links.find(candidate=>candidate.innerText.trim())??links[0];const url=link?new URL(link.href,location.origin):null;
+  const priceText=(row.querySelector<HTMLElement>(".price-value,.unit-price-area,[data-line-total]")?.innerText??row.innerText).replace(/\([^)]*(?:당|개당|ml당|mL당|g당|정당)[^)]*\)/giu,"");const priceMatches=priceText.match(/\d[\d,]*\s*원/g)||[];
+  return{productId:row.dataset.productId??url?.pathname.match(/products\/(\d+)/)?.[1]??"",vendorItemId:row.dataset.vid??url?.searchParams.get("vendorItemId")??null,itemId:url?.searchParams.get("itemId")??null,title:link?.innerText.trim()??"",quantity:Number(row.querySelector<HTMLInputElement>("input.cart-quantity-input,input[type='number'],[data-quantity]")?.value??row.querySelector<HTMLElement>("[data-quantity]")?.dataset.quantity??1),price:won(row.dataset.lineTotal??priceMatches.at(-1)??"")};
+ }).filter(item=>item.productId&&Number.isInteger(item.quantity)&&item.quantity>0);
 }
 function searchResults(){
  const links=[...document.querySelectorAll<HTMLAnchorElement>('a[href*="/vp/products/"]')];

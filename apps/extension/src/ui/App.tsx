@@ -491,8 +491,8 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     }
   };
 
-  const openCart = () => chrome?.tabs?.create
-    ? chrome.tabs.create({ url: "https://cart.coupang.com/cartView.pang" })
+  const openCart = () => chrome?.runtime?.sendMessage
+    ? chrome.runtime.sendMessage({ type: "DDAKDAMA_OPEN_CART" })
     : window.open("https://cart.coupang.com/cartView.pang");
   const openProduct = (lineId: string) => {
     const url = selected[lineId]?.productUrl;
