@@ -11,6 +11,9 @@
 - Vite 확장 프로그램 빌드: 통과
 - MCP 서버 빌드: 통과
 - ZIP 패키징 및 SHA-256 생성: 통과
+- 배포 ZIP 구조 검사: 매니페스트 1개, 서버 core workspace 포함, 실제 비밀파일·node_modules 미포함
+- pnpm audit: 알려진 취약점 0개
+- Vite 8.1.4, Vitest 4.1.10, esbuild 0.28.1 패치 버전 검증
 
 ## 라이브 읽기 검증
 

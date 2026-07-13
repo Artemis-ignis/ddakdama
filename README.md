@@ -34,6 +34,8 @@
 
 Windows에서는 setup-windows.bat을 실행한 뒤 Chrome에서 apps/extension 폴더 하나를 불러옵니다.
 
+초보자용 문서는 [START_HERE_KO.md](START_HERE_KO.md), [Windows 설치](docs/INSTALL_WINDOWS_KO.md), [Chrome 설정](docs/CHROME_EXTENSION_SETUP_KO.md), [GPT 앱 설정](docs/GPT_APP_SETUP_KO.md), [문제 해결](docs/TROUBLESHOOTING_KO.md) 순서로 확인합니다.
+
 개발 명령:
 
     pnpm install

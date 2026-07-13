@@ -1,5 +1,12 @@
 # 딱담아 v1.0.0 Production Beta
 
+- 단일 `apps/extension` 설치 구조와 상대 자산 경로
+- GPT 앱 6자리 페어링, 계획 전송·수신·ACK
+- 실제 쿠팡 후보 비교와 수량 불일치·가격 미확인 차단
+- 담기 전 이중 승인과 productId 장바구니 수량 delta 검증
+- Windows 설치·서버·터널·패키징 도구 및 초보자 문서
+- Vite·Vitest·esbuild 보안 패치, 알려진 취약점 0개
+
 - TypeScript pnpm 모노레포로 재구성
 - 100mg, 240정, 구매수량을 구분하는 한국어 쇼핑 목록 파서
 - 단품과 묶음 상품의 정확한 실물수량 계산

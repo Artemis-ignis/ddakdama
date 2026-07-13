@@ -7,3 +7,5 @@
 5. 딱담아 아이콘을 눌러 사이드 패널을 엽니다.
 
 GPT 앱 연결은 docs/GPT_APP_SETUP_KO.md를 따릅니다. 자동 결제나 주문 확정은 구현되어 있지 않습니다.
+
+한 번에 서버와 개발용 HTTPS 터널을 열려면 `launch-windows.bat`을 사용합니다. 자세한 문제 해결은 `docs/TROUBLESHOOTING_KO.md`를 참고합니다.
