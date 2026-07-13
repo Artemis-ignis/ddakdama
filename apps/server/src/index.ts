@@ -1,9 +1,11 @@
 import{createServer}from"node:http";import{StreamableHTTPServerTransport}from"@modelcontextprotocol/sdk/server/streamableHttp.js";import{createMcpServer}from"./mcp.js";import{ackHandoff,authenticateDevice,latestHandoff,startPairing}from"./store.js";import{createDeepLinks,partnersConfigured,searchProducts}from"./partners.js";
 const port=Number(process.env.PORT??8787);
-const json=(res:import("node:http").ServerResponse,status:number,data:unknown)=>{res.writeHead(status,{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"});res.end(JSON.stringify(data))};
+const corsHeaders={"access-control-allow-origin":"*","access-control-allow-methods":"GET,POST,DELETE,OPTIONS","access-control-allow-headers":"authorization,content-type","access-control-max-age":"600"};
+const json=(res:import("node:http").ServerResponse,status:number,data:unknown)=>{res.writeHead(status,{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff",...corsHeaders});res.end(JSON.stringify(data))};
 const read=async(req:import("node:http").IncomingMessage)=>{const chunks:Buffer[]=[];for await(const c of req)chunks.push(Buffer.from(c));return JSON.parse(Buffer.concat(chunks).toString("utf8")||"{}")};
 const bearer=(req:import("node:http").IncomingMessage)=>String(req.headers.authorization??"").replace(/^Bearer\s+/i,"");
 createServer(async(req,res)=>{try{const url=new URL(req.url??"/",`http://${req.headers.host??"localhost"}`);
+ if(req.method==="OPTIONS"&&url.pathname.startsWith("/api/")){res.writeHead(204,corsHeaders);return res.end()}
  if(req.method==="GET"&&url.pathname==="/health")return json(res,200,{ok:true,name:"ddakdama",version:"1.0.0",status:"available"});
  if(req.method==="POST"&&url.pathname==="/api/pairing/start"){const body=await read(req);return json(res,201,startPairing(String(body.deviceId??"")))}
  if(req.method==="GET"&&url.pathname==="/api/handoffs/latest"){const deviceId=authenticateDevice(bearer(req));if(!deviceId)return json(res,401,{error:"unauthorized"});return json(res,200,{handoff:latestHandoff(deviceId)})}

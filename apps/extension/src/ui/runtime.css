@@ -4,3 +4,7 @@
 .check.pending{background:#eef1f5;color:#89919d;font-size:10px}
 .waiting{color:#818894!important}
 .primary:disabled{background:#d9dde4;color:#8c939d;box-shadow:none;cursor:not-allowed}
+.gpt-connect{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-14px 0 24px;padding:13px 14px;border:1px solid #e4ebf8;border-radius:16px;background:linear-gradient(145deg,#f8fbff,#f1f6ff)}
+.gpt-copy{display:flex;align-items:center;gap:10px;min-width:0}.gpt-icon{width:32px;height:32px;flex:0 0 auto;display:grid;place-items:center;border-radius:10px;background:#fff;color:#1769ff;box-shadow:0 4px 14px #234f9514}.gpt-copy strong{display:block;font-size:12px}.gpt-copy small{display:block;margin-top:3px;color:#687489;font-size:10px;white-space:nowrap}.gpt-copy small b{color:#1769ff;font-size:14px;letter-spacing:2px}
+.gpt-actions{display:flex;gap:6px;flex:0 0 auto}.gpt-actions button{border:0;border-radius:9px;padding:8px 10px;background:#fff;color:#1769ff;font:700 10px inherit;cursor:pointer}.gpt-actions .gpt-import{display:flex;align-items:center;gap:4px;background:#1769ff;color:#fff}.gpt-actions button:disabled{opacity:.55;cursor:wait}
+@media(max-width:390px){.gpt-connect{align-items:flex-start;flex-direction:column}.gpt-actions{width:100%}.gpt-actions button{flex:1}}
