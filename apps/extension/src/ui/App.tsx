@@ -1,0 +1,47 @@
+import{useMemo,useState}from"react";
+import{Check,ChevronDown,ChevronRight,LoaderCircle,Search,ShoppingBag,SlidersHorizontal,TriangleAlert}from"lucide-react";
+import{parseShoppingList,type ShoppingRequestLine}from"@ddakdama/core";
+
+const SAMPLE=`닥터지 레드 블레미쉬 포 맨 진정 올인원 150ml
+스킨1004 히알루 시카 워터핏 선 세럼 50ml 2개
+라운드랩 1025 독도 클렌저 150ml 2개
+TS 골드플러스 샴푸 500g
+닥터스베스트 고흡수 마그네슘 100mg 240정`;
+type SearchCandidate={id:string;productId:string;vendorItemId:string|null;title:string;currentPrice:number|null;unitsPerPackage:number;productUrl:string;imageUrl:string|null;rocketDelivery:boolean;rating:number|null;reviewCount:number|null;advertised:boolean;source:"BROWSER"};
+type SearchGroup={requestLineId:string;results:SearchCandidate[];error?:string};
+const stateLabel=(line:ShoppingRequestLine)=>line.packageContentCount?`${line.strengthValue}${line.strengthUnit} · ${line.packageContentCount}${line.packageContentUnit} · 1병`:`${line.unitSizeValue}${line.unitSizeUnit} · 실물 ${line.requestedPhysicalUnits}개`;
+const normalize=(value:string)=>value.toLowerCase().replace(/[^0-9a-z가-힣]/g,"");
+function candidateScore(line:ShoppingRequestLine,candidate:SearchCandidate){
+ const title=normalize(candidate.title);let score=0;for(const token of line.productName.split(/\s+/))if(title.includes(normalize(token)))score+=8;
+ if(line.unitSizeValue&&title.includes(normalize(`${line.unitSizeValue}${line.unitSizeUnit}`)))score+=35;
+ if(line.strengthValue&&title.includes(normalize(`${line.strengthValue}${line.strengthUnit}`)))score+=25;
+ if(line.packageContentCount&&title.includes(normalize(`${line.packageContentCount}${line.packageContentUnit}`)))score+=35;
+ if(line.requestedPhysicalUnits%candidate.unitsPerPackage===0)score+=25;else score-=50;
+ if(candidate.currentPrice)score+=10;if(candidate.rocketDelivery)score+=4;if(candidate.advertised)score-=5;return score;
+}
+function selectBest(line:ShoppingRequestLine,results:SearchCandidate[]){return[...results].filter(x=>x.currentPrice&&line.requestedPhysicalUnits%x.unitsPerPackage===0).sort((a,b)=>candidateScore(line,b)-candidateScore(line,a)||((a.currentPrice??Infinity)*(line.requestedPhysicalUnits/a.unitsPerPackage))-((b.currentPrice??Infinity)*(line.requestedPhysicalUnits/b.unitsPerPackage)))[0]??null}
+
+export function App(){
+ const[input,setInput]=useState(SAMPLE);const[lines,setLines]=useState(()=>parseShoppingList(SAMPLE));const[expanded,setExpanded]=useState(0);const[step,setStep]=useState(1);const[notice,setNotice]=useState<string|null>(null);const[groups,setGroups]=useState<SearchGroup[]>([]);const[searching,setSearching]=useState(false);const[preflight,setPreflight]=useState(false);const[adding,setAdding]=useState(false);const[cartResults,setCartResults]=useState<Array<{id:string;status:string}>>([]);
+ const selected=useMemo(()=>Object.fromEntries(lines.map(line=>[line.id,selectBest(line,groups.find(g=>g.requestLineId===line.id)?.results??[])])),[lines,groups]);
+ const verifiedCount=lines.filter(line=>selected[line.id]?.currentPrice).length;
+ const total=lines.reduce((sum,line)=>{const item=selected[line.id];return sum+(item?.currentPrice??0)*(item?line.requestedPhysicalUnits/item.unitsPerPackage:0)},0);
+ const parse=()=>{const next=parseShoppingList(input);setLines(next);setGroups([]);setStep(1);setNotice(next.length===5?"상품과 수량을 정확히 나눴습니다.":"일부 줄을 다시 확인해 주세요.")};
+ const searchAll=async()=>{setSearching(true);setNotice(null);try{if(typeof chrome==="undefined"||!chrome.runtime?.sendMessage){setNotice("Chrome 확장 프로그램에서 실제 상품 검색을 사용할 수 있습니다.");return}const response=await chrome.runtime.sendMessage({type:"DDAKDAMA_SEARCH_ALL",items:lines});setGroups(response?.output??[]);setStep(2);setNotice((response?.output??[]).every((g:SearchGroup)=>g.results.length)?"모든 상품의 실제 후보를 찾았습니다.":"일부 상품은 후보를 찾지 못했습니다.")}catch{setNotice("쿠팡 검색을 완료하지 못했습니다. 다시 시도해 주세요.")}finally{setSearching(false)}};
+ const addToCart=async()=>{if(!preflight){setPreflight(true);setStep(3);setNotice(`상품 ${lines.length}종 · 실물 ${lines.reduce((s,x)=>s+x.requestedPhysicalUnits,0)}개 · 예상 ${total.toLocaleString()}원입니다. 아래 버튼을 한 번 더 누르면 실제 쿠팡 장바구니가 변경됩니다.`);return}setAdding(true);try{const jobs=lines.map(line=>{const item=selected[line.id]!;return{id:line.id,productUrl:item.productUrl,productId:item.productId,cartPurchaseQuantity:line.requestedPhysicalUnits/item.unitsPerPackage,status:"QUEUED"}});const response=await chrome.runtime.sendMessage({type:"DDAKDAMA_RUN_CART_JOBS",jobs});const results=response?.results??[];setCartResults(results);const success=results.filter((x:{status:string})=>x.status==="SUCCESS").length;setStep(4);setNotice(success===lines.length?`요청한 상품 ${success}종을 모두 검증해 담았습니다.`:`성공 ${success}종 · 실패 ${lines.length-success}종입니다. 실패 상품을 확인해 주세요.`);await chrome.runtime.sendMessage({type:"DDAKDAMA_OPEN_CART"})}catch{setNotice("장바구니 작업을 완료하지 못했습니다. 쿠팡 로그인과 열린 상품 페이지를 확인해 주세요.")}finally{setAdding(false)}};
+ const openCart=()=>chrome?.tabs?.create?chrome.tabs.create({url:"https://cart.coupang.com/cartView.pang"}):window.open("https://cart.coupang.com/cartView.pang");
+ return <main className="app-shell">
+  <header className="topbar"><div className="brand"><span className="brand-mark">딱</span><strong>딱담아</strong></div><button className="text-button" onClick={openCart}><ShoppingBag size={20}/>장바구니<ChevronRight size={17}/></button></header>
+  <nav className="stepper" aria-label="진행 단계">{["목록","상품 확인","담기 전 확인","완료"].map((label,i)=><div className={i+1<=step?"step active":"step"} key={label}><span>{i+1<step?<Check size={14}/>:i+1}</span><small>{label}</small></div>)}</nav>
+  <section className="intro"><div><h1>상품 {lines.length}종 <span>·</span> 실물 {lines.reduce((s,x)=>s+x.requestedPhysicalUnits,0)}개</h1><p>규격과 수량을 나눠 정확한 상품만 담아요.</p></div><div className="verified"><Check size={15}/>파싱 완료</div></section>
+  <section className="list-input"><label htmlFor="shopping-list">붙여넣은 목록</label><textarea id="shopping-list" value={input} onChange={e=>setInput(e.target.value)}/><div className="input-actions"><button onClick={()=>setInput(SAMPLE)}>예시 불러오기</button><button onClick={parse}>다시 인식</button><button className="parse-button" onClick={searchAll} disabled={searching}>{searching?<LoaderCircle className="spin" size={15}/>:<Search size={15}/>}실제 상품 찾기</button></div></section>
+  {notice&&<div className="notice"><Check size={18}/><span>{notice}</span><button onClick={()=>setNotice(null)}>닫기</button></div>}
+  <div className="section-head"><h2>선택된 상품</h2><button><SlidersHorizontal size={16}/>추천순</button></div>
+  <section className="products">{lines.map((line,i)=>{const item=selected[line.id];const purchaseQty=item?line.requestedPhysicalUnits/item.unitsPerPackage:0;return <article className={expanded===i?"product expanded":"product"} key={line.id}>
+   <button className="product-head" onClick={()=>setExpanded(expanded===i?-1:i)}><span className={item?"check":"check pending"}>{item?<Check size={15}/>:i+1}</span><span className="product-copy"><strong>{item?.title??line.productName}</strong><small>{stateLabel(line)}</small></span><span className="price">{item?.currentPrice?`${(item.currentPrice*purchaseQty).toLocaleString()}원`:"가격 확인 전"}</span><ChevronDown className="chevron" size={18}/></button>
+   {expanded===i&&<div className="product-detail"><div className="verified-row">{item?.currentPrice?<span><Check size={14}/>검색 가격 확인됨</span>:<span className="waiting">실제 후보를 검색해 주세요</span>}{item?.rocketDelivery&&<b>로켓배송</b>}</div><dl><div><dt>요청 사양</dt><dd>{line.packageContentCount?`${line.strengthValue}${line.strengthUnit}, ${line.packageContentCount}${line.packageContentUnit} × 1병`:`${line.unitSizeValue}${line.unitSizeUnit} ${item&&item.unitsPerPackage>1?`${item.unitsPerPackage}개 묶음`:"단품"} × ${purchaseQty||line.requestedPhysicalUnits}개`} = 실물 {line.requestedPhysicalUnits}개</dd></div><div><dt>검증 단계</dt><dd>{item?"상품 상세페이지에서 현재 가격·재고·옵션을 다시 확인합니다.":"검색 전에는 자동으로 담지 않습니다."}</dd></div></dl><div className="match"><span>{item?`매칭 점수 ${candidateScore(line,item)}`:"확인 대기"}</span><span>{item?"추천 선택":"미선택"}</span></div></div>}
+  </article>})}</section>
+  <aside className="preflight"><TriangleAlert size={18}/><div><strong>{preflight?"실제 장바구니 변경 전 최종 승인":"담기 전 최종 확인"}</strong><p>{preflight?`상품 ${lines.length}종을 상세페이지에서 재검증한 뒤 순차적으로 담습니다. 결제는 자동으로 진행하지 않습니다.`:"검색 가격은 예상가입니다. 실제 상품 페이지에서 가격·재고·수량을 재확인해야 담을 수 있습니다."}</p>{cartResults.length>0&&<p>성공 {cartResults.filter(x=>x.status==="SUCCESS").length}종 · 실패 {cartResults.filter(x=>x.status!=="SUCCESS").length}종</p>}</div></aside>
+  <footer className="sticky-summary"><div className="summary-stats"><div><small>예상 합계</small><strong>{verifiedCount?`${total.toLocaleString()}원`:"확인 전"}</strong></div><div><small>검색 가격</small><strong className={verifiedCount===lines.length?"green":""}>{verifiedCount}/{lines.length}</strong></div></div><button className="primary" disabled={verifiedCount!==lines.length||adding} onClick={addToCart}>{adding?<><LoaderCircle className="spin" size={18}/>담는 중…</>:<>{preflight?`${lines.length}종 최종 확인 후 담기`:"장바구니에 정확히 담기"}<ChevronRight size={19}/></>}</button><p className="affiliate">쿠팡 파트너스 활동을 통해 일정액의 수수료를 받을 수 있습니다.</p></footer>
+ </main>
+}

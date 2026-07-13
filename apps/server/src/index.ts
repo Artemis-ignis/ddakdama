@@ -1,0 +1,16 @@
+import{createServer}from"node:http";import{StreamableHTTPServerTransport}from"@modelcontextprotocol/sdk/server/streamableHttp.js";import{createMcpServer}from"./mcp.js";import{ackHandoff,authenticateDevice,latestHandoff,startPairing}from"./store.js";import{createDeepLinks,partnersConfigured,searchProducts}from"./partners.js";
+const port=Number(process.env.PORT??8787);
+const json=(res:import("node:http").ServerResponse,status:number,data:unknown)=>{res.writeHead(status,{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"});res.end(JSON.stringify(data))};
+const read=async(req:import("node:http").IncomingMessage)=>{const chunks:Buffer[]=[];for await(const c of req)chunks.push(Buffer.from(c));return JSON.parse(Buffer.concat(chunks).toString("utf8")||"{}")};
+const bearer=(req:import("node:http").IncomingMessage)=>String(req.headers.authorization??"").replace(/^Bearer\s+/i,"");
+createServer(async(req,res)=>{try{const url=new URL(req.url??"/",`http://${req.headers.host??"localhost"}`);
+ if(req.method==="GET"&&url.pathname==="/health")return json(res,200,{ok:true,name:"ddakdama",version:"1.0.0",status:"available"});
+ if(req.method==="POST"&&url.pathname==="/api/pairing/start"){const body=await read(req);return json(res,201,startPairing(String(body.deviceId??"")))}
+ if(req.method==="GET"&&url.pathname==="/api/handoffs/latest"){const deviceId=authenticateDevice(bearer(req));if(!deviceId)return json(res,401,{error:"unauthorized"});return json(res,200,{handoff:latestHandoff(deviceId)})}
+ const ack=url.pathname.match(/^\/api\/handoffs\/([^/]+)\/ack$/);if(req.method==="POST"&&ack){const deviceId=authenticateDevice(bearer(req));if(!deviceId)return json(res,401,{error:"unauthorized"});return json(res,ackHandoff(deviceId,ack[1])?200:404,{ok:true})}
+ if(req.method==="GET"&&url.pathname==="/api/affiliate/status")return json(res,200,{configured:partnersConfigured(),mode:"private",disclosure:"쿠팡 파트너스 활동을 통해 일정액의 수수료를 받을 수 있습니다."});
+ if(req.method==="POST"&&url.pathname==="/api/affiliate/search"){const body=await read(req);if(!partnersConfigured())return json(res,503,{error:"PARTNERS_NOT_CONFIGURED",fallback:"BROWSER_SEARCH"});return json(res,200,await searchProducts(String(body.keyword??""),Number(body.limit??10)))}
+ if(req.method==="POST"&&url.pathname==="/api/affiliate/deeplink"){const body=await read(req);if(!partnersConfigured())return json(res,503,{error:"PARTNERS_NOT_CONFIGURED",fallback:"DIRECT_COUPANG_URL"});return json(res,200,await createDeepLinks(Array.isArray(body.urls)?body.urls:[]))}
+ if(url.pathname==="/mcp"&&["GET","POST","DELETE"].includes(req.method??"")){res.setHeader("Access-Control-Allow-Origin","*");res.setHeader("Access-Control-Expose-Headers","Mcp-Session-Id");const server=createMcpServer();const transport=new StreamableHTTPServerTransport({sessionIdGenerator:undefined,enableJsonResponse:true});res.on("close",()=>{void transport.close();void server.close()});await server.connect(transport);return await transport.handleRequest(req,res)}
+ res.writeHead(404).end("Not Found");
+ }catch(error){console.error("[ddakdama]",error);if(!res.headersSent)json(res,500,{error:"internal_error"})}}).listen(port,()=>console.log(`딱담아: http://localhost:${port}/mcp`));

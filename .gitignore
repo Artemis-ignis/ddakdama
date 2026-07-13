@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+coverage/
+dist/
+*.crx
+*.pem
+
+# v0.2 legacy prototype kept locally for reference
+/extension/
+/gpt-app/
+/shared/
+/test/

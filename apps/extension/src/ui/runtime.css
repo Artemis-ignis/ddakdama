@@ -1,0 +1,6 @@
+.input-actions button{display:inline-flex;align-items:center;gap:5px}
+.spin{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.check.pending{background:#eef1f5;color:#89919d;font-size:10px}
+.waiting{color:#818894!important}
+.primary:disabled{background:#d9dde4;color:#8c939d;box-shadow:none;cursor:not-allowed}
