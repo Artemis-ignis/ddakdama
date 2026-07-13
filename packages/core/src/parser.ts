@@ -1,10 +1,10 @@
 import { shoppingRequestLineSchema,type ShoppingRequestLine } from "./schemas.js";
-const capacity:Record<string,ShoppingRequestLine["unitSizeUnit"]>={ml:"mL",l:"L",g:"g",kg:"kg"};
+const capacity:Record<string,ShoppingRequestLine["unitSizeUnit"]>={ml:"mL",밀리리터:"mL",l:"L",리터:"L",g:"g",그램:"g",kg:"kg",킬로그램:"kg"};
 const strength:Record<string,ShoppingRequestLine["strengthUnit"]>={mg:"mg",mcg:"mcg","μg":"mcg",iu:"IU","%":"%"};
 const packageUnits=new Set(["정","캡슐","포","매","개입","스틱","패치"]);
 const purchaseUnits=new Set(["개","병","통","세트","박스","입"]);
 type Token={value:number;unit:string;start:number};
-const tokenize=(text:string):Token[]=>[...text.matchAll(/(\d+(?:\.\d+)?)\s*(mL|ml|L|l|kg|g|mg|mcg|μg|IU|iu|%|정|캡슐|포|매|개입|스틱|패치|개|병|통|세트|박스|입)(?=\s|[x×+]|$)/gu)].map(m=>({value:Number(m[1]),unit:m[2],start:m.index??0}));
+const tokenize=(text:string):Token[]=>[...text.matchAll(/(\d+(?:\.\d+)?)\s*(밀리리터|킬로그램|리터|그램|mL|ml|L|l|kg|g|mg|mcg|μg|IU|iu|%|정|캡슐|포|매|개입|스틱|패치|개|병|통|세트|박스|입)(?=\s|[x×+]|$)/gu)].map(m=>({value:Number(m[1]),unit:m[2],start:m.index??0}));
 
 export function parseShoppingLine(rawText:string,index=0):ShoppingRequestLine{
   const normalizedText=rawText.trim().replace(/\s+/g," ");

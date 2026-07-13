@@ -91,10 +91,17 @@ type PairingState = "idle" | "code" | "connected" | "unavailable";
 const physicalUnits = (lines: ShoppingRequestLine[]) =>
   lines.reduce((sum, line) => sum + line.requestedPhysicalUnits, 0);
 
-const stateLabel = (line: ShoppingRequestLine) =>
-  line.packageContentCount
-    ? `${line.strengthValue}${line.strengthUnit} · ${line.packageContentCount}${line.packageContentUnit} · 1병`
-    : `${line.unitSizeValue}${line.unitSizeUnit} · 실물 ${line.requestedPhysicalUnits}개`;
+const stateLabel = (line: ShoppingRequestLine) => {
+  const specification = line.strengthValue && line.strengthUnit
+    ? `${line.strengthValue}${line.strengthUnit}`
+    : line.unitSizeValue && line.unitSizeUnit
+      ? `${line.unitSizeValue}${line.unitSizeUnit}`
+      : "규격 미입력";
+  const packageContent = line.packageContentCount && line.packageContentUnit
+    ? `${line.packageContentCount}${line.packageContentUnit}`
+    : null;
+  return [specification, packageContent, `실물 ${line.requestedPhysicalUnits}개`].filter(Boolean).join(" · ");
+};
 
 const statusMessage = (status?: string) =>
   ({
@@ -117,21 +124,43 @@ const searchErrorMessage = (error?: string) =>
     CONTENT_SCRIPT_UNAVAILABLE: "쿠팡 검색 연결이 늦어지고 있습니다.",
   })[error ?? ""] ?? "상품 검색을 완료하지 못했습니다.";
 
-const purchaseQuantity = (line: ShoppingRequestLine, item: SearchCandidate) =>
-  line.requestedPhysicalUnits / item.unitsPerPackage;
+const purchaseQuantity = (line: ShoppingRequestLine, item: SearchCandidate, manuallySelected = false) =>
+  manuallySelected
+    ? Math.ceil(line.requestedPhysicalUnits / item.unitsPerPackage)
+    : line.requestedPhysicalUnits / item.unitsPerPackage;
 
-const priceBreakdown = (price: number, line: ShoppingRequestLine, item: SearchCandidate) => {
-  const quantity = purchaseQuantity(line, item);
+const priceBreakdown = (price: number, line: ShoppingRequestLine, item: SearchCandidate, manuallySelected = false) => {
+  const quantity = purchaseQuantity(line, item, manuallySelected);
   const subtotal = price * quantity;
   return quantity > 1
     ? `${price.toLocaleString()}원 × ${quantity}개 = ${subtotal.toLocaleString()}원`
     : `${subtotal.toLocaleString()}원`;
 };
 
-const resultMessage = (result: CartResult, line?: ShoppingRequestLine, item?: SearchCandidate | null) => {
+const normalizeSpecText = (value: string) => value.toLowerCase().replace(/[^0-9a-z가-힣]/gu, "");
+
+const manualSelectionWarnings = (line: ShoppingRequestLine, item: SearchCandidate) => {
+  const title = normalizeSpecText(item.title);
+  const warnings: string[] = [];
+  const addSpecWarning = (label: string, value: number | null, unit: string | null) => {
+    if (value && unit && !title.includes(normalizeSpecText(`${value}${unit}`))) warnings.push(`${label} 불일치 · 요청 ${value}${unit}`);
+  };
+  addSpecWarning("용량", line.unitSizeValue, line.unitSizeUnit);
+  addSpecWarning("함량", line.strengthValue, line.strengthUnit);
+  addSpecWarning("구성", line.packageContentCount, line.packageContentUnit);
+  const quantity = Math.ceil(line.requestedPhysicalUnits / item.unitsPerPackage);
+  const supplied = quantity * item.unitsPerPackage;
+  if (supplied !== line.requestedPhysicalUnits) {
+    warnings.push(`묶음 수량 불일치 · ${item.unitsPerPackage}개 묶음 ${quantity}세트로 실물 ${supplied}개 (${supplied - line.requestedPhysicalUnits}개 초과)`);
+  }
+  if (!warnings.length && !candidateMatchesRequest(line, item)) warnings.push("상품명 또는 세부 규격이 요청과 다를 수 있음");
+  return warnings;
+};
+
+const resultMessage = (result: CartResult, line?: ShoppingRequestLine, item?: SearchCandidate | null, manuallySelected = false) => {
   if (result.status !== "SUCCESS") return statusMessage(result.status);
   if (!line || !item) return "요청한 수량을 장바구니에서 확인했습니다.";
-  const quantity = purchaseQuantity(line, item);
+  const quantity = purchaseQuantity(line, item, manuallySelected);
   const packageLabel = item.unitsPerPackage > 1
     ? `${item.unitsPerPackage}개 묶음 ${quantity}세트 담음`
     : `단품 ${quantity}개 담음`;
@@ -183,6 +212,8 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   const [notice, setNotice] = useState<string | null>(preview?.notice ?? null);
   const [groups, setGroups] = useState<SearchGroup[]>(preview?.groups ?? []);
   const [selectedIds, setSelectedIds] = useState<Record<string, string>>({});
+  const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
+  const [searchingLineId, setSearchingLineId] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [, setPreflight] = useState(preview?.preflight ?? false);
   const [preflightResults, setPreflightResults] = useState<CartResult[]>(
@@ -224,9 +255,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     () => Object.fromEntries(lines.map((line) => {
       const results = groups.find((group) => group.requestLineId === line.id)?.results ?? [];
       const manuallySelected = results.find((item) => item.id === selectedIds[line.id]);
-      return [line.id, manuallySelected && candidateMatchesRequest(line, manuallySelected)
-        ? manuallySelected
-        : selectBestCandidate(line, results)];
+      return [line.id, manuallySelected ?? selectBestCandidate(line, results)];
     })) as Record<string, SearchCandidate | null>,
     [lines, groups, selectedIds],
   );
@@ -235,7 +264,8 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   const pricedSelectedCount = lines.filter((line) => Number(selected[line.id]?.currentPrice) > 0).length;
   const searchTotal = lines.reduce((sum, line) => {
     const item = selected[line.id];
-    return sum + (item?.currentPrice ?? 0) * (item ? line.requestedPhysicalUnits / item.unitsPerPackage : 0);
+    const manuallySelected = Boolean(item && selectedIds[line.id] === item.id);
+    return sum + (item?.currentPrice ?? 0) * (item ? purchaseQuantity(line, item, manuallySelected) : 0);
   }, 0);
   const preflightReadyCount = preflightResults.filter((result) => result.status === "READY").length;
   const preflightIssueCount = preflightResults.filter((result) => result.status !== "READY").length;
@@ -246,7 +276,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     const line = lines.find((candidate) => candidate.id === result.id);
     const item = selected[result.id];
     if (!line || !item) return sum;
-    return sum + (result.verifiedPrice ?? 0) * (line.requestedPhysicalUnits / item.unitsPerPackage);
+    return sum + (result.verifiedPrice ?? 0) * purchaseQuantity(line, item, selectedIds[line.id] === item.id);
   }, 0);
 
   const resetAfterInput = (nextLines: ShoppingRequestLine[]) => {
@@ -254,6 +284,8 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     setLines(nextLines);
     setGroups([]);
     setSelectedIds({});
+    setSearchQueries({});
+    setSearchingLineId(null);
     setPreflight(false);
     setPreflightResults([]);
     setCartResults([]);
@@ -296,6 +328,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       setSelectedIds({});
       setStep(2);
       const exact = next.filter((line) => selectBestCandidate(line, output.find((group) => group.requestLineId === line.id)?.results ?? [])).length;
+      setExpanded(next.findIndex((line) => !selectBestCandidate(line, output.find((group) => group.requestLineId === line.id)?.results ?? [])));
       setNotice(exact === next.length
         ? "요청한 규격과 수량이 정확히 일치하는 상품을 찾았습니다."
         : `정확히 일치하는 상품 ${exact}종 · 직접 확인이 필요한 상품 ${next.length - exact}종입니다.`);
@@ -309,22 +342,61 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   const makeJobs = (): CartJob[] => lines.flatMap((line) => {
     const item = selected[line.id];
     if (!item) return [];
+    const manuallySelected = selectedIds[line.id] === item.id;
     return [{
       id: line.id,
       productUrl: item.productUrl,
       productId: item.productId,
       vendorItemId: item.vendorItemId,
       itemId: item.itemId,
-      cartPurchaseQuantity: line.requestedPhysicalUnits / item.unitsPerPackage,
-      expectedBrand: line.brand,
-      expectedProductName: line.productName,
+      cartPurchaseQuantity: purchaseQuantity(line, item, manuallySelected),
+      expectedBrand: manuallySelected ? null : line.brand,
+      expectedProductName: manuallySelected ? item.title : line.productName,
       expectedUnitsPerPackage: item.unitsPerPackage,
-      expectedUnitSize: line.unitSizeValue ? `${line.unitSizeValue}${line.unitSizeUnit}` : null,
-      expectedStrength: line.strengthValue ? `${line.strengthValue}${line.strengthUnit}` : null,
-      expectedPackageContent: line.packageContentCount ? `${line.packageContentCount}${line.packageContentUnit}` : null,
+      expectedUnitSize: manuallySelected ? null : line.unitSizeValue ? `${line.unitSizeValue}${line.unitSizeUnit}` : null,
+      expectedStrength: manuallySelected ? null : line.strengthValue ? `${line.strengthValue}${line.strengthUnit}` : null,
+      expectedPackageContent: manuallySelected ? null : line.packageContentCount ? `${line.packageContentCount}${line.packageContentUnit}` : null,
       status: "QUEUED" as const,
     }];
   });
+
+  const retryCandidateSearch = async (line: ShoppingRequestLine) => {
+    const query = (searchQueries[line.id] ?? line.productName).trim();
+    if (!query || searchingLineId) return;
+    setSearchingLineId(line.id);
+    setNotice(null);
+    try {
+      const searchLine: ShoppingRequestLine = {
+        ...line,
+        rawText: query,
+        normalizedText: query,
+        brand: null,
+        productName: query,
+        variantTokens: [],
+        unitSizeValue: null,
+        unitSizeUnit: null,
+        strengthValue: null,
+        strengthUnit: null,
+        packageContentCount: null,
+        packageContentUnit: null,
+      };
+      const response = await chrome.runtime.sendMessage({ type: "DDAKDAMA_SEARCH_ALL", items: [searchLine] });
+      const output = response?.output as SearchGroup[] | undefined;
+      const nextGroup = output?.find((candidate) => candidate.requestLineId === line.id);
+      if (!nextGroup) throw new Error("INCOMPLETE_SEARCH_RESPONSE");
+      setGroups((current) => [...current.filter((candidate) => candidate.requestLineId !== line.id), nextGroup]);
+      setSelectedIds((current) => {
+        const next = { ...current };
+        delete next[line.id];
+        return next;
+      });
+      setNotice(nextGroup.results.length ? `${line.productName} 후보 ${nextGroup.results.length}개를 찾았습니다.` : "검색된 후보가 없습니다. 검색어를 더 간단히 바꿔 보세요.");
+    } catch {
+      setNotice("이 상품의 후보를 다시 찾지 못했습니다. 잠시 후 재시도해 주세요.");
+    } finally {
+      setSearchingLineId(null);
+    }
+  };
 
   const runPreflight = async () => {
     if (adding || selectedCount !== lines.length) return;
@@ -590,7 +662,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   const renderSelection = () => (
     <>
       <section className="screen-heading">
-        <div><h1>선택된 상품</h1><p>규격과 수량이 모두 맞는 후보만 선택했어요.</p></div>
+        <div><h1>상품을 확인해 주세요</h1><p>정확한 후보는 자동으로, 비슷한 후보는 직접 고를 수 있어요.</p></div>
         <span className={selectedCount === lines.length ? "status success" : "status warning"}>
           {selectedCount === lines.length ? <Check size={15} /> : <CircleHelp size={15} />}
           {selectedCount}/{lines.length}종
@@ -599,16 +671,19 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       <section className="product-group" aria-label="선택된 상품">
         {lines.map((line, index) => {
           const item = selected[line.id];
-          const purchaseQty = item ? line.requestedPhysicalUnits / item.unitsPerPackage : 0;
+          const manuallySelected = Boolean(item && selectedIds[line.id] === item.id);
+          const purchaseQty = item ? purchaseQuantity(line, item, manuallySelected) : 0;
+          const selectionWarnings = item && manuallySelected ? manualSelectionWarnings(line, item) : [];
           const group = groups.find((candidate) => candidate.requestLineId === line.id);
           const results = group?.results ?? [];
           return (
-            <article className={`product-row ${expanded === index ? "expanded" : ""} ${item ? "" : "needs-attention"}`} data-testid={`product-${index}`} key={line.id}>
+            <article className={`product-row ${expanded === index ? "expanded" : ""} ${item ? "" : "needs-attention"} ${manuallySelected ? "manual-selection" : ""}`} data-testid={`product-${index}`} key={line.id}>
               <button className="product-row-main" type="button" onClick={() => setExpanded(expanded === index ? -1 : index)} aria-expanded={expanded === index}>
                 <span className={item ? "selection-check" : "selection-check empty"}>{item ? <Check size={14} /> : index + 1}</span>
                 <ProductImage item={item} />
                 <span className="product-row-copy">
                   <strong>{item?.title ?? line.productName}</strong>
+                  {manuallySelected && <em>직접 선택</em>}
                   <small>{stateLabel(line)}{item?.unitsPerPackage && item.unitsPerPackage > 1 ? ` · ${item.unitsPerPackage}개 묶음 × ${purchaseQty}` : ""}</small>
                 </span>
                 <span className="product-row-price">{item?.currentPrice ? <><b>{(item.currentPrice * purchaseQty).toLocaleString()}원</b>{purchaseQty > 1 && <small>{item.currentPrice.toLocaleString()}원 × {purchaseQty}</small>}</> : item ? "상세에서 가격 확인" : group?.error ? "검색 실패" : "일치 후보 없음"}</span>
@@ -616,14 +691,21 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
               </button>
               {expanded === index && (
                 <div className="candidate-panel">
-                  <p className={item ? "match-copy" : "match-copy warning"}>
-                    {item ? (item.currentPrice ? "규격과 수량이 가장 잘 맞는 상품이에요." : "상품은 일치하며 현재 가격은 상세페이지에서 확인해요.") : group?.error ? searchErrorMessage(group.error) : "정확히 일치하는 상품이 없어 자동 선택하지 않았어요."}
+                  <p className={item && !selectionWarnings.length ? "match-copy" : "match-copy warning"}>
+                    {manuallySelected ? "직접 선택한 상품입니다. 다음 단계에서 가격·재고·옵션을 다시 확인해요." : item ? (item.currentPrice ? "규격과 수량이 가장 잘 맞는 상품이에요." : "상품은 일치하며 현재 가격은 상세페이지에서 확인해요.") : group?.error ? searchErrorMessage(group.error) : "정확히 일치하는 상품이 없어 자동 선택하지 않았어요. 아래 후보를 직접 확인해 주세요."}
                   </p>
+                  {selectionWarnings.length > 0 && (
+                    <div className="manual-warning" role="alert">
+                      <AlertCircle size={16} />
+                      <div><strong>요청과 다른 점이 있어요</strong>{selectionWarnings.map((warning) => <span key={warning}>{warning}</span>)}</div>
+                    </div>
+                  )}
                   <div className="candidate-list" aria-label={`${line.productName} 상품 후보`}>
-                    {results.slice(0, 4).map((candidate) => {
+                    {results.map((candidate) => {
                       const exact = candidateMatchesRequest(line, candidate);
                       const active = item?.id === candidate.id;
-                      const candidatePurchaseQuantity = exact ? purchaseQuantity(line, candidate) : 0;
+                      const candidatePurchaseQuantity = purchaseQuantity(line, candidate, !exact);
+                      const candidateWarnings = exact ? [] : manualSelectionWarnings(line, candidate);
                       return (
                         <button
                           type="button"
@@ -636,16 +718,26 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
                             setCartResults([]);
                             setSelectedIds((current) => ({ ...current, [line.id]: candidate.id }));
                           }}
-                          disabled={!exact}
                           aria-pressed={active}
                         >
                           <span className="candidate-radio">{active ? <Check size={12} /> : null}</span>
-                          <span><strong>{candidate.title}</strong><small>{candidate.currentPrice && exact ? priceBreakdown(candidate.currentPrice, line, candidate) : candidate.currentPrice ? `${candidate.currentPrice.toLocaleString()}원` : exact ? "상세에서 가격 확인" : "검색가격 미확인"} · {candidate.unitsPerPackage === 1 ? `단품 × ${candidatePurchaseQuantity || "-"}` : `${candidate.unitsPerPackage}개 묶음 × ${candidatePurchaseQuantity || "-"}`}{candidate.rocketDelivery ? " · 로켓배송" : ""}</small></span>
-                          <b>{active ? "선택됨" : exact ? "선택" : "규격 불일치"}</b>
+                          <span><strong>{candidate.title}</strong><small>{candidate.currentPrice ? priceBreakdown(candidate.currentPrice, line, candidate, !exact) : "상세에서 가격 확인"} · {candidate.unitsPerPackage === 1 ? `단품 × ${candidatePurchaseQuantity}` : `${candidate.unitsPerPackage}개 묶음 × ${candidatePurchaseQuantity}`}{candidate.rocketDelivery ? " · 로켓배송" : ""}{candidateWarnings.length ? " · 요청과 다름" : ""}</small></span>
+                          <b>{active ? (manuallySelected ? "직접 선택" : "선택됨") : exact ? "선택" : "직접 선택"}</b>
                         </button>
                       );
                     })}
-                    {!results.length && <p className="empty-candidates">{group?.error ? `${searchErrorMessage(group.error)} 아래의 다시 찾기를 눌러 주세요.` : "검색된 후보가 없습니다. 상품명을 다시 확인해 주세요."}</p>}
+                    {!results.length && (
+                      <div className="empty-candidates">
+                        <p>{group?.error ? searchErrorMessage(group.error) : "검색된 후보가 없습니다."}</p>
+                        <label htmlFor={`retry-query-${line.id}`}>검색어 수정</label>
+                        <div className="retry-search-row">
+                          <input id={`retry-query-${line.id}`} value={searchQueries[line.id] ?? line.productName} onChange={(event) => setSearchQueries((current) => ({ ...current, [line.id]: event.target.value }))} />
+                          <button type="button" onClick={() => void retryCandidateSearch(line)} disabled={searchingLineId === line.id || !(searchQueries[line.id] ?? line.productName).trim()}>
+                            {searchingLineId === line.id ? <LoaderCircle className="spin" size={15} /> : <Search size={15} />}다시 검색
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -679,7 +771,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
             return (
               <div className="verification-row" key={line.id}>
                 <span className={ready ? "verification-dot ready" : "verification-dot"} />
-                <span><strong>{line.productName}</strong><small>{ready && result.verifiedPrice && item ? `${priceBreakdown(result.verifiedPrice, line, item)} · 상세 확인 완료` : ready ? "상세 확인 완료" : statusMessage(result?.status)}</small></span>
+                <span><strong>{line.productName}</strong><small>{ready && result.verifiedPrice && item ? `${priceBreakdown(result.verifiedPrice, line, item, selectedIds[line.id] === item.id)} · 상세 확인 완료` : ready ? "상세 확인 완료" : statusMessage(result?.status)}</small></span>
                 {!ready && <button type="button" onClick={() => openProduct(line.id)}>상품 페이지</button>}
               </div>
             );
@@ -712,7 +804,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
             return (
               <div className={`result-row ${ok ? "success" : "failure"}`} key={result.id}>
                 <span>{ok ? <Check size={14} /> : <AlertCircle size={15} />}</span>
-                <div><strong>{line?.productName ?? result.expectedProductName ?? result.id}</strong><small>{resultMessage(result, line, line ? selected[line.id] : null)}</small></div>
+                <div><strong>{line?.productName ?? result.expectedProductName ?? result.id}</strong><small>{resultMessage(result, line, line ? selected[line.id] : null, Boolean(line && selectedIds[line.id]))}</small></div>
                 {!ok && <div className="result-row-actions"><button type="button" onClick={() => openResultProduct(result)}>상품 페이지</button><button type="button" disabled={adding || !line} onClick={() => retryLine(result.id)}>다시 시도</button></div>}
               </div>
             );
