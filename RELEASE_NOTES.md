@@ -1,26 +1,52 @@
 # 딱담아 v1.0.0 Production Beta
 
-- 단일 `apps/extension` 설치 구조와 상대 자산 경로
-- GPT 앱 6자리 페어링, 계획 전송·수신·ACK
-- 실제 쿠팡 후보 비교와 수량 불일치·가격 미확인 차단
-- 담기 전 이중 승인과 productId·vendorItemId·itemId 복합 SKU 수량 delta 검증
-- 서비스 워커 재시작 후 목표 수량 기반 재개와 중복 추가 방지
-- 공식 Playwright 번들 Chromium을 이용한 MV3 확장 프로그램 E2E
-- 실패 상품의 상품 페이지 열기·개별 재시도
-- Windows 설치·서버·터널·패키징 도구 및 초보자 문서
-- Vite·Vitest·esbuild 보안 패치, 알려진 취약점 0개
+## 핵심 기능
 
-- TypeScript pnpm 모노레포로 재구성
-- 100mg, 240정, 구매수량을 구분하는 한국어 쇼핑 목록 파서
-- 단품과 묶음 상품의 정확한 실물수량 계산
-- 실제 쿠팡 검색 후보의 productId, vendorItemId, 현재가와 묶음 파싱
-- 가격 미확인·품절·필수 옵션·상품 불일치 자동 담기 차단
-- 장바구니 담기 전후 복합 SKU별 수량 delta 검증
-- 일부 실패를 전체 성공으로 표시하지 않는 결과 모델
-- Apple의 절제와 Toss의 명료성을 참고한 독자적 Side Panel 디자인
-- OpenAI Apps SDK MCP 도구 6개와 ChatGPT 위젯
-- 암호학적 일회용 기기 페어링, 시도 제한, TTL handoff와 idempotency
-- 쿠팡 파트너스 HMAC, 상품 검색과 Deep Link adapter
-- Windows 설치·진단·패키징 스크립트
+- 자연어 쇼핑 목록을 브랜드·제품명·용량·함량·포장 규격·요청 실물수량으로 분리
+- 고정 목록 5종·실물 7개를 정확히 해석하고 `100mg 240정`을 1병으로 처리
+- 쿠팡 후보의 브랜드·핵심 제품명·규격·묶음·가격을 엄격하게 검증
+- 단품과 묶음 상품을 고려한 정확한 장바구니 구매수량 계산
+- 상세페이지 확인가가 없는 상품, 품절, 필수 옵션, 규격 불일치 상품 자동 담기 차단
+- 사전검사 문제를 숨기지 않고 전체 취소·문제 확인·가능한 상품만 담기를 명시적으로 선택
+- productId·vendorItemId·itemId 복합 SKU 기반 장바구니 전후 수량 delta 검증
+- 중단된 서비스 워커 작업을 journal로 안전하게 복구하고 같은 실행의 중복 담기 방지
+- 실제 장바구니 표시가격, 예상가격, 차액을 결과 화면에서 구분
+- 전체 성공·부분 실패·사용자 조치 필요 상태를 명확히 분리
 
-라이브 장바구니 변경, ChatGPT Developer Mode 등록과 실제 파트너스 키 호출은 계정 승인 및 사용자 최종 확인이 필요한 검증 항목입니다.
+## 확장 프로그램
+
+- 설치 경로는 `apps/extension` 하나로 통일
+- Manifest V3 서비스 워커와 Chrome Side Panel
+- content script를 Chrome이 직접 실행할 수 있는 독립 IIFE 파일로 별도 빌드
+- 개발용 ZIP과 localhost 권한을 제거한 Web Store 검토용 ZIP을 분리
+- Apple의 절제된 계층과 Toss의 명확한 단계·숫자·안심 UX를 참고한 독자 UI
+- 일반 사용자 화면에서 서버 URL, MCP, token, raw log 등 개발자 정보 제거
+- 실제 장바구니 바로가기, 실패 상품 재시도, 상품 페이지 열기 제공
+
+## ChatGPT 앱·서버
+
+- OpenAI Apps SDK/MCP 도구와 React 위젯
+- 일회용 페어링 코드, device token, TTL handoff, idempotency key
+- 서버 재시작에도 복원되는 로컬 상태 저장소와 비밀정보 해시 저장
+- 연결 해제 시 device token·grant·pairing·handoff 일괄 폐기
+- 클라이언트별·코드별 페어링 시도 제한
+- 확장 프로그램의 파트너스 검색은 GPT 페어링과 독립적으로 자동 device 등록
+
+## 쿠팡 파트너스
+
+- 공식 HMAC 서명, Product Search, Deep Link adapter
+- API 키는 서버 `.env`에만 저장
+- API 미설정·미지원·오류 시 일반 쿠팡 검색과 일반 링크로 fallback
+- 사용자 opt-in과 제휴 고지 전제
+- 수수료 발생을 보장하지 않음
+
+## 검증
+
+- ESLint 및 TypeScript 통과
+- Vitest 30/30 통과
+- 실제 Chromium Playwright 14/14 통과
+- MCP 실연결 스모크 테스트 통과
+- 프로덕션 빌드 통과
+- 알려진 고위험 의존성 취약점 0개
+
+실제 쿠팡 계정 장바구니 변경, 승인된 파트너스 키 호출, ChatGPT Developer Mode 등록은 사용자 계정·권한과 명시적 승인 후 최종 검증해야 합니다.

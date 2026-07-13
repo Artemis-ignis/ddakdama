@@ -5,6 +5,10 @@ cd /d "%~dp0"
 echo [딱담아] 설치를 준비합니다.
 where node >nul 2>nul || (echo Node.js LTS를 먼저 설치해 주세요.& pause & exit /b 1)
 where pnpm >nul 2>nul || (echo pnpm을 설치합니다.& call npm install -g pnpm)
+if not exist "apps\server\.env" (
+  copy /y "apps\server\.env.example" "apps\server\.env" >nul
+  echo 서버 설정 파일 apps\server\.env 을 만들었습니다.
+)
 call pnpm install
 if errorlevel 1 goto :fail
 call pnpm exec playwright install chromium

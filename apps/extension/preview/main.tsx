@@ -18,8 +18,9 @@ const groups:SearchGroup[]=lines.map((line,index)=>({requestLineId:line.id,resul
 ]}));
 const success=lines.map(line=>({id:line.id,status:"SUCCESS"}));
 const partial=lines.map((line,index)=>({id:line.id,status:index===4?"PRICE_UNVERIFIED":"SUCCESS"}));
+const partialPreflight=lines.map((line,index)=>({id:line.id,status:index===4?"PRICE_UNVERIFIED":"READY",verifiedPrice:index===4?undefined:prices[index]}));
 const path=location.pathname;
-const preview:PreviewState=path.includes("result-partial-failure")?{groups,step:4,preflight:true,cartResults:partial,notice:"성공 4종 · 실패 1종입니다. 실패 상품을 확인해 주세요."}:path.includes("result-success")?{groups,step:4,preflight:true,cartResults:success,notice:"요청한 상품 5종을 모두 검증해 담았습니다."}:path.includes("preflight")?{groups,step:3,preflight:true,notice:"상품 5종 · 실물 7개 · 예상 금액을 확인해 주세요."}:path.includes("candidates")?{groups,step:2,notice:"모든 상품의 실제 후보를 찾았습니다."}:{};
+const preview:PreviewState=path.includes("result-partial-failure")?{groups,step:4,preflight:true,cartResults:partial,notice:"성공 4종 · 실패 1종입니다. 실패 상품을 확인해 주세요."}:path.includes("result-success")?{groups,step:4,preflight:true,cartResults:success,notice:"요청한 상품 5종을 모두 검증해 담았습니다."}:path.includes("preflight-partial")?{groups,step:3,preflight:true,preflightResults:partialPreflight,notice:"사전검사 통과 4종 · 확인 필요 1종입니다."}:path.includes("preflight")?{groups,step:3,preflight:true,notice:"상품 5종 · 실물 7개 · 예상 금액을 확인해 주세요."}:path.includes("candidates")?{groups,step:2,notice:"모든 상품의 실제 후보를 찾았습니다."}:{};
 
 const storage=new Map<string,unknown>();
 (globalThis as typeof globalThis&{chrome:unknown}).chrome={runtime:{sendMessage:async(message:{type:string})=>message.type==="DDAKDAMA_SEARCH_ALL"?{output:groups}:message.type==="DDAKDAMA_RUN_CART_JOBS"?{results:success}:{ok:true}},storage:{local:{get:async(keys:string[])=>Object.fromEntries(keys.map(key=>[key,storage.get(key)])),set:async(values:Record<string,unknown>)=>{for(const[key,value]of Object.entries(values))storage.set(key,value)}}},tabs:{create:async()=>({})}};

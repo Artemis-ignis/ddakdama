@@ -1,0 +1,25 @@
+import{createServer}from"node:http";
+
+const products=new Map();
+const quantities=new Map();
+const json=(res,status,value)=>{res.writeHead(status,{"content-type":"application/json; charset=utf-8","cache-control":"no-store"});res.end(JSON.stringify(value))};
+const html=(res,value)=>{res.writeHead(200,{"content-type":"text/html; charset=utf-8","cache-control":"no-store"});res.end(value)};
+const read=async req=>{const chunks=[];for await(const chunk of req)chunks.push(chunk);return JSON.parse(Buffer.concat(chunks).toString("utf8")||"{}")};
+const key=product=>`${product.productId}:${product.vendorItemId}:${product.itemId}`;
+
+createServer(async(req,res)=>{
+ const url=new URL(req.url??"/","http://127.0.0.1:4174");
+ if(req.method==="POST"&&url.pathname==="/fixture/configure"){
+  const body=await read(req);products.clear();quantities.clear();
+  for(const product of body.products??[]){products.set(String(product.productId),product);quantities.set(key(product),Number(body.quantities?.[key(product)]??0))}
+  return json(res,200,{ok:true});
+ }
+ if(req.method==="GET"&&url.pathname==="/fixture/state")return json(res,200,{quantities:Object.fromEntries(quantities)});
+ const add=url.pathname.match(/^\/fixture\/add\/(\d+)$/);
+ if(req.method==="POST"&&add){const product=products.get(add[1]);if(!product)return json(res,404,{error:"not_found"});const productKey=key(product);quantities.set(productKey,(quantities.get(productKey)??0)+1);return json(res,200,{quantity:quantities.get(productKey)})}
+ const productMatch=url.pathname.match(/^\/product\/(\d+)$/);
+ if(req.method==="GET"&&productMatch){const product=products.get(productMatch[1]);if(!product)return json(res,404,{error:"not_found"});const price=product.price?`<div class="total-price"><strong>${Number(product.price).toLocaleString()}원</strong></div>`:"";const option=product.optionRequired?'<select aria-label="필수 옵션"><option value="">선택</option><option value="one">기본</option></select>':"";return html(res,`<!doctype html><html><head><meta charset="utf-8"></head><body data-product-id="${product.productId}" data-vendor-item-id="${product.vendorItemId}" data-item-id="${product.itemId}"><h1>${product.title}</h1>${price}${option}<button onclick="const request=new XMLHttpRequest();request.open('POST','/fixture/add/${product.productId}',false);request.send()">장바구니</button></body></html>`)}
+ if(req.method==="GET"&&url.pathname==="/cart"){const rows=[...products.values()].flatMap(product=>{const quantity=quantities.get(key(product))??0;if(!quantity)return[];return[`<div class="cart-deal-item" data-line-total="${(product.price??0)*quantity}"><a class="product-name" href="https://www.coupang.com/vp/products/${product.productId}?itemId=${product.itemId}&vendorItemId=${product.vendorItemId}">${product.title}</a><input type="number" value="${quantity}"><span class="price-value">${(product.price??0)*quantity}원</span></div>`]});return html(res,`<!doctype html><html><head><meta charset="utf-8"></head><body>${rows.join("")}</body></html>`)}
+ if(req.method==="GET"&&url.pathname==="/health")return json(res,200,{ok:true});
+ res.writeHead(404).end("Not Found");
+}).listen(4174,"127.0.0.1",()=>console.log("cart fixture: http://127.0.0.1:4174"));

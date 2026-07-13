@@ -1,142 +1,94 @@
 # 쿠팡 파트너스 연동 설정
 
-## 목표
+## 동작 원칙
 
-딱담아에서 선택한 일반 쿠팡 상품 URL을 서버가 쿠팡 파트너스 딥링크로 변환하고, 변환하지 못한 상품은 일반 쿠팡 URL로 계속 처리합니다.
+딱담아는 서버에 쿠팡 파트너스 키가 설정되어 있으면 Product Search와 Deep Link를 먼저 사용합니다. API 결과가 없거나 호출에 실패하면 일반 쿠팡 브라우저 검색과 직접 상품 URL로 자동 전환합니다.
 
-## 필요한 것
+- Access Key와 Secret Key는 서버에만 저장합니다.
+- Chrome 확장 프로그램 번들, ChatGPT 위젯, Git 저장소에는 키를 넣지 않습니다.
+- 파트너스 실패 때문에 상품 검색이나 장바구니 작업을 중단하지 않습니다.
+- 딥링크 생성은 수수료 발생을 보장하지 않습니다.
+- 자동 결제와 주문 확정은 수행하지 않습니다.
+
+## 필요한 계정 상태
 
 - 승인된 쿠팡 파트너스 계정
-- 해당 계정에서 사용할 수 있는 Access Key와 Secret Key
-- HTTPS로 배포된 딱담아 `gpt-app` 서버
-- Chrome 확장 프로그램
+- 해당 계정에서 API 키를 발급할 수 있는 권한
+- 현재 쿠팡 파트너스 공식 포털에 표시되는 Product Search 및 Deep Link 규격
 
-API 제공 범위와 키 발급 가능 여부는 계정 상태에 따라 다를 수 있습니다.
+계정이 최종 승인되지 않았거나 API 메뉴가 없다면 일반 쿠팡 검색 fallback만 사용합니다. 판매자용 WING API를 파트너스 API로 대체하지 않습니다.
 
-## 서버 설정
+## 서버 환경변수
 
-`gpt-app/.env.example`을 참고해 환경변수를 등록합니다.
-
-```bash
-PORT=8787
-PUBLIC_BASE_URL=https://ddakdama.example.com
-WIDGET_DOMAIN=https://ddakdama.example.com
-
-DDAKDAMA_EXTENSION_TOKEN=충분히-긴-무작위-토큰
-DDAKDAMA_RATE_LIMIT_MAX=60
-DDAKDAMA_RATE_LIMIT_WINDOW_MS=60000
-DDAKDAMA_ALLOW_UNAUTHENTICATED_PARTNERS=false
-COUPANG_PARTNERS_ACCESS_KEY=발급받은-access-key
-COUPANG_PARTNERS_SECRET_KEY=발급받은-secret-key
-COUPANG_PARTNERS_SUB_ID=ddakdama-main
-
-COUPANG_PARTNERS_API_BASE_URL=https://api-gateway.coupang.com
-COUPANG_PARTNERS_DEEPLINK_PATH=/v2/providers/affiliate_open_api/apis/openapi/v1/deeplink
-```
-
-API 경로는 환경변수로 분리되어 있습니다. 계정의 최신 공식 포털 문서에 다른 경로가 표시되면 코드 수정 없이 값만 바꿀 수 있습니다.
-
-파트너스 키가 설정된 서버에서 `DDAKDAMA_EXTENSION_TOKEN`을 비워 두면 딥링크 요청은 기본적으로 거부됩니다. 이는 공개 서버가 타인의 무료 제휴 링크 프록시로 악용되는 것을 막기 위한 안전장치입니다. 로컬 실험에서만 `DDAKDAMA_ALLOW_UNAUTHENTICATED_PARTNERS=true`를 사용할 수 있습니다.
-
-## 서버 실행과 상태 확인
-
-```bash
-cd gpt-app
-npm install
-npm start
-```
-
-```bash
-curl https://ddakdama.example.com/health
-curl \
-  -H 'Authorization: Bearer 충분히-긴-무작위-토큰' \
-  https://ddakdama.example.com/api/partners/status
-```
-
-정상 상태 예:
-
-```json
-{
-  "ok": true,
-  "configured": true,
-  "defaultSubId": "ddakdama-main"
-}
-```
-
-## 딥링크 API 직접 시험
-
-```bash
-curl -X POST \
-  -H 'Authorization: Bearer 충분히-긴-무작위-토큰' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "urls": ["https://www.coupang.com/vp/products/123456"],
-    "subId": "ddakdama-test"
-  }' \
-  https://ddakdama.example.com/api/partners/deeplink
-```
-
-응답 예:
-
-```json
-{
-  "ok": true,
-  "subId": "ddakdama-test",
-  "links": [
-    {
-      "originalUrl": "https://www.coupang.com/vp/products/123456",
-      "affiliateUrl": "https://link.coupang.com/a/example",
-      "ok": true,
-      "reason": ""
-    }
-  ],
-  "warning": ""
-}
-```
-
-`affiliateUrl`이 비어 있으면 확장 프로그램은 `originalUrl`로 자동 대체합니다.
-
-## 확장 프로그램 설정
-
-1. 사이드 패널 하단 설정을 엽니다.
-2. 서버 주소를 입력합니다.
-3. 서버 연결 토큰을 입력합니다.
-4. **쿠팡 파트너스 링크 사용**을 켭니다.
-5. 고지 확인창을 읽고 동의합니다.
-6. Sub ID를 입력합니다.
-7. **저장·연결 확인**을 누릅니다.
-
-정상 연결이면 서버 상태와 파트너스 키 설정 여부가 표시됩니다.
-
-## 실제 동작
-
-- **쿠팡 후보 찾기**를 누르면 후보 URL의 딥링크를 미리 생성합니다.
-- 후보 카드에 **파트너스 링크** 또는 **일반 링크 대체**가 표시됩니다.
-- **파트너스로 담기**를 누르면 딥링크가 있는 상품만 파트너스 URL을 경유합니다.
-- 딥링크 리디렉션에 실패하면 직접 상품 URL로 다시 열고 담기를 계속합니다.
-- 장바구니 담기와 실제 장바구니 열기는 파트너스 링크 여부와 무관하게 계속됩니다.
-
-## Sub ID 운용 예
+`setup-windows.bat`는 처음 실행할 때 `apps/server/.env.example`을 `apps/server/.env`로 복사합니다. 실제 키는 다음 파일에만 입력합니다.
 
 ```text
-ddakdama-main
-ddakdama-chatgpt
-ddakdama-youtube
-ddakdama-user-a
+apps/server/.env
 ```
 
-Sub ID는 영문, 숫자, `_`, `-`만 남기고 최대 64자로 정규화합니다. 개인식별정보를 넣지 않는 것을 권장합니다.
+```dotenv
+PORT=8787
+PUBLIC_BASE_URL=https://ddakdama.example.com
+PAIRING_TTL_SECONDS=600
+HANDOFF_TTL_SECONDS=900
+DDAKDAMA_STORE_FILE=.data/ddakdama-state.json
+COUPANG_PARTNERS_ACCESS_KEY=발급받은_Access_Key
+COUPANG_PARTNERS_SECRET_KEY=발급받은_Secret_Key
+COUPANG_PARTNERS_SUB_ID=ddakdama-extension
+```
 
-## 수수료 검증
+`pnpm --filter @ddakdama/server start`와 `start-windows.bat`는 이 파일을 자동으로 읽습니다. `.env`와 `.data` 상태 파일은 Git과 배포 ZIP에서 제외됩니다. 상태 파일에는 원문 비밀키가 아니라 해시된 기기 토큰·연결 grant와 짧은 TTL의 handoff가 저장되어 서버 재시작 뒤에도 연결을 복구합니다.
 
-코드가 딥링크를 생성하고 경유했다고 해서 모든 구매가 자동으로 수수료로 인정되는 것은 아닙니다. 다음은 별도로 확인해야 합니다.
+## 확장 프로그램 서버 주소
 
-- 계정 승인 상태
-- API 사용 권한
+일반 사용자 화면에는 서버 주소나 토큰 입력란이 없습니다. 서버 주소는 빌드할 때 주입합니다.
+
+PowerShell 예시:
+
+```powershell
+$env:VITE_DDAKDAMA_SERVER_ORIGIN = "https://ddakdama.example.com"
+pnpm --filter @ddakdama/extension build
+```
+
+로컬 개발 기본값은 `http://localhost:8787`입니다.
+
+## 실제 흐름
+
+1. 사용자가 확장 프로그램에서 `실제 상품 찾기`를 누릅니다.
+2. 확장 프로그램은 저장된 device token이 없으면 서버에서 제한된 기기 토큰을 발급받아 로컬 Chrome 저장소에 보관합니다.
+3. 서버에 파트너스 키가 있으면 Product Search API를 호출합니다.
+4. 파트너스 결과와 브라우저 검색 결과를 복합 SKU 기준으로 합치고 중복을 제거합니다.
+5. 장바구니 담기 승인 후 Deep Link API 변환을 시도합니다.
+6. 변환 성공 시 딥링크를 경유하고, 실패 시 원래 쿠팡 상품 URL을 사용합니다.
+7. 실제 상품 규격·가격·재고·옵션과 장바구니 수량 변화는 동일하게 다시 검증합니다.
+
+GPT 앱 페어링은 쇼핑 목록 handoff용 기능입니다. 파트너스 검색을 사용하기 위해 GPT 앱을 먼저 연결할 필요는 없습니다.
+
+## 보안 통제
+
+- 파트너스 search/deeplink endpoint는 device token을 요구합니다.
+- pairing과 affiliate endpoint에는 요청 제한이 적용됩니다.
+- 토큰은 SHA-256 해시로 서버 메모리에 보관합니다.
+- 연결 해제 시 해당 기기의 token, grant, pairing과 handoff를 함께 폐기합니다.
+- 로그에 Secret Key나 원문 토큰을 출력하지 않습니다.
+
+## 사용자 고지
+
+확장 프로그램에는 다음 문구를 계속 표시합니다.
+
+> 쿠팡 파트너스 활동을 통해 일정액의 수수료를 받을 수 있습니다.
+
+Chrome Web Store 공개 빌드는 현재 제휴 링크 정책을 다시 검토해야 합니다. 실제 사용자 혜택이 필요한 정책 상태라면 혜택을 구현하기 전까지 public 빌드에서 제휴 기능을 켜지 않습니다.
+
+## 실제 수수료 검증
+
+다음 항목은 쿠팡 파트너스 대시보드에서 별도로 확인해야 합니다.
+
+- API 키 권한과 호출 성공
 - 허용된 홍보 매체
-- 클릭·구매 인정 기간
-- 자기구매·중복 링크·취소·반품 조건
-- 상품 또는 카테고리별 수수료 정책
-- 파트너스 대시보드의 클릭·전환 통계
+- 클릭 반영
+- 구매·취소·반품에 따른 전환 및 정산
+- 자기구매 인정 여부
+- 상품 또는 카테고리별 수수료율
 
-실수수료 검증은 테스트 상품 1개로 링크 생성 → 사용자 클릭 → 정상 장바구니 이동 → 파트너스 대시보드 클릭 반영 순서로 소규모 확인하세요.
+현재 프로젝트는 키가 없는 상태에서도 일반 쿠팡 검색과 장바구니 흐름이 계속 작동하도록 설계되어 있습니다.

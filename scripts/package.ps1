@@ -13,10 +13,11 @@ $out = Join-Path $root "dist"
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 $version = "1.0.0"
 $extensionZip = Join-Path $out "ddakdama-extension-dev-v$version.zip"
+$webstoreExtensionZip = Join-Path $out "ddakdama-extension-webstore-v$version.zip"
 $serverZip = Join-Path $out "ddakdama-server-v$version.zip"
 $chatgptZip = Join-Path $out "ddakdama-chatgpt-app-v$version.zip"
 $fullZip = Join-Path $out "ddakdama-full-v$version.zip"
-Remove-Item -LiteralPath $extensionZip,$serverZip,$chatgptZip,$fullZip -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $extensionZip,$webstoreExtensionZip,$serverZip,$chatgptZip,$fullZip -Force -ErrorAction SilentlyContinue
 $extensionStage = Join-Path $out "_extension"
 Assert-StagingPath $extensionStage
 Remove-Item -LiteralPath $extensionStage -Recurse -Force -ErrorAction SilentlyContinue
@@ -24,6 +25,10 @@ New-Item -ItemType Directory -Force -Path $extensionStage | Out-Null
 Copy-Item -Recurse -Force (Join-Path $root "apps\extension\dist") -Destination $extensionStage
 Copy-Item -Force (Join-Path $root "apps\extension\manifest.json") -Destination $extensionStage
 Compress-Archive -Path (Join-Path $extensionStage "*") -DestinationPath $extensionZip
+$webstoreManifest = Get-Content (Join-Path $extensionStage "manifest.json") -Raw -Encoding utf8 | ConvertFrom-Json
+$webstoreManifest.host_permissions = @($webstoreManifest.host_permissions | Where-Object { $_ -notmatch '^http://localhost:' })
+$webstoreManifest | ConvertTo-Json -Depth 20 | Set-Content -Encoding utf8 (Join-Path $extensionStage "manifest.json")
+Compress-Archive -Path (Join-Path $extensionStage "*") -DestinationPath $webstoreExtensionZip
 Remove-Item -LiteralPath $extensionStage -Recurse -Force
 $serverStage = Join-Path $out "_server"
 Assert-StagingPath $serverStage
@@ -47,9 +52,10 @@ Copy-Item -Recurse -Force apps,packages,docs,scripts,tests -Destination $stage
 Copy-Item -Force package.json,pnpm-workspace.yaml,pnpm-lock.yaml,eslint.config.js,playwright.config.ts,tsconfig.playwright.json,README.md,START_HERE_KO.md,SECURITY.md,PRIVACY.md,TERMS.md,LICENSE,VERSION,RELEASE_NOTES.md,TEST_REPORT.md,sample-list.txt,setup-windows.bat,start-windows.bat,doctor-windows.bat,package-windows.bat,tunnel-windows.bat,launch-windows.bat,install-extension-windows.bat -Destination $stage
 Get-ChildItem -Path $stage -Recurse -Directory -Filter node_modules | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -Directory -Filter preview-dist | Remove-Item -Recurse -Force
+Get-ChildItem -Path $stage -Recurse -Directory -Filter .data | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -File -Include .env,*.log | Remove-Item -Force
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $fullZip
 Remove-Item -LiteralPath $stage -Recurse -Force
-$hashes = Get-FileHash -Algorithm SHA256 $extensionZip,$serverZip,$chatgptZip,$fullZip
+$hashes = Get-FileHash -Algorithm SHA256 $extensionZip,$webstoreExtensionZip,$serverZip,$chatgptZip,$fullZip
 $hashes | ForEach-Object { "$($_.Hash)  $([IO.Path]::GetFileName($_.Path))" } | Set-Content -Encoding utf8 (Join-Path $out "SHA256SUMS.txt")
 Write-Host "DdakDama packages ready: $out"

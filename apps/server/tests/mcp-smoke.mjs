@@ -40,6 +40,14 @@ const status = await client.callTool({
   name: "get_cart_plan_status",
   arguments: {handoff_id: latest.handoff.id, connection_grant: paired._meta.connectionGrant},
 });
+const disconnected = await client.callTool({
+  name: "disconnect_extension_device",
+  arguments: {connection_grant: paired._meta.connectionGrant},
+});
+const revokedDeviceResponse = await fetch(`${origin}/api/handoffs/latest`, {
+  headers: {authorization: `Bearer ${pairing.deviceToken}`},
+});
+if (revokedDeviceResponse.status !== 401) throw new Error("DEVICE_TOKEN_NOT_REVOKED");
 
 console.log(JSON.stringify({
   paired: paired.structuredContent,
@@ -47,5 +55,7 @@ console.log(JSON.stringify({
   receivedRaw: latest.handoff.payload.items[0].rawText,
   ack: ack.status,
   status: status.structuredContent,
+  disconnected: disconnected.structuredContent,
+  revokedDeviceStatus: revokedDeviceResponse.status,
 }));
 await client.close();

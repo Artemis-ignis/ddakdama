@@ -12,3 +12,4 @@ dist/
 .playwright/
 output/playwright/
 apps/extension/preview-dist/
+apps/server/.data/

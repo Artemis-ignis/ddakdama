@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { parseUnitsPerPackage } from "@ddakdama/core/product";
 
 const base = "https://api-gateway.coupang.com";
 const root = "/v2/providers/affiliate_open_api/apis/openapi/v1";
@@ -117,20 +118,6 @@ export async function createDeepLinks(
   );
 }
 
-const packageUnits = (title: string) => {
-  const normalized = title.normalize("NFKC");
-  const matches = [
-    ...normalized.matchAll(
-      /(?:^|[,/\s(])(\d+)\s*(?:개입|개|병|통|팩|세트)(?=$|[,/\s)])/gu,
-    ),
-    ...normalized.matchAll(/(?:^|[,/\s(])[x×]\s*(\d+)(?=$|[,/\s)])/giu),
-  ];
-  const counts = matches
-    .map((match) => Number(match[1]))
-    .filter((value) => Number.isInteger(value) && value > 0 && value <= 100);
-  return counts.length ? Math.max(...counts) : 1;
-};
-
 export function normalizeSearchPayload(payload: unknown) {
   const top = record(payload);
   const nested = record(top.data);
@@ -172,7 +159,7 @@ export function normalizeSearchPayload(payload: unknown) {
         itemId,
         title,
         currentPrice: Number(item.productPrice ?? item.product_price) || null,
-        unitsPerPackage: packageUnits(title),
+        unitsPerPackage: parseUnitsPerPackage(title),
         productUrl,
         imageUrl: item.productImage ?? item.product_image ?? null,
         rocketDelivery: Boolean(item.isRocket ?? item.is_rocket),

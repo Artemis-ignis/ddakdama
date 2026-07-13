@@ -1,5 +1,34 @@
 import{test,expect}from"./extension-fixture";
 
+type CartFixtureProduct={
+ productId:string;
+ vendorItemId:string;
+ itemId:string;
+ title:string;
+ price:number|null;
+ optionRequired?:boolean;
+};
+
+const productUrl=(product:CartFixtureProduct)=>`https://www.coupang.com/vp/products/${product.productId}?itemId=${product.itemId}&vendorItemId=${product.vendorItemId}`;
+const cartJob=(product:CartFixtureProduct,quantity=1)=>({
+ id:`line-${product.productId}`,
+ productUrl:productUrl(product),
+ navigationUrl:`http://127.0.0.1:4174/product/${product.productId}?itemId=${product.itemId}&vendorItemId=${product.vendorItemId}`,
+ productId:product.productId,
+ vendorItemId:product.vendorItemId,
+ itemId:product.itemId,
+ expectedBrand:product.title.split(/\s+/u)[0]??null,
+ expectedProductName:product.title,
+ cartPurchaseQuantity:quantity,
+ expectedUnitsPerPackage:Number(product.title.match(/,\s*(\d+)\s*개\s*$/u)?.[1]??1),
+ expectedUnitSize:product.title.match(/(\d+\s*mL)/iu)?.[1]?.replace(/\s/g,"")??null,
+ expectedStrength:product.title.match(/(\d+\s*mg)/iu)?.[1]?.replace(/\s/g,"")??null,
+ expectedPackageContent:product.title.match(/(\d+\s*정)/u)?.[1]?.replace(/\s/g,"")??null,
+ status:"QUEUED",
+});
+async function installCartFixture(products:CartFixtureProduct[],quantities:Record<string,number>={}){const response=await fetch("http://127.0.0.1:4174/fixture/configure",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({products,quantities})});expect(response.ok).toBe(true)}
+async function fixtureQuantities(){const response=await fetch("http://127.0.0.1:4174/fixture/state");return(response.json() as Promise<{quantities:Record<string,number>}>).then(value=>value.quantities)}
+
 test("Manifest V3 서비스 워커와 Side Panel이 실제 Chromium에서 동작한다",async({page,extensionId,extensionWorker})=>{
  expect(extensionWorker.url()).toContain(`chrome-extension://${extensionId}/dist/background.js`);
  await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
@@ -11,6 +40,13 @@ test("Manifest V3 서비스 워커와 Side Panel이 실제 Chromium에서 동작
  expect(ping).toEqual({ok:true,name:"ddakdama",version:"1.0.0"});
  await page.evaluate(async()=>{await chrome.storage.local.set({"playwright-storage-check":"ok"})});
  expect(await page.evaluate(async()=>(await chrome.storage.local.get("playwright-storage-check"))["playwright-storage-check"])).toBe("ok");
+});
+
+test("Side Panel 재시작 후 중단된 journal을 복구 대상으로 표시하고 안전하게 지운다",async({page,extensionId})=>{
+ const product:CartFixtureProduct={productId:"710001",vendorItemId:"810001",itemId:"910001",title:"닥터지 레드 블레미쉬 포 맨 진정 올인원 150mL",price:16000};const job=cartJob(product);
+ await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
+ await page.evaluate(async job=>chrome.storage.local.set({"ddakdama-cart-journal":{runId:"recoverable-run",jobs:[job],results:[],checkpoints:{},startedAt:Date.now(),updatedAt:Date.now()}}),job);
+ await page.reload();await expect(page.getByText("중단된 담기 작업이 있어요")).toBeVisible();await expect(page.getByRole("button",{name:"안전하게 이어서 담기"})).toBeVisible();await page.getByRole("button",{name:"기록 지우기"}).click();await expect(page.getByText("중단된 담기 작업이 있어요")).toHaveCount(0);expect(await page.evaluate(async()=>Boolean((await chrome.storage.local.get("ddakdama-cart-journal"))["ddakdama-cart-journal"]))).toBe(false)
 });
 
 test("쿠팡 URL에 content script가 주입되어 후보를 구조화한다",async({context,page,extensionWorker})=>{
@@ -26,8 +62,44 @@ test("상세 content script와 preflight URL gate가 동작한다",async({contex
  await page.goto("https://www.coupang.com/vp/products/123456?itemId=11&vendorItemId=22");
  const detail=await extensionWorker.evaluate(async()=>{const tabs=await chrome.tabs.query({url:"https://www.coupang.com/vp/products/123456*"});if(!tabs[0]?.id)throw new Error("DETAIL_TAB_NOT_FOUND");return chrome.tabs.sendMessage(tabs[0].id,{type:"DDAKDAMA_INSPECT_PRODUCT"})});
  expect(detail).toMatchObject({productId:"123456",vendorItemId:"22",itemId:"11",price:21800,unitsPerPackage:2,inStock:true,securityRequired:false});
- const invalid={id:"line-1",productUrl:"https://evil.example/vp/products/123456?itemId=11&vendorItemId=22",productId:"123456",vendorItemId:"22",itemId:"11",cartPurchaseQuantity:1,expectedUnitsPerPackage:2,expectedUnitSize:"50ml",expectedStrength:null,expectedPackageContent:null,status:"QUEUED"};
+ const invalid={id:"line-1",productUrl:"https://evil.example/vp/products/123456?itemId=11&vendorItemId=22",productId:"123456",vendorItemId:"22",itemId:"11",cartPurchaseQuantity:1,expectedBrand:"스킨1004",expectedProductName:"스킨1004 히알루 시카 워터핏 선 세럼",expectedUnitsPerPackage:2,expectedUnitSize:"50ml",expectedStrength:null,expectedPackageContent:null,status:"QUEUED"};
  await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
  const rejected=await page.evaluate(job=>chrome.runtime.sendMessage({type:"DDAKDAMA_PREFLIGHT",jobs:[job]}),invalid);
  expect(rejected.results[0]).toMatchObject({status:"PRODUCT_MISMATCH"});
+});
+
+test("실제 background 상태머신이 복합 SKU 수량 delta를 검증하고 같은 runId 재개 시 중복 추가하지 않는다",async({page,extensionId})=>{
+ const product:CartFixtureProduct={productId:"700001",vendorItemId:"800001",itemId:"900001",title:"스킨1004 히알루 시카 워터핏 선 세럼 50mL, 2개",price:21800};
+ await installCartFixture([product],{[`${product.productId}:${product.vendorItemId}:${product.itemId}`]:1});
+ await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
+ const job=cartJob(product,2);
+ const preflight=await page.evaluate(job=>chrome.runtime.sendMessage({type:"DDAKDAMA_PREFLIGHT",jobs:[job]}),job);
+ expect(preflight.results[0]).toMatchObject({status:"READY",verifiedPrice:21800});
+ const runId=crypto.randomUUID();
+ const first=await page.evaluate(({runId,job})=>chrome.runtime.sendMessage({type:"DDAKDAMA_RUN_CART_JOBS",runId,jobs:[job]}),{runId,job});
+ expect(first.results[0]).toMatchObject({status:"SUCCESS",beforeQuantity:1,afterQuantity:3,verifiedPrice:21800,cartPrice:65400,expectedSubtotal:65400,priceDifference:0});
+ expect((await fixtureQuantities())[`${product.productId}:${product.vendorItemId}:${product.itemId}`]).toBe(3);
+ const resumed=await page.evaluate(({runId,job})=>chrome.runtime.sendMessage({type:"DDAKDAMA_RUN_CART_JOBS",runId,jobs:[job]}),{runId,job});
+ expect(resumed.results[0]).toMatchObject({status:"SUCCESS",beforeQuantity:1,afterQuantity:3});
+ expect((await fixtureQuantities())[`${product.productId}:${product.vendorItemId}:${product.itemId}`]).toBe(3);
+});
+
+test("가격 미확인과 필수 옵션을 분리하고 성공 상품과 함께 부분 실패로 반환한다",async({page,extensionId})=>{
+ const products:CartFixtureProduct[]=[
+  {productId:"700010",vendorItemId:"800010",itemId:"900010",title:"닥터지 레드 블레미쉬 포 맨 진정 올인원 150mL",price:16000},
+  {productId:"700011",vendorItemId:"800011",itemId:"900011",title:"TS 골드플러스 샴푸 500g",price:null},
+  {productId:"700012",vendorItemId:"800012",itemId:"900012",title:"라운드랩 1025 독도 클렌저 150mL",price:11000,optionRequired:true},
+ ];
+ await installCartFixture(products);
+ await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
+ const jobs=products.map(product=>cartJob(product));
+ const preflight=await page.evaluate(jobs=>chrome.runtime.sendMessage({type:"DDAKDAMA_PREFLIGHT",jobs}),jobs);
+ expect(preflight.results.map((result:{status:string})=>result.status)).toEqual(["READY","PRICE_UNVERIFIED","OPTION_REQUIRED"]);
+ const response=await page.evaluate(jobs=>chrome.runtime.sendMessage({type:"DDAKDAMA_RUN_CART_JOBS",runId:crypto.randomUUID(),jobs}),jobs);
+ expect(response.results.map((result:{status:string})=>result.status)).toEqual(["SUCCESS","PRICE_UNVERIFIED","OPTION_REQUIRED"]);
+ expect(response.results.filter((result:{status:string})=>result.status==="SUCCESS")).toHaveLength(1);
+ const quantities=await fixtureQuantities();
+ expect(quantities[`${products[0].productId}:${products[0].vendorItemId}:${products[0].itemId}`]).toBe(1);
+ expect(quantities[`${products[1].productId}:${products[1].vendorItemId}:${products[1].itemId}`]).toBe(0);
+ expect(quantities[`${products[2].productId}:${products[2].vendorItemId}:${products[2].itemId}`]).toBe(0);
 });
