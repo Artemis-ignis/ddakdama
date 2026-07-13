@@ -9,7 +9,13 @@ $extensionZip = Join-Path $out "ddakdama-extension-dev-v$version.zip"
 $serverZip = Join-Path $out "ddakdama-server-v$version.zip"
 $fullZip = Join-Path $out "ddakdama-full-v$version.zip"
 Remove-Item -LiteralPath $extensionZip,$serverZip,$fullZip -Force -ErrorAction SilentlyContinue
-Compress-Archive -Path (Join-Path $root "apps\extension\dist\*") -DestinationPath $extensionZip
+$extensionStage = Join-Path $out "_extension"
+Remove-Item -LiteralPath $extensionStage -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force -Path $extensionStage | Out-Null
+Copy-Item -Recurse -Force (Join-Path $root "apps\extension\dist") -Destination $extensionStage
+Copy-Item -Force (Join-Path $root "apps\extension\manifest.json") -Destination $extensionStage
+Compress-Archive -Path (Join-Path $extensionStage "*") -DestinationPath $extensionZip
+Remove-Item -LiteralPath $extensionStage -Recurse -Force
 Compress-Archive -Path (Join-Path $root "apps\server\dist"),(Join-Path $root "apps\server\package.json"),(Join-Path $root "apps\server\.env.example") -DestinationPath $serverZip
 $stage = Join-Path $out "_full"
 Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue

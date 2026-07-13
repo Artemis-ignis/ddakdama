@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "딱담아 — 쇼핑 목록을 한 번에",
+  "short_name": "딱담아",
+  "version": "1.0.0",
+  "description": "자연어 쇼핑 목록을 정확한 쿠팡 상품과 수량으로 확인하고 장바구니에 담습니다.",
+  "permissions": ["storage", "tabs", "scripting", "sidePanel"],
+  "host_permissions": ["https://www.coupang.com/*", "https://m.coupang.com/*", "https://cart.coupang.com/*", "http://localhost:8787/*"],
+  "background": {"service_worker": "dist/background.js", "type": "module"},
+  "side_panel": {"default_path": "dist/index.html"},
+  "action": {"default_title": "딱담아 열기"},
+  "content_scripts": [
+    {
+      "matches": ["https://www.coupang.com/*", "https://m.coupang.com/*", "https://cart.coupang.com/*"],
+      "js": ["dist/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {"extension_pages": "script-src 'self'; object-src 'self'"}
+}

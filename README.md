@@ -32,7 +32,7 @@
 
 ## 시작
 
-Windows에서는 setup-windows.bat을 실행한 뒤 START_HERE_KO.md를 따릅니다.
+Windows에서는 setup-windows.bat을 실행한 뒤 Chrome에서 apps/extension 폴더 하나를 불러옵니다.
 
 개발 명령:
 
