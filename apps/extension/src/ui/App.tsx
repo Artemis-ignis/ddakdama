@@ -175,8 +175,9 @@ function ProductImage({ item }: { item: SearchCandidate | null }) {
 }
 
 export function App({ preview }: { preview?: PreviewState } = {}) {
-  const [input, setInput] = useState(SAMPLE);
-  const [lines, setLines] = useState(() => parseShoppingList(SAMPLE));
+  const initialInput = (preview?.step ?? 1) > 1 ? SAMPLE : "";
+  const [input, setInput] = useState(initialInput);
+  const [lines, setLines] = useState(() => parseShoppingList(initialInput));
   const [expanded, setExpanded] = useState(-1);
   const [step, setStep] = useState(preview?.step ?? 1);
   const [notice, setNotice] = useState<string | null>(preview?.notice ?? null);
@@ -264,9 +265,11 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     const next = parseShoppingList(input);
     resetAfterInput(next);
     const sourceLines = input.split(/\r?\n/).filter((value) => value.trim()).length;
-    setNotice(next.length === sourceLines && next.length > 0
-      ? `상품 ${next.length}종 · 실물 ${physicalUnits(next)}개로 정확히 나눴습니다.`
-      : "일부 줄을 인식하지 못했습니다. 목록을 다시 확인해 주세요.");
+    setNotice(sourceLines === 0
+      ? "상품 목록을 한 줄에 하나씩 입력해 주세요."
+      : next.length === sourceLines
+        ? `상품 ${next.length}종 · 실물 ${physicalUnits(next)}개로 정확히 나눴습니다.`
+        : "일부 줄을 인식하지 못했습니다. 목록을 다시 확인해 주세요.");
   };
 
   const searchAll = async () => {
@@ -423,7 +426,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       });
       setPairingCode(data.code);
       setPairingState("code");
-      setNotice("ChatGPT의 딱담아 앱에 이 6자리 코드를 입력해 주세요.");
+      setNotice("ChatGPT 딱담아 앱에 이 6자리 코드를 입력해 주세요.");
     } catch {
       setPairingState("unavailable");
       setNotice("GPT 앱 연결을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
@@ -449,17 +452,23 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       if (!data.handoff) {
         setPairingState("connected");
         await chrome.storage.local.remove(["ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
-        setNotice("연결됐습니다. ChatGPT 딱담아 앱에서 목록을 보낸 뒤 다시 눌러 주세요.");
+        setNotice("연결됐습니다. ChatGPT 딱담아 앱에서 목록을 보낸 뒤 ‘목록 받기’를 눌러 주세요.");
         return;
       }
       const raw = (data.handoff.payload.items ?? []).map((item) => item.rawText?.trim()).filter(Boolean).join("\n");
       if (!raw) throw new Error("EMPTY_HANDOFF");
       setInput(raw);
       resetAfterInput(parseShoppingList(raw));
-      await fetch(`${SERVER_ORIGIN}/api/handoffs/${encodeURIComponent(data.handoff.id)}/ack`, {
+      const ackResponse = await fetch(`${SERVER_ORIGIN}/api/handoffs/${encodeURIComponent(data.handoff.id)}/ack`, {
         method: "POST",
         headers: { authorization: `Bearer ${token}` },
       });
+      const ackData = await ackResponse.json().catch(() => ({ ok: false })) as { ok?: boolean };
+      if (!ackResponse.ok || ackData.ok !== true) {
+        setPairingState("connected");
+        setNotice("목록은 불러왔지만 수신 확인이 완료되지 않았습니다. ‘목록 받기’를 다시 눌러 주세요.");
+        return;
+      }
       setPairingState("connected");
       await chrome.storage.local.remove(["ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
       setNotice("ChatGPT 앱에서 보낸 쇼핑 목록을 불러왔습니다.");
@@ -539,30 +548,42 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   };
 
   const renderGptConnection = () => (
-    <section className={`gpt-bridge ${pairingState}`} aria-label="GPT 앱 연결">
+    <section className={`gpt-bridge ${pairingState}`} aria-label="ChatGPT 목록 연결">
       <span className="gpt-bridge-icon"><Link2 size={19} /></span>
-      <div className="gpt-bridge-copy">
+      <div className="gpt-bridge-copy" aria-live="polite">
         <strong>ChatGPT에서 목록 받기</strong>
         {pairingState === "code" && pairingCode ? (
-          <small>딱담아 앱에 연결 코드 <b>{pairingCode}</b> 입력</small>
+          <small>ChatGPT 딱담아 앱에 아래 코드를 입력하세요.</small>
         ) : pairingState === "connected" ? (
           <small><CheckCircle2 size={13} /> 연결됨 · 보낸 목록을 바로 받을 수 있어요</small>
+        ) : pairingState === "unavailable" ? (
+          <small>연결을 시작하지 못했어요. 다시 시도해 주세요.</small>
         ) : (
           <small>6자리 코드 한 번이면 연결돼요</small>
         )}
       </div>
-      <div className="gpt-bridge-actions">
-        {pairingState === "idle" || pairingState === "unavailable" ? (
-          <button type="button" onClick={startPairing} disabled={pairingBusy}>연결하기</button>
-        ) : (
+      {pairingState === "code" && pairingCode ? (
+        <div className="gpt-code-row">
+          <output className="pairing-code" aria-label={`연결 코드 ${pairingCode}`}>{pairingCode.slice(0, 3)} {pairingCode.slice(3)}</output>
           <button type="button" className="receive" onClick={importFromGpt} disabled={pairingBusy}>
             {pairingBusy ? <LoaderCircle className="spin" size={15} /> : null}목록 받기
           </button>
-        )}
-        {(pairingState === "code" || pairingState === "connected") && (
-          <button type="button" className="icon-button" onClick={disconnectGpt} aria-label="GPT 앱 연결 해제"><Unlink size={16} /></button>
-        )}
-      </div>
+          <button type="button" className="icon-button" onClick={disconnectGpt} aria-label="ChatGPT 목록 연결 해제"><Unlink size={16} /></button>
+        </div>
+      ) : (
+        <div className="gpt-bridge-actions">
+          {pairingState === "idle" || pairingState === "unavailable" ? (
+            <button type="button" onClick={startPairing} disabled={pairingBusy}>연결하기</button>
+          ) : (
+            <button type="button" className="receive" onClick={importFromGpt} disabled={pairingBusy}>
+              {pairingBusy ? <LoaderCircle className="spin" size={15} /> : null}목록 받기
+            </button>
+          )}
+          {pairingState === "connected" && (
+            <button type="button" className="icon-button" onClick={disconnectGpt} aria-label="ChatGPT 목록 연결 해제"><Unlink size={16} /></button>
+          )}
+        </div>
+      )}
     </section>
   );
 
@@ -702,7 +723,13 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   };
 
   const actionBar = () => {
-    if (step === 1) return { label: "실제 상품 찾기", onClick: searchAll, disabled: searching || !lines.length, icon: <Search size={18} />, amountLabel: "인식 결과", amount: `${lines.length}종 · ${physicalUnits(lines)}개` };
+    if (step === 1) {
+      const sourceLineCount = input.split(/\r?\n/).filter((value) => value.trim()).length;
+      if (!lines.length) return input.trim()
+        ? { label: "목록 인식하기", onClick: parseOnly, disabled: false, icon: <CheckCircle2 size={18} />, amountLabel: "입력한 목록", amount: `${sourceLineCount}줄` }
+        : { label: "목록을 입력해 주세요", onClick: parseOnly, disabled: true, icon: <Search size={18} />, amountLabel: "쇼핑 목록", amount: "비어 있음" };
+      return { label: "실제 상품 찾기", onClick: searchAll, disabled: searching, icon: <Search size={18} />, amountLabel: "인식 결과", amount: `${lines.length}종 · ${physicalUnits(lines)}개` };
+    }
     if (step === 2) {
       if (selectedCount !== lines.length) return { label: `${lines.length - selectedCount}종 다시 찾기`, onClick: searchAll, disabled: searching, icon: <RefreshCw size={17} />, amountLabel: "선택 필요", amount: `${lines.length - selectedCount}종` };
       return { label: `${lines.length}종 상세 확인하기`, onClick: runPreflight, disabled: adding, icon: <ChevronRight size={19} />, amountLabel: pricedSelectedCount === lines.length ? "검색가 합계" : "가격 확인", amount: pricedSelectedCount === lines.length ? `${searchTotal.toLocaleString()}원` : `상세 확인 ${lines.length - pricedSelectedCount}종` };
@@ -731,22 +758,26 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       <div className="screen-content">
         {step === 1 && (
           <>
-            {renderGptConnection()}
+            <section className="screen-heading list-heading">
+              <div>
+                <h1>{lines.length ? `상품 ${lines.length}종 · 실물 ${physicalUnits(lines)}개` : "쇼핑 목록을 준비해 주세요"}</h1>
+                <p>{lines.length ? "규격과 수량을 확인한 뒤 실제 상품을 찾아요." : "ChatGPT에서 받거나 직접 붙여넣을 수 있어요."}</p>
+              </div>
+            </section>
             {recoverable && (
               <section className="recovery" aria-label="중단된 장바구니 작업">
                 <div><strong>중단된 담기 작업이 있어요</strong><small>현재 장바구니를 확인한 뒤 남은 수량만 이어서 담습니다.</small></div>
                 <div><button type="button" onClick={clearJournal}>기록 지우기</button><button type="button" className="resume" disabled={adding} onClick={resumeJournal}>이어서 담기</button></div>
               </section>
             )}
-            <section className="screen-heading list-heading">
-              <div><h1>상품 {lines.length}종 · 실물 {physicalUnits(lines)}개</h1><p>한 줄에 하나씩 붙여 넣으면 규격과 수량을 정확히 나눠요.</p></div>
-            </section>
+            {renderGptConnection()}
+            <div className="entry-divider"><span>또는</span></div>
             <section className="list-input">
-              <label htmlFor="shopping-list">쇼핑 목록</label>
-              <textarea id="shopping-list" value={input} onChange={(event) => setInput(event.target.value)} spellCheck={false} />
-              <div className="input-actions"><button type="button" onClick={() => { setInput(SAMPLE); resetAfterInput(parseShoppingList(SAMPLE)); }}>예시 불러오기</button><button type="button" onClick={parseOnly}>다시 인식</button></div>
+              <label htmlFor="shopping-list">직접 붙여넣기</label>
+              <textarea id="shopping-list" value={input} onChange={(event) => setInput(event.target.value)} placeholder={"상품을 한 줄에 하나씩 입력해 주세요.\n예: 생수 2L 6개"} spellCheck={false} />
+              <div className="input-actions"><button type="button" onClick={() => { setInput(SAMPLE); resetAfterInput(parseShoppingList(SAMPLE)); }}>예시 불러오기</button><button type="button" onClick={parseOnly}>{lines.length ? "다시 인식" : "목록 인식"}</button></div>
             </section>
-            <div className="parsed-summary"><CheckCircle2 size={16} /><span>{lines.length}개 줄을 상품 {lines.length}종 · 실물 {physicalUnits(lines)}개로 인식했어요.</span></div>
+            {lines.length > 0 && <div className="parsed-summary"><CheckCircle2 size={16} /><span>{lines.length}개 줄을 상품 {lines.length}종 · 실물 {physicalUnits(lines)}개로 인식했어요.</span></div>}
           </>
         )}
         {step === 2 && renderSelection()}

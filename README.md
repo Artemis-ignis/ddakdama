@@ -32,7 +32,7 @@
 
 ## 시작
 
-Windows에서는 setup-windows.bat을 실행한 뒤 Chrome에서 apps/extension 폴더 하나를 불러옵니다.
+Windows에서는 `setup-windows.bat`을 실행한 뒤 Chrome에서 `apps/extension` 폴더 하나만 불러옵니다. `apps/extension/dist`는 매니페스트가 없는 빌드 산출물 폴더이므로 선택하지 않습니다.
 
 초보자용 문서는 [START_HERE_KO.md](START_HERE_KO.md), [Windows 설치](docs/INSTALL_WINDOWS_KO.md), [Chrome 설정](docs/CHROME_EXTENSION_SETUP_KO.md), [GPT 앱 설정](docs/GPT_APP_SETUP_KO.md), [문제 해결](docs/TROUBLESHOOTING_KO.md) 순서로 확인합니다.
 
@@ -48,11 +48,14 @@ Windows에서는 setup-windows.bat을 실행한 뒤 Chrome에서 apps/extension 
 
 `pnpm package`가 만드는 배포물:
 
-- `dist/ddakdama-extension-dev-v1.0.0.zip`: Chrome 개발자 모드 설치용
+- `dist/ddakdama-extension-v1.0.0.zip`: Chrome 개발자 모드 설치용 단일 확장 패키지
 - `dist/ddakdama-server-v1.0.0.zip`: MCP·handoff·파트너스 서버
 - `dist/ddakdama-chatgpt-app-v1.0.0.zip`: GPT 앱 서버와 설치 문서
 - `dist/ddakdama-full-v1.0.0.zip`: 전체 소스·테스트·문서
-- `dist/SHA256SUMS.txt`: 네 ZIP의 SHA-256 체크섬
+- `dist/internal/ddakdama-extension-webstore-v1.0.0.zip`: 운영자용 Chrome Web Store 제출 패키지
+- `dist/SHA256SUMS.txt`: 위 다섯 ZIP의 SHA-256 체크섬
+
+일반 사용자는 `dist/ddakdama-extension-v1.0.0.zip`만 사용하면 됩니다. 테스트용 확장 복제본과 프리뷰 빌드는 운영 폴더에 만들지 않고 Windows 임시 폴더에서 실행 후 정리합니다.
 
 ## 현재 검증 범위
 

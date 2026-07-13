@@ -11,12 +11,16 @@ function Assert-StagingPath([string]$Path) {
 pnpm build
 $out = Join-Path $root "dist"
 New-Item -ItemType Directory -Force -Path $out | Out-Null
+$internalOut = Join-Path $out "internal"
+Assert-StagingPath $internalOut
+New-Item -ItemType Directory -Force -Path $internalOut | Out-Null
 $version = "1.0.0"
-$extensionZip = Join-Path $out "ddakdama-extension-dev-v$version.zip"
-$webstoreExtensionZip = Join-Path $out "ddakdama-extension-webstore-v$version.zip"
+$extensionZip = Join-Path $out "ddakdama-extension-v$version.zip"
+$webstoreExtensionZip = Join-Path $internalOut "ddakdama-extension-webstore-v$version.zip"
 $serverZip = Join-Path $out "ddakdama-server-v$version.zip"
 $chatgptZip = Join-Path $out "ddakdama-chatgpt-app-v$version.zip"
 $fullZip = Join-Path $out "ddakdama-full-v$version.zip"
+Get-ChildItem -LiteralPath $out -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "ddakdama-extension-dev-v*.zip" -or $_.Name -like "ddakdama-extension-webstore-v*.zip" } | Remove-Item -Force
 Remove-Item -LiteralPath $extensionZip,$webstoreExtensionZip,$serverZip,$chatgptZip,$fullZip -Force -ErrorAction SilentlyContinue
 $extensionStage = Join-Path $out "_extension"
 Assert-StagingPath $extensionStage
@@ -67,6 +71,9 @@ Get-ChildItem -Path $stage -Recurse -Directory -Filter .data | Remove-Item -Recu
 Get-ChildItem -Path $stage -Recurse -File -Include .env,*.log | Remove-Item -Force
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $fullZip
 Remove-Item -LiteralPath $stage -Recurse -Force
-$hashes = Get-FileHash -Algorithm SHA256 $extensionZip,$webstoreExtensionZip,$serverZip,$chatgptZip,$fullZip
-$hashes | ForEach-Object { "$($_.Hash)  $([IO.Path]::GetFileName($_.Path))" } | Set-Content -Encoding utf8 (Join-Path $out "SHA256SUMS.txt")
+$hashes = Get-FileHash -Algorithm SHA256 $extensionZip,$serverZip,$chatgptZip,$fullZip,$webstoreExtensionZip
+$hashes | ForEach-Object {
+  $relativePath = $_.Path.Substring($out.Length).TrimStart([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar).Replace('\','/')
+  "$($_.Hash)  $relativePath"
+} | Set-Content -Encoding utf8 (Join-Path $out "SHA256SUMS.txt")
 Write-Host "DdakDama packages ready: $out"

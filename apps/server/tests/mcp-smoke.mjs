@@ -11,6 +11,14 @@ const pairing = await fetch(`${origin}/api/pairing/start`, {
 const client = new Client({name: "ddakdama-smoke", version: "1.0.0"});
 await client.connect(new StreamableHTTPClientTransport(new URL(`${origin}/mcp`)));
 
+const tools = await client.listTools();
+const widgetTools = tools.tools
+  .filter((tool) => tool._meta?.ui?.resourceUri)
+  .map((tool) => tool.name);
+if (JSON.stringify(widgetTools) !== JSON.stringify(["create_cart_plan"])) {
+  throw new Error(`WIDGET_TOOL_CONTRACT_VIOLATION:${widgetTools.join(",")}`);
+}
+
 const paired = await client.callTool({
   name: "pair_extension_device",
   arguments: {pairing_code: pairing.code},
@@ -45,6 +53,14 @@ const ack = await fetch(`${origin}/api/handoffs/${latest.handoff.id}/ack`, {
   method: "POST",
   headers: {authorization: `Bearer ${pairing.deviceToken}`},
 });
+const missingAck = await fetch(`${origin}/api/handoffs/${crypto.randomUUID()}/ack`, {
+  method: "POST",
+  headers: {authorization: `Bearer ${pairing.deviceToken}`},
+});
+const missingAckBody = await missingAck.json();
+if (missingAck.status !== 404 || missingAckBody.ok !== false) {
+  throw new Error("MISSING_ACK_CONTRACT_VIOLATION");
+}
 const status = await client.callTool({
   name: "get_cart_plan_status",
   arguments: {handoff_id: sent._meta.handoffId, connection_grant: paired._meta.connectionGrant},
@@ -63,6 +79,7 @@ console.log(JSON.stringify({
   sent: sent.structuredContent,
   receivedRaw: latest.handoff.payload.items[0].rawText,
   ack: ack.status,
+  missingAck: {status: missingAck.status, body: missingAckBody},
   status: status.structuredContent,
   disconnected: disconnected.structuredContent,
   revokedDeviceStatus: revokedDeviceResponse.status,

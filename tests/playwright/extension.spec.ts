@@ -35,8 +35,8 @@ async function fixtureQuantities(){const response=await fetch("http://127.0.0.1:
 test("Manifest V3 서비스 워커와 Side Panel이 실제 Chromium에서 동작한다",async({page,extensionId,extensionWorker})=>{
  expect(extensionWorker.url()).toContain(`chrome-extension://${extensionId}/dist/background.js`);
  await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
- await expect(page.getByRole("heading",{name:"상품 5종 · 실물 7개"})).toBeVisible();
- await expect(page.getByRole("button",{name:"실제 상품 찾기"})).toBeEnabled();
+ await expect(page.getByRole("heading",{name:"쇼핑 목록을 준비해 주세요"})).toBeVisible();
+ await expect(page.getByRole("button",{name:"목록을 입력해 주세요"})).toBeDisabled();
  await expect(page.getByText("ChatGPT에서 목록 받기")).toBeVisible();
  await expect(page.getByText("MCP URL")).toHaveCount(0);
  const ping=await page.evaluate(()=>chrome.runtime.sendMessage({type:"DDAKDAMA_PING"}));
@@ -72,6 +72,7 @@ test("검색가격이 없어도 고정 5종을 선택하고 상세가격 5/5를 
  await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
  const probe=await page.evaluate(rawText=>chrome.runtime.sendMessage({type:"DDAKDAMA_SEARCH_ALL",items:[{id:"probe",rawText}]}),"닥터지 레드 블레미쉬 포 맨 진정 올인원 150ml");
  expect(probe.output?.[0]?.results,JSON.stringify(probe)).toHaveLength(1);
+ await page.getByRole("button",{name:"예시 불러오기"}).click();
  await page.getByRole("button",{name:"실제 상품 찾기"}).click();
  await expect(page.getByText("5/5종",{exact:true})).toBeVisible({timeout:20000});
  const detailButton=page.getByRole("button",{name:"5종 상세 확인하기"});
