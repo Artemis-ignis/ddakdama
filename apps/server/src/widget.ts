@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-export const WIDGET_URI = "ui://widget/ddakdama-cart-v3.html";
+export const WIDGET_URI = "ui://widget/ddakdama-cart-v5.html";
 
 const WIDGET_ICON = `data:image/png;base64,${readFileSync(
   new URL("../assets/icon-48.png", import.meta.url),
@@ -27,7 +27,7 @@ export const widgetHtml = `<!doctype html>
     <section class="connect-card" id="connectCard">
       <p class="connect-title">확장 프로그램 연결</p>
       <p class="connect-help">딱담아 확장 프로그램에 표시된 일회용 6자리 코드를 입력해 주세요.</p>
-      <div class="pair"><input id="pairing" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-label="확장 프로그램 연결 코드"><button class="button" id="pair">연결</button></div>
+      <div class="pair"><input id="pairing" inputmode="numeric" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-label="확장 프로그램 연결 코드"><button class="button" id="pair">연결</button></div>
     </section>
     <div class="actions"><button class="button primary" id="send" disabled>확장 프로그램으로 보내기</button><button class="button secondary" id="disconnect" hidden>연결 해제</button></div>
     <div class="received" id="received">확장 프로그램이 목록을 받았습니다. 이제 확장 프로그램에서 상품과 가격을 확인해 주세요.</div>
@@ -85,6 +85,18 @@ export const widgetHtml = `<!doctype html>
       $("#status").textContent = message;
       $("#status").className = "status " + tone;
     };
+    const normalizePairingCode = (value) => String(value ?? "")
+      .normalize("NFKC")
+      .replace(/[^0-9]/g, "")
+      .slice(0, 6);
+    const toolResult = (response) => response?.result || response;
+    const toolMeta = (response) => {
+      const result = toolResult(response);
+      return result?._meta
+        || response?.toolResponseMetadata?.mcp_tool_result?._meta
+        || response?.mcp_tool_result?._meta
+        || {};
+    };
     const updateSendButton = () => {
       const hasItems = Boolean(plan.items?.length);
       $("#send").textContent = handoffReceived ? RECEIVED_LABEL : handoffId ? CHECK_LABEL : SEND_LABEL;
@@ -135,6 +147,35 @@ export const widgetHtml = `<!doctype html>
       pendingRequests.set(id, {resolve, reject, timer});
       window.parent.postMessage({jsonrpc:"2.0", id, method, params}, "*");
     });
+    const applyPlan = (candidate) => {
+      if (!candidate || !Array.isArray(candidate.items)) return false;
+      plan = candidate;
+      resetDelivery();
+      render();
+      return true;
+    };
+    window.addEventListener("message", (event) => {
+      if (event.source !== window.parent) return;
+      const message = event.data;
+      if (!message || message.jsonrpc !== "2.0") return;
+      if (message.id != null) {
+        const pending = pendingRequests.get(message.id);
+        if (pending) {
+          clearTimeout(pending.timer);
+          pendingRequests.delete(message.id);
+          if (message.error) pending.reject(new Error(message.error.message || "APP_BRIDGE_ERROR"));
+          else pending.resolve(message.result);
+        }
+        return;
+      }
+      if (message.method === "ui/notifications/tool-result") {
+        applyPlan(message.params?.structuredContent);
+      }
+    }, {passive:true});
+    window.addEventListener("openai:set_globals", (event) => {
+      const globals = event.detail?.globals;
+      if (globals?.toolOutput !== undefined) applyPlan(globals.toolOutput);
+    }, {passive:true});
     const initializeBridge = async () => {
       if (window.parent === window) return false;
       try {
@@ -193,34 +234,16 @@ export const widgetHtml = `<!doctype html>
       summary();
       setStatus("수정한 목록을 보낼 준비가 됐습니다.");
     });
-    window.addEventListener("message", (event) => {
-      if (event.source !== window.parent) return;
-      const message = event.data;
-      if (message?.jsonrpc === "2.0" && message.id != null) {
-        const pending = pendingRequests.get(message.id);
-        if (pending) {
-          clearTimeout(pending.timer);
-          pendingRequests.delete(message.id);
-          if (message.error) pending.reject(new Error(message.error.message || "APP_BRIDGE_ERROR"));
-          else pending.resolve(message.result);
-        }
-        return;
-      }
-      if (message?.method === "ui/notifications/tool-result" && message.params?.structuredContent?.items) {
-        plan = message.params.structuredContent;
-        resetDelivery();
-        render();
-      }
-    });
     $("#pairing").addEventListener("input", (event) => {
-      event.target.value = event.target.value.replace(/\D/g, "").slice(0, 6);
+      event.target.value = normalizePairingCode(event.target.value);
     });
     $("#pairing").addEventListener("keydown", (event) => {
       if (event.key === "Enter") $("#pair").click();
     });
     $("#pair").onclick = async () => {
-      const code = $("#pairing").value.trim();
-      if (!/^\d{6}$/.test(code)) {
+      const code = normalizePairingCode($("#pairing").value);
+      $("#pairing").value = code;
+      if (!/^[0-9]{6}$/.test(code)) {
         setStatus("6자리 연결 코드를 정확히 입력해 주세요.", "error");
         return;
       }
@@ -229,19 +252,30 @@ export const widgetHtml = `<!doctype html>
       setStatus("확장 프로그램과 연결하는 중입니다.", "busy");
       try {
         const response = await callTool("pair_extension_device", {pairing_code:code});
-        connectionGrant = response?._meta?.connectionGrant || null;
-        grantExpiresAt = Number(response?._meta?.grantExpiresAt) || null;
-        if (!connectionGrant) throw new Error("PAIRING_REJECTED");
+        const result = toolResult(response);
+        const meta = toolMeta(response);
+        if (result?.isError || result?.structuredContent?.connected !== true) {
+          throw new Error("PAIRING_REJECTED");
+        }
+        connectionGrant = meta.connectionGrant || null;
+        grantExpiresAt = Number(meta.grantExpiresAt) || null;
+        if (!connectionGrant) throw new Error("PAIRING_RESPONSE_INVALID");
         resetDelivery();
         persistState();
         setConnected(true);
         setStatus("연결됐습니다. 목록을 확장 프로그램으로 보낼 수 있습니다.", "success");
-      } catch {
+      } catch (error) {
         connectionGrant = null;
         grantExpiresAt = null;
         persistState();
         setConnected(false);
-        setStatus("연결하지 못했습니다. 확장 프로그램에서 새 코드를 확인해 주세요.", "error");
+        const reason = error instanceof Error ? error.message : "";
+        setStatus(
+          reason.startsWith("APP_BRIDGE") || reason === "PAIRING_RESPONSE_INVALID"
+            ? "ChatGPT 앱 연결 기능을 불러오지 못했습니다. 앱을 새로고침한 뒤 다시 시도해 주세요."
+            : "코드가 만료됐거나 이미 사용됐습니다. 확장 프로그램에서 새 코드를 받아 다시 입력해 주세요.",
+          "error",
+        );
       }
     };
     $("#send").onclick = async () => {

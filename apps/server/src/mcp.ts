@@ -14,6 +14,7 @@ import {
   completePairing,
   createHandoff,
   handoffStatus,
+  normalizePairingCode,
   revokeConnectionGrant,
 } from "./store.js";
 import { WIDGET_URI, widgetHtml } from "./widget.js";
@@ -43,7 +44,7 @@ export function createMcpServer(
     { name: "ddakdama", version: "1.0.0" },
     {
       instructions:
-        "딱담아는 쇼핑 목록을 구조화하고, 사용자가 검토한 계획을 페어링된 Chrome 확장 프로그램으로 보냅니다. 실제 상품 검색, 가격 검증과 장바구니 추가는 확장 프로그램에서 사용자 승인 후 진행합니다.",
+        "딱담아는 쇼핑 목록을 구조화하고, 사용자가 검토한 계획을 페어링된 Chrome 확장 프로그램으로 보냅니다. 실제 상품 검색, 가격 검증과 장바구니 추가는 확장 프로그램에서 사용자 승인 후 진행합니다. 단독 6자리 숫자나 3자리-3자리 숫자는 상품명이 아니라 확장 프로그램 연결 코드이므로 쇼핑 목록 도구에 전달하지 마세요.",
     },
   );
 
@@ -73,7 +74,7 @@ export function createMcpServer(
     {
       title: "쇼핑 목록 분석",
       description:
-        "사용자가 여러 줄의 쇼핑 목록을 제품명, 규격, 함량과 요청 수량으로 구조화할 때 사용합니다.",
+        "사용자가 제품명이 포함된 여러 줄의 쇼핑 목록을 제품명, 규격, 함량과 요청 수량으로 구조화할 때 사용합니다. 단독 6자리 연결 코드는 쇼핑 목록으로 분석하지 마세요.",
       inputSchema: { shopping_list: z.string().min(1).max(20_000) },
       outputSchema: {
         items: z.array(itemSchema),
@@ -109,7 +110,7 @@ export function createMcpServer(
     {
       title: "장바구니 계획 만들기",
       description:
-        "분석한 쇼핑 목록을 사용자가 위젯에서 검토하고 확장 프로그램으로 보낼 수 있도록 렌더링할 때 사용합니다.",
+        "제품명이 포함된 쇼핑 목록을 사용자가 위젯에서 검토하고 확장 프로그램으로 보낼 수 있도록 렌더링할 때 사용합니다. 단독 6자리 연결 코드는 이 도구에 전달하지 마세요.",
       inputSchema: { shopping_list: z.string().min(1).max(20_000) },
       outputSchema: {
         items: z.array(itemSchema),
@@ -145,7 +146,13 @@ export function createMcpServer(
       title: "확장 프로그램 연결",
       description:
         "사용자가 딱담아 확장 프로그램에 표시된 일회용 6자리 코드를 입력해 ChatGPT 앱과 연결할 때 사용합니다.",
-      inputSchema: { pairing_code: z.string().regex(/^\d{6}$/) },
+      inputSchema: {
+        pairing_code: z
+          .string()
+          .min(6)
+          .max(9)
+          .refine((value) => normalizePairingCode(value) !== null),
+      },
       outputSchema: { connected: z.boolean() },
       annotations: {
         readOnlyHint: false,

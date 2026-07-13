@@ -90,6 +90,11 @@ function recordPairingAttempt(code: string, clientKey: string) {
   return true;
 }
 
+export function normalizePairingCode(value: string) {
+  const compact = value.normalize("NFKC").replace(/[\s-]+/g, "");
+  return /^\d{6}$/.test(compact) ? compact : null;
+}
+
 export function startPairing(ttlMs = configuredTtl("PAIRING_TTL_SECONDS", 600_000), tokenTtlMs = 30 * 24 * 60 * 60_000) {
   purge();
   const deviceId = randomUUID();
@@ -110,8 +115,13 @@ export function completePairing(
   grantTtlMs = configuredTtl("CONNECTION_GRANT_TTL_SECONDS", 24 * 60 * 60_000),
 ) {
   purge();
-  if (!recordPairingAttempt(code, clientKey)) return null;
-  const pairing = pairings.get(hash(code));
+  const normalizedCode = normalizePairingCode(code);
+  if (!normalizedCode) {
+    recordPairingAttempt(`invalid:${hash(code)}`, clientKey);
+    return null;
+  }
+  if (!recordPairingAttempt(normalizedCode, clientKey)) return null;
+  const pairing = pairings.get(hash(normalizedCode));
   if (!pairing || pairing.used || pairing.expiresAt < Date.now()) return null;
   pairing.used = true;
   const connectionGrant = secret();

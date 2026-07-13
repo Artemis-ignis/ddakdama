@@ -11,7 +11,7 @@ describe("ChatGPT 위젯 계약", () => {
   });
 
   it("공식 component bridge로 연결·전송·상태 확인·연결 해제를 수행한다", () => {
-    expect(WIDGET_URI).toBe("ui://widget/ddakdama-cart-v3.html");
+    expect(WIDGET_URI).toBe("ui://widget/ddakdama-cart-v5.html");
     expect(widgetHtml).toContain('rpcRequest("ui/initialize"');
     expect(widgetHtml).toContain('rpcNotify("ui/notifications/initialized"');
     expect(widgetHtml).toContain('rpcRequest("tools/call"');
@@ -20,6 +20,24 @@ describe("ChatGPT 위젯 계약", () => {
     expect(widgetHtml).toContain('callTool("send_cart_plan"');
     expect(widgetHtml).toContain('callTool("get_cart_plan_status"');
     expect(widgetHtml).toContain('callTool("disconnect_extension_device"');
+    expect(widgetHtml).toContain('src="data:image/png;base64,');
+    expect(widgetHtml).not.toContain('maxlength="6"');
+    expect(widgetHtml).toContain("normalizePairingCode");
+    expect(widgetHtml).toContain("/^[0-9]{6}$/");
+  });
+
+  it("초기 도구 결과를 놓치지 않도록 호스트 이벤트를 브리지 초기화 전에 구독한다", () => {
+    const messageListener = widgetHtml.indexOf('window.addEventListener("message"');
+    const globalsListener = widgetHtml.indexOf('window.addEventListener("openai:set_globals"');
+    const bridgeStart = widgetHtml.indexOf("const bridgeReady = initializeBridge()");
+
+    expect(messageListener).toBeGreaterThan(-1);
+    expect(globalsListener).toBeGreaterThan(-1);
+    expect(messageListener).toBeLessThan(bridgeStart);
+    expect(globalsListener).toBeLessThan(bridgeStart);
+    expect(widgetHtml).toContain('message.method === "ui/notifications/tool-result"');
+    expect(widgetHtml).toContain("event.detail?.globals");
+    expect(widgetHtml).toContain("applyPlan(globals.toolOutput)");
   });
 
   it("grant·handoff·idempotency 상태를 ChatGPT 호스트 상태로 복원한다", () => {

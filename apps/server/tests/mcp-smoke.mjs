@@ -2,6 +2,7 @@ import {Client} from "@modelcontextprotocol/sdk/client/index.js";
 import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 const origin = process.env.DDAKDAMA_TEST_ORIGIN ?? "http://localhost:8787";
+const expectedWidgetUri = "ui://widget/ddakdama-cart-v5.html";
 const pairing = await fetch(`${origin}/api/pairing/start`, {
   method: "POST",
   headers: {"content-type": "application/json"},
@@ -12,6 +13,20 @@ const client = new Client({name: "ddakdama-smoke", version: "1.0.0"});
 await client.connect(new StreamableHTTPClientTransport(new URL(`${origin}/mcp`)));
 
 const tools = await client.listTools();
+const cartPlanTool = tools.tools.find((tool) => tool.name === "create_cart_plan");
+if (cartPlanTool?._meta?.ui?.resourceUri !== expectedWidgetUri) {
+  throw new Error(`STALE_WIDGET_URI:${String(cartPlanTool?._meta?.ui?.resourceUri)}`);
+}
+const widgetResource = await client.readResource({uri: expectedWidgetUri});
+const widgetText = widgetResource.contents.find((content) => "text" in content)?.text ?? "";
+if (!widgetText.includes('src="data:image/png;base64,')) throw new Error("WIDGET_ICON_MISSING");
+if (widgetText.includes('maxlength="6"') || !widgetText.includes("/^[0-9]{6}$/")) {
+  throw new Error("PAIRING_INPUT_FIX_MISSING");
+}
+if (!widgetText.includes('window.addEventListener("openai:set_globals"') ||
+    widgetText.indexOf('window.addEventListener("message"') > widgetText.indexOf("const bridgeReady = initializeBridge()")) {
+  throw new Error("INITIAL_TOOL_RESULT_HYDRATION_MISSING");
+}
 const widgetTools = tools.tools
   .filter((tool) => tool._meta?.ui?.resourceUri)
   .map((tool) => tool.name);
@@ -29,7 +44,7 @@ if (JSON.stringify(appOnlyTools) !== JSON.stringify(expectedAppOnlyTools)) {
 
 const paired = await client.callTool({
   name: "pair_extension_device",
-  arguments: {pairing_code: pairing.code},
+  arguments: {pairing_code: `${pairing.code.slice(0, 3)} ${pairing.code.slice(3)}`},
 });
 const shoppingList = "스킨1004 히알루 시카 워터핏 선 세럼 50ml 2개";
 const parsed = await client.callTool({
