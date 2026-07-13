@@ -11,10 +11,10 @@
 - 위젯의 도구 호출은 MCP Apps JSON-RPC 브리지(`ui/initialize`, `ui/notifications/initialized`, `tools/call`)를 우선하고 `window.openai`는 호환 보조 경로로만 둡니다.
 - 연결은 일반 사용자가 서버 주소나 토큰을 입력하지 않는 일회용 6자리 코드 방식으로 구성합니다.
 - ChatGPT 연결에는 원격 HTTPS `/mcp` 주소가 필요합니다.
-- 2026-07-13 최신 공식 도움말과 실제 화면을 다시 확인한 결과, 사용자 정의 MCP 앱 Developer mode는 Business 및 Enterprise/Edu 워크스페이스 대상입니다.
+- 2026-07-13 최신 공식 도움말 기준 Pro도 개발자 모드에서 읽기·검색 MCP를 연결할 수 있습니다. 쓰기·수정 도구를 포함한 Full MCP는 Business 및 Enterprise/Edu 대상입니다.
 - Business는 관리자/소유자가 `Workspace settings → Apps → Create`에서 활성화하고 앱을 만듭니다.
 - Enterprise/Edu는 관리자가 Connected Data 권한을 부여하고, 허용된 사용자가 `Settings → Apps → Advanced settings`에서 켤 수 있습니다.
-- 개인 Pro 계정에는 현재 이 메뉴가 없으므로, Pro 화면의 `보안 및 로그인`에서 개발자 모드를 찾는 기존 안내를 폐기했습니다.
+- 실제 확인한 개인 Pro 화면에서는 메뉴가 노출되지 않았지만 이는 관찰된 계정 상태로 기록합니다. 공식 지원 범위를 일반화해 부정하지 않으며, 딱담아 전체 페어링·전송 흐름은 Full MCP가 필요하므로 Business/Enterprise/Edu에서 최종 검증합니다.
 
 참고:
 

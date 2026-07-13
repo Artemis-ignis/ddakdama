@@ -153,7 +153,10 @@ export function createMcpServer(
         openWorldHint: true,
         idempotentHint: false,
       },
-      _meta: invocationMeta("확장 프로그램과 연결하는 중…", "연결 확인 완료"),
+      _meta: {
+        ui: { visibility: ["app"] },
+        ...invocationMeta("확장 프로그램과 연결하는 중…", "연결 확인 완료"),
+      },
     },
     async ({ pairing_code }) => {
       const paired = completePairing(pairing_code, pairingClientKey);
@@ -201,7 +204,10 @@ export function createMcpServer(
         openWorldHint: true,
         idempotentHint: true,
       },
-      _meta: invocationMeta("딱담아로 보내는 중…", "전송 완료"),
+      _meta: {
+        ui: { visibility: ["app"] },
+        ...invocationMeta("딱담아로 보내는 중…", "전송 완료"),
+      },
     },
     async ({ items, connection_grant, idempotency_key }) => {
       const deviceId = authenticateGrant(connection_grant);
@@ -263,7 +269,7 @@ export function createMcpServer(
         openWorldHint: false,
         idempotentHint: true,
       },
-      _meta: {},
+      _meta: { ui: { visibility: ["app"] } },
     },
     async ({ handoff_id, connection_grant }) => {
       const deviceId = authenticateGrant(connection_grant);
@@ -299,7 +305,7 @@ export function createMcpServer(
         openWorldHint: true,
         idempotentHint: true,
       },
-      _meta: {},
+      _meta: { ui: { visibility: ["app"] } },
     },
     async ({ connection_grant }) => {
       const disconnected = revokeConnectionGrant(connection_grant);

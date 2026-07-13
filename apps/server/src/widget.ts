@@ -1,4 +1,4 @@
-export const WIDGET_URI = "ui://widget/ddakdama-cart-v2.html";
+export const WIDGET_URI = "ui://widget/ddakdama-cart-v3.html";
 
 export const widgetHtml = `<!doctype html>
 <html lang="ko">

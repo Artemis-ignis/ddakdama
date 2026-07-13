@@ -11,7 +11,7 @@ describe("ChatGPT 위젯 계약", () => {
   });
 
   it("공식 component bridge로 연결·전송·상태 확인·연결 해제를 수행한다", () => {
-    expect(WIDGET_URI).toBe("ui://widget/ddakdama-cart-v2.html");
+    expect(WIDGET_URI).toBe("ui://widget/ddakdama-cart-v3.html");
     expect(widgetHtml).toContain('rpcRequest("ui/initialize"');
     expect(widgetHtml).toContain('rpcNotify("ui/notifications/initialized"');
     expect(widgetHtml).toContain('rpcRequest("tools/call"');

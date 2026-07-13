@@ -18,7 +18,7 @@
 - 실제 Chrome 플러그인으로 최종 부분 실패 화면의 실패 1종 재시도, 2개 묶음의 실물 2개 표기, 일반 UI의 MCP·서버 URL 미노출 확인
 - 실제 Chrome 플러그인으로 `연결하기` 클릭 후 6자리 코드와 `목록 받기` 동작 확인
 - 고정 목록 5종·실물 7개 파싱과 100mg/240정 분리
-- 최신 ChatGPT Pro 계정 실제 화면에서 사용자 정의 앱 Developer mode/Create 메뉴가 제공되지 않는 상태 확인
+- 현재 로그인된 ChatGPT Pro 계정의 실제 화면에서는 Developer mode/Create 메뉴가 노출되지 않는 상태 확인(공식 지원 범위와 별개의 계정별 관찰)
 
 ## FIXTURE_VERIFIED
 
@@ -34,11 +34,11 @@
 ## USER APPROVAL REQUIRED
 
 - 실제 장바구니 변경과 productId별 수량 delta 확인
-- Business 또는 Enterprise/Edu 워크스페이스에서 ChatGPT 사용자 정의 앱 생성
+- 쓰기 도구를 허용하는 Business 또는 Enterprise/Edu 워크스페이스에서 ChatGPT 사용자 정의 앱 생성
 
 ## BLOCKED BY EXTERNAL ACCOUNT STATE
 
-- 현재 로그인된 ChatGPT 계정은 Pro 개인 계정이므로 공식 Developer mode/Create 메뉴를 사용할 수 없음
+- 현재 로그인된 ChatGPT Pro 계정 화면에는 Developer mode/Create 메뉴가 노출되지 않으며, Pro는 공식적으로 읽기·검색 MCP만 지원하므로 딱담아의 쓰기 도구 전체 흐름은 검증할 수 없음
 - 쿠팡 파트너스 계정이 최종 승인 상태가 아니어서 실제 API 키 발급·호출 미검증
 
 ## 공식 해결 경로
@@ -46,4 +46,4 @@
 1. ChatGPT Business 워크스페이스를 사용하고 관리자/소유자 권한으로 `Workspace settings → Apps → Create`에서 앱을 만듭니다.
 2. 또는 Enterprise/Edu 관리자가 Connected Data의 Developer mode 권한을 부여한 뒤 Apps 고급 설정에서 활성화합니다.
 3. 공개 HTTPS MCP URL을 등록하고 비공개 개발 앱으로 테스트합니다.
-4. Pro 전용 화면에 존재하지 않는 메뉴를 강제로 노출하거나 내부 API를 호출하는 우회 방식은 사용하지 않습니다.
+4. Pro에서는 공식적으로 읽기·검색 MCP만 연결할 수 있습니다. 메뉴를 강제로 노출하거나 내부 API를 호출하는 우회 방식은 사용하지 않습니다.

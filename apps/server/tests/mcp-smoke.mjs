@@ -18,6 +18,14 @@ const widgetTools = tools.tools
 if (JSON.stringify(widgetTools) !== JSON.stringify(["create_cart_plan"])) {
   throw new Error(`WIDGET_TOOL_CONTRACT_VIOLATION:${widgetTools.join(",")}`);
 }
+const appOnlyTools = tools.tools
+  .filter((tool) => tool._meta?.ui?.visibility?.includes("app"))
+  .map((tool) => tool.name)
+  .sort();
+const expectedAppOnlyTools = ["disconnect_extension_device", "get_cart_plan_status", "pair_extension_device", "send_cart_plan"];
+if (JSON.stringify(appOnlyTools) !== JSON.stringify(expectedAppOnlyTools)) {
+  throw new Error(`APP_ONLY_TOOL_CONTRACT_VIOLATION:${appOnlyTools.join(",")}`);
+}
 
 const paired = await client.callTool({
   name: "pair_extension_device",

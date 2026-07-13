@@ -6,14 +6,14 @@
 
 - ESLint: 통과
 - TypeScript strict 검사: 통과
-- Vitest: 43/43 통과
-  - core 10개
+- Vitest: 45/45 통과
+  - core 11개
   - extension 16개
-  - server 17개
-- Playwright 실제 Chromium: 19/19 통과
-  - MV3 확장 프로그램 8개
-  - 실제 Side Panel 컴포넌트·시각 회귀 11개
-- MCP HTTP 스모크 테스트: 통과
+  - server 18개
+- Playwright 실제 Chromium: 26/26 통과
+  - MV3 확장 프로그램·장바구니 상태 머신·탭 재사용 10개
+  - 실제 Side Panel 컴포넌트·시각 회귀 16개
+- 새 빌드를 격리된 로컬 포트에서 실행한 MCP HTTP 스모크 테스트: 통과
   - 페어링
   - 장바구니 계획 전송
   - 확장 프로그램 수신·ACK
@@ -45,6 +45,9 @@
 - 가격보다 늦게 렌더링되는 장바구니 버튼 재확인 검증
 - 실제 스킨1004 `1+1 (+여행용 미니 증정), 2개, 50mL` 제목의 묶음 수량 검증
 - 정확하지 않은 브랜드·제품명·용량·포장 후보의 자동 선택 차단
+- 불일치 후보 직접 선택, 초과 묶음 경고, 후보 개수 표시와 검색어 수정·재검색 검증
+- 실제 쿠팡 검색에서 `샘다수 2리터` 오타가 `삼다수 2L` 후보들을 반환하고 수동 선택 경로로 복구되는 것 확인
+- 실제 쿠팡 DOM에서 `recently_viewed_widget` 링크를 제외하고 검색·광고 결과만 후보로 유지하는 필터 확인
 - 부분 사전검사 CTA의 상품 종류·실물수량·금액 일치 검증
 - 2개 묶음 결과의 실물 수량 설명과 부분 실패 재시도 우선순위 검증
 - 공식 MCP Apps bridge 기반 위젯 도구 호출과 6자리 페어링 UI 계약 검증
@@ -57,18 +60,18 @@
 - Playwright bundled Chromium에서 MV3 서비스 워커, content script, Side Panel, 장바구니 상태 머신
 - MCP 서버 로컬 실연결과 페어링·handoff·ACK·연결 해제
 - 개발용·Web Store 검토용 확장 ZIP, 서버·ChatGPT 앱·전체 ZIP 구조와 SHA-256 체크섬
+- 로그인된 실제 쿠팡 검색 화면과 상세페이지에서 고정 목록 5종의 상품 식별자·판매가·재고·장바구니 버튼 확인
 
 ### FIXTURE_VERIFIED
 
-- 쿠팡 검색·상세·장바구니 DOM 파싱
-- 상품별 수량 증가와 부분 실패 처리
+- 최신 장바구니 행 DOM 파싱
+- 실제 background 상태 머신의 상품별 수량 증가와 부분 실패 처리
 - 보안 확인·로그인·필수 옵션·가격 미확인 분기
 
 ### BLOCKED / 사용자 승인 필요
 
-- 로그인된 실제 쿠팡 계정에서 고정 목록 5종 검색과 장바구니 변경
-- 실제 장바구니 추가 직전 사용자 승인
+- 로그인된 실제 쿠팡 장바구니 변경과 productId별 수량 delta 확인
 - 승인된 쿠팡 파트너스 Access/Secret Key를 사용한 Product Search·Deep Link 호출
-- ChatGPT Developer Mode 등록: 현재 공식 요구사항상 Business·Enterprise·Edu 워크스페이스 필요
+- ChatGPT 쓰기 도구 전체 흐름 등록: Full MCP가 지원되는 Business·Enterprise·Edu 워크스페이스 필요(Pro는 읽기·검색 MCP만 지원)
 
 실계정에서 실행하지 않은 항목은 라이브 성공으로 간주하지 않습니다.

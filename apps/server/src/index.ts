@@ -1,4 +1,6 @@
 import{createServer,type IncomingMessage,type ServerResponse}from"node:http";
+import{createHash}from"node:crypto";
+import{readFileSync}from"node:fs";
 import{StreamableHTTPServerTransport}from"@modelcontextprotocol/sdk/server/streamableHttp.js";
 import{z}from"zod";
 import{createMcpServer}from"./mcp.js";
@@ -6,6 +8,7 @@ import{ackHandoff,authenticateDevice,latestHandoff,revokeDeviceToken,startPairin
 import{createDeepLinks,normalizeDeepLinkPayload,normalizeSearchPayload,partnersConfigured,searchProducts}from"./partners.js";
 
 const port=Number(process.env.PORT??8787);const limits=new Map<string,{count:number;resetAt:number}>();
+const buildId=createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex").slice(0,12);
 const allowedOrigin=(origin:string)=>/^chrome-extension:\/\/[a-p]{32}$/.test(origin)||/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 const apiCors=(req:IncomingMessage)=>{const origin=String(req.headers.origin??"");return{"access-control-allow-origin":allowedOrigin(origin)?origin:"null","access-control-allow-methods":"GET,POST,DELETE,OPTIONS","access-control-allow-headers":"authorization,content-type","access-control-max-age":"600","vary":"Origin"}};
 const json=(req:IncomingMessage,res:ServerResponse,status:number,data:unknown)=>{res.writeHead(status,{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff",...apiCors(req)});res.end(JSON.stringify(data))};
@@ -17,7 +20,7 @@ const deepLinkInput=z.object({urls:z.array(z.string().url().refine(value=>new UR
 
 createServer(async(req,res)=>{try{const url=new URL(req.url??"/",`http://${req.headers.host??"localhost"}`);
  if(req.method==="OPTIONS"&&url.pathname.startsWith("/api/")){res.writeHead(204,apiCors(req));return res.end()}
- if(req.method==="GET"&&url.pathname==="/health")return json(req,res,200,{ok:true,name:"ddakdama",version:"1.0.0",status:"available"});
+ if(req.method==="GET"&&url.pathname==="/health")return json(req,res,200,{ok:true,name:"ddakdama",version:"1.0.0",buildId,status:"available"});
  if(req.method==="POST"&&url.pathname==="/api/pairing/start"){if(rateLimited(req,"pairing",10))return json(req,res,429,{error:"rate_limited"});await read(req);return json(req,res,201,startPairing())}
  if(req.method==="GET"&&url.pathname==="/api/handoffs/latest"){const deviceId=authenticateDevice(bearer(req));if(!deviceId)return json(req,res,401,{error:"unauthorized"});return json(req,res,200,{handoff:latestHandoff(deviceId)})}
  const ack=url.pathname.match(/^\/api\/handoffs\/([^/]+)\/ack$/);if(req.method==="POST"&&ack){const deviceId=authenticateDevice(bearer(req));if(!deviceId)return json(req,res,401,{error:"unauthorized"});const acknowledged=ackHandoff(deviceId,ack[1]);return json(req,res,acknowledged?200:404,{ok:acknowledged})}

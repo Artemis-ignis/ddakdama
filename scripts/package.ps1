@@ -71,6 +71,9 @@ Get-ChildItem -Path $stage -Recurse -Directory -Filter .data | Remove-Item -Recu
 Get-ChildItem -Path $stage -Recurse -File -Include .env,*.log | Remove-Item -Force
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $fullZip
 Remove-Item -LiteralPath $stage -Recurse -Force
+Copy-Item -Force (Join-Path $root "RELEASE_NOTES.md") -Destination (Join-Path $out "RELEASE_NOTES.md")
+Copy-Item -Force (Join-Path $root "TEST_REPORT.md") -Destination (Join-Path $out "TEST_REPORT.md")
+Copy-Item -Force (Join-Path $root "docs\LIVE_TEST_REPORT.md") -Destination (Join-Path $out "LIVE_TEST_REPORT.md")
 $hashes = Get-FileHash -Algorithm SHA256 $extensionZip,$serverZip,$chatgptZip,$fullZip,$webstoreExtensionZip
 $hashes | ForEach-Object {
   $relativePath = $_.Path.Substring($out.Length).TrimStart([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar).Replace('\','/')

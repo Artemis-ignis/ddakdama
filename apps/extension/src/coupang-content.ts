@@ -30,7 +30,13 @@ function cart():CartSnapshot[]{
 }
 function searchResults(){
  const links=[...document.querySelectorAll<HTMLAnchorElement>('a[href*="/vp/products/"]')];
- const rows=links.map(link=>link.closest<HTMLElement>('li,[data-product-id],[class*="ProductUnit_productUnit"],[class*="search-product"]')).filter((row):row is HTMLElement=>Boolean(row&&!row.classList.contains("recently-viewed-item")));
+ const rows=links.flatMap(link=>{
+  const url=new URL(link.href,location.origin);
+  if(url.searchParams.get("sourceType")==="recently_viewed_widget")return[];
+  const row=link.closest<HTMLElement>('li,[data-product-id],[class*="ProductUnit_productUnit"],[class*="search-product"]');
+  if(!row||row.closest('.recently-viewed-item,[class*="RecentlyViewed"],[data-testid*="recently-viewed"]'))return[];
+  return[row];
+ });
  const seen=new Set<string>();const results=[];
  for(const row of rows){
   const link=row.querySelector<HTMLAnchorElement>('a[href*="/vp/products/"]');if(!link)continue;
