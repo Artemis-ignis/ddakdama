@@ -27,4 +27,20 @@ describe("상품 후보 자동선택", () => {
   it("정확한 후보가 없으면 임의 대체하지 않는다", () => {
     expect(selectBestCandidate(sun!, [{ ...base, title: "스킨1004 다른 선크림 50mL 2개입" }])).toBeNull();
   });
+
+  it("검색가격이 없어도 정확한 상품은 상세 확인 대상으로 선택한다", () => {
+    const pricePending = { ...base, currentPrice: null };
+    expect(candidateMatchesRequest(sun!, pricePending)).toBe(true);
+    expect(selectBestCandidate(sun!, [pricePending])).toBe(pricePending);
+  });
+
+  it("실제 쿠팡 1+1 제목과 증정 문구가 있어도 50mL 2개 후보를 선택한다", () => {
+    const liveCandidate = {
+      ...base,
+      title: "[본사 출고 정품] 스킨1004 마다가스카르 센텔라 히알루-시카 워터핏 선세럼 더블기획 1+1 (+여행용 미니 추가 증정), 2개, 50ml",
+      currentPrice: 43_890,
+    };
+    expect(candidateMatchesRequest(sun!, liveCandidate)).toBe(true);
+    expect(selectBestCandidate(sun!, [liveCandidate])).toBe(liveCandidate);
+  });
 });

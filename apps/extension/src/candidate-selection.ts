@@ -17,7 +17,6 @@ export function candidateMatchesRequest(
   line: ShoppingRequestLine,
   candidate: CandidateForSelection,
 ): boolean {
-  if (!candidate.currentPrice || candidate.currentPrice <= 0) return false;
   if (!Number.isInteger(candidate.unitsPerPackage) || candidate.unitsPerPackage <= 0) return false;
   if (line.requestedPhysicalUnits % candidate.unitsPerPackage !== 0) return false;
   if (!titleContainsProductIdentity(candidate.title, line.brand, line.productName)) return false;
@@ -33,6 +32,7 @@ export function candidateScore(
 ): number {
   if (!candidateMatchesRequest(line, candidate)) return Number.NEGATIVE_INFINITY;
   let score = 100;
+  if (candidate.currentPrice && candidate.currentPrice > 0) score += 2;
   if (candidate.rocketDelivery) score += 4;
   if (candidate.advertised) score -= 5;
   return score;

@@ -24,4 +24,5 @@ it("브랜드와 제품 핵심 토큰이 모두 있어야 같은 상품이다",(
  expect(titleContainsProductIdentity("스킨1004 톤 브라이트닝 선크림 50ml 2개","스킨1004","스킨1004 히알루 시카 워터핏 선 세럼")).toBe(false);
 });
 it("붙은 배수와 본품·리필 복합 구성을 분리한다",()=>{const [multiplied,combined]=parseShoppingList("선 세럼 150ml×2\n세정제 본품 1개 + 리필 2개");expect(multiplied).toMatchObject({unitSizeValue:150,unitSizeUnit:"mL",requestedPhysicalUnits:2});expect(combined).toMatchObject({productName:"세정제",requestedPhysicalUnits:3,variantTokens:["본품 1개","리필 2개"]})});
+it("1+1과 증정 문구가 있어도 실제 판매 묶음을 읽는다",()=>{expect(parseUnitsPerPackage("[본사 정품] 스킨1004 히알루-시카 선세럼 더블기획 1+1 (+여행용 미니 추가 증정), 2개, 50ml")).toBe(2);expect(parseUnitsPerPackage("스킨1004 선 세럼 +샘플20ml 세트, 2개, 50ml")).toBe(2)});
 });

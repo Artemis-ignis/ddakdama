@@ -10,19 +10,19 @@ export function parseUnitsPerPackage(title: string): number {
     .replace(/[）]/gu, ")")
     .replace(/\s+/gu, " ")
     .trim();
-  const beforeGift = normalized.split(/(?:\+|,?\s*(?:증정|사은품|샘플|추가증정)\b)/u, 1)[0]?.trim() ?? normalized;
-  const withoutGiftParentheses = beforeGift.replace(/\([^)]*(?:증정|사은품|샘플)[^)]*\)/gu, " ").trim();
+  const withoutGiftParentheses = normalized.replace(/\([^)]*(?:증정|사은품|샘플|여행용|미니)[^)]*\)/gu, " ").trim();
+  const withoutGiftSegments = withoutGiftParentheses.replace(/\+\s*[^,]*(?:증정|사은품|샘플|여행용|미니)[^,]*(?:,|$)/gu, " ").trim();
   const patterns = [
     /(?:^|[\s,(/])(?:x|×)\s*(\d{1,2})(?=\s|[),/]|$)/iu,
     /(?:^|[\s,(/])(\d{1,2})\s*(?:개입|개|병|통|세트|입)(?=\s|[),/]|$)/u,
     /(?:^|[\s,(/])(\d{1,2})\s*팩(?=\s|[),/]|$)/u,
   ];
   for (const pattern of patterns) {
-    const matches = [...withoutGiftParentheses.matchAll(new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`))];
+    const matches = [...withoutGiftSegments.matchAll(new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`))];
     const value = Number(matches.at(-1)?.[1] ?? 0);
     if (Number.isInteger(value) && value >= 1 && value <= 20) return value;
   }
-  const onePlusOne = withoutGiftParentheses.match(/(?:^|\s)1\s*\+\s*1(?:\s|$)/u);
+  const onePlusOne = withoutGiftSegments.match(/(?:^|\s)1\s*\+\s*1(?:\s|$)/u);
   return onePlusOne ? 2 : 1;
 }
 

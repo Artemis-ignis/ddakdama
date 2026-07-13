@@ -6,6 +6,10 @@
 
 - Chrome 개발자 모드에서 `apps/extension` 단일 폴더 설치
 - 실제 쿠팡 검색 화면에서 상품명, productId, vendorItemId, 가격과 묶음 정보 읽기
+- 로그인된 실제 쿠팡에서 고정 목록 5종을 각각 검색하고 정확 후보 5종의 판매가 확인
+- 실제 상세페이지 5종에서 productId·vendorItemId·상품명·선택 규격·현재가·재고·장바구니 버튼 확인
+- 검색 카드 배송비 오인 제거 후 확인가: 닥터지 14,360원, 스킨1004 43,890원, 라운드랩 18,620원, TS 11,540원, 닥터스베스트 36,800원
+- 상세 구매 영역 밖 검색 카테고리를 제외한 결과, 잘못된 필수 옵션 판정 0/5
 - 로컬 MCP 서버 health와 원격 HTTPS health
 - 6자리 페어링 코드, 계획 전송, 기기 토큰 수신과 ACK
 - Playwright 번들 Chromium에서 확장 로드와 MV3 서비스 워커 발견
@@ -25,10 +29,10 @@
 - Deep Link 실패 시 일반 쿠팡 URL fallback
 - GPT 앱 MCP 도구 스키마와 위젯 번들
 - 최신 쿠팡 구매 영역 가격 selector의 지연 렌더링·미끼 가격 배제
+- 실제 쿠팡 검색 카드의 배송비·적립금 제외는 라이브 확인, 장바구니 변경은 fixture 검증
 
 ## USER APPROVAL REQUIRED
 
-- 고정 목록 5종의 실제 쿠팡 후보 최종 선택
 - 실제 장바구니 변경과 productId별 수량 delta 확인
 - Business 또는 Enterprise/Edu 워크스페이스에서 ChatGPT 사용자 정의 앱 생성
 

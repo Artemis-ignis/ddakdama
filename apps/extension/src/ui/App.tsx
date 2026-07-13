@@ -108,6 +108,15 @@ const statusMessage = (status?: string) =>
     CART_VERIFICATION_FAILED: "장바구니 수량 변화를 확인하지 못했습니다.",
   })[status ?? ""] ?? "상품을 담지 못했습니다.";
 
+const searchErrorMessage = (error?: string) =>
+  ({
+    SECURITY_CHECK_REQUIRED: "쿠팡의 보안 확인이 필요합니다.",
+    LOGIN_REQUIRED: "쿠팡 로그인이 필요합니다.",
+    DOM_PARSE_FAILED: "쿠팡 검색 화면을 읽지 못했습니다.",
+    NO_RESULTS: "일치하는 검색 결과를 찾지 못했습니다.",
+    CONTENT_SCRIPT_UNAVAILABLE: "쿠팡 검색 연결이 늦어지고 있습니다.",
+  })[error ?? ""] ?? "상품 검색을 완료하지 못했습니다.";
+
 const purchaseQuantity = (line: ShoppingRequestLine, item: SearchCandidate) =>
   line.requestedPhysicalUnits / item.unitsPerPackage;
 
@@ -222,6 +231,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   );
 
   const selectedCount = lines.filter((line) => selected[line.id]).length;
+  const pricedSelectedCount = lines.filter((line) => Number(selected[line.id]?.currentPrice) > 0).length;
   const searchTotal = lines.reduce((sum, line) => {
     const item = selected[line.id];
     return sum + (item?.currentPrice ?? 0) * (item ? line.requestedPhysicalUnits / item.unitsPerPackage : 0);
@@ -274,7 +284,11 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
         return;
       }
       const response = await chrome.runtime.sendMessage({ type: "DDAKDAMA_SEARCH_ALL", items: next });
-      const output = (response?.output ?? []) as SearchGroup[];
+      if (!response?.ok || !Array.isArray(response.output)) throw new Error(response?.error ?? "SEARCH_FAILED");
+      const output = response.output as SearchGroup[];
+      const requestedIds = new Set(next.map((line) => line.id));
+      const outputIds = new Set(output.map((group) => group.requestLineId));
+      if (output.length !== next.length || [...requestedIds].some((id) => !outputIds.has(id))) throw new Error("INCOMPLETE_SEARCH_RESPONSE");
       setGroups(output);
       setSelectedIds({});
       setStep(2);
@@ -566,7 +580,8 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
         {lines.map((line, index) => {
           const item = selected[line.id];
           const purchaseQty = item ? line.requestedPhysicalUnits / item.unitsPerPackage : 0;
-          const results = groups.find((group) => group.requestLineId === line.id)?.results ?? [];
+          const group = groups.find((candidate) => candidate.requestLineId === line.id);
+          const results = group?.results ?? [];
           return (
             <article className={`product-row ${expanded === index ? "expanded" : ""} ${item ? "" : "needs-attention"}`} data-testid={`product-${index}`} key={line.id}>
               <button className="product-row-main" type="button" onClick={() => setExpanded(expanded === index ? -1 : index)} aria-expanded={expanded === index}>
@@ -576,13 +591,13 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
                   <strong>{item?.title ?? line.productName}</strong>
                   <small>{stateLabel(line)}{item?.unitsPerPackage && item.unitsPerPackage > 1 ? ` · ${item.unitsPerPackage}개 묶음 × ${purchaseQty}` : ""}</small>
                 </span>
-                <span className="product-row-price">{item?.currentPrice ? <><b>{(item.currentPrice * purchaseQty).toLocaleString()}원</b>{purchaseQty > 1 && <small>{item.currentPrice.toLocaleString()}원 × {purchaseQty}</small>}</> : "직접 확인"}</span>
+                <span className="product-row-price">{item?.currentPrice ? <><b>{(item.currentPrice * purchaseQty).toLocaleString()}원</b>{purchaseQty > 1 && <small>{item.currentPrice.toLocaleString()}원 × {purchaseQty}</small>}</> : item ? "상세에서 가격 확인" : group?.error ? "검색 실패" : "일치 후보 없음"}</span>
                 <ChevronDown className="row-chevron" size={18} />
               </button>
               {expanded === index && (
                 <div className="candidate-panel">
                   <p className={item ? "match-copy" : "match-copy warning"}>
-                    {item ? "규격과 수량이 가장 잘 맞는 상품이에요." : "정확히 일치하는 상품이 없어 자동 선택하지 않았어요."}
+                    {item ? (item.currentPrice ? "규격과 수량이 가장 잘 맞는 상품이에요." : "상품은 일치하며 현재 가격은 상세페이지에서 확인해요.") : group?.error ? searchErrorMessage(group.error) : "정확히 일치하는 상품이 없어 자동 선택하지 않았어요."}
                   </p>
                   <div className="candidate-list" aria-label={`${line.productName} 상품 후보`}>
                     {results.slice(0, 4).map((candidate) => {
@@ -605,12 +620,12 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
                           aria-pressed={active}
                         >
                           <span className="candidate-radio">{active ? <Check size={12} /> : null}</span>
-                          <span><strong>{candidate.title}</strong><small>{candidate.currentPrice && exact ? priceBreakdown(candidate.currentPrice, line, candidate) : candidate.currentPrice ? `${candidate.currentPrice.toLocaleString()}원` : "가격 확인 실패"} · {candidate.unitsPerPackage === 1 ? `단품 × ${candidatePurchaseQuantity || "-"}` : `${candidate.unitsPerPackage}개 묶음 × ${candidatePurchaseQuantity || "-"}`}{candidate.rocketDelivery ? " · 로켓배송" : ""}</small></span>
+                          <span><strong>{candidate.title}</strong><small>{candidate.currentPrice && exact ? priceBreakdown(candidate.currentPrice, line, candidate) : candidate.currentPrice ? `${candidate.currentPrice.toLocaleString()}원` : exact ? "상세에서 가격 확인" : "검색가격 미확인"} · {candidate.unitsPerPackage === 1 ? `단품 × ${candidatePurchaseQuantity || "-"}` : `${candidate.unitsPerPackage}개 묶음 × ${candidatePurchaseQuantity || "-"}`}{candidate.rocketDelivery ? " · 로켓배송" : ""}</small></span>
                           <b>{active ? "선택됨" : exact ? "선택" : "규격 불일치"}</b>
                         </button>
                       );
                     })}
-                    {!results.length && <p className="empty-candidates">검색된 후보가 없습니다. 상품명을 다시 확인해 주세요.</p>}
+                    {!results.length && <p className="empty-candidates">{group?.error ? `${searchErrorMessage(group.error)} 아래의 다시 찾기를 눌러 주세요.` : "검색된 후보가 없습니다. 상품명을 다시 확인해 주세요."}</p>}
                   </div>
                 </div>
               )}
@@ -689,7 +704,10 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
 
   const actionBar = () => {
     if (step === 1) return { label: "실제 상품 찾기", onClick: searchAll, disabled: searching || !lines.length, icon: <Search size={18} />, amountLabel: "인식 결과", amount: `${lines.length}종 · ${physicalUnits(lines)}개` };
-    if (step === 2) return { label: `${lines.length}종 상세 확인하기`, onClick: runPreflight, disabled: adding || selectedCount !== lines.length, icon: <ChevronRight size={19} />, amountLabel: "검색가 합계", amount: selectedCount ? `${searchTotal.toLocaleString()}원` : "확인 필요" };
+    if (step === 2) {
+      if (selectedCount !== lines.length) return { label: `${lines.length - selectedCount}종 다시 찾기`, onClick: searchAll, disabled: searching, icon: <RefreshCw size={17} />, amountLabel: "선택 필요", amount: `${lines.length - selectedCount}종` };
+      return { label: `${lines.length}종 상세 확인하기`, onClick: runPreflight, disabled: adding, icon: <ChevronRight size={19} />, amountLabel: pricedSelectedCount === lines.length ? "검색가 합계" : "가격 확인", amount: pricedSelectedCount === lines.length ? `${searchTotal.toLocaleString()}원` : `상세 확인 ${lines.length - pricedSelectedCount}종` };
+    }
     if (step === 3) {
       const allReady = preflightReadyCount === lines.length && lines.length > 0;
       const canPartiallyAdd = !allReady && preflightReadyCount > 0;
