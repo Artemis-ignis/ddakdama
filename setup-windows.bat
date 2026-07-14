@@ -1,30 +1,29 @@
 @echo off
-chcp 65001 >nul
 setlocal
 cd /d "%~dp0"
 
-echo 딱담아 개발 환경을 준비합니다.
+echo Preparing the DdakDama development environment.
 where node >nul 2>nul || (
-  echo Node.js LTS를 먼저 설치해 주세요.
+  echo Install Node.js LTS first.
   pause
   exit /b 1
 )
 where pnpm >nul 2>nul || (
-  echo pnpm을 설치합니다.
+  echo Installing pnpm.
   call npm install -g pnpm
   if errorlevel 1 goto :fail
 )
 
 if not exist "apps\server\.env" (
   copy /y "apps\server\.env.example" "apps\server\.env" >nul
-  echo 서버 설정 파일 apps\server\.env 를 만들었습니다.
+  echo Created apps\server\.env from the example file.
 )
 
 call pnpm install
 if errorlevel 1 goto :fail
 call pnpm exec playwright install chromium
 if errorlevel 1 goto :fail
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\install-openai-tunnel-client.ps1"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\install-openai-tunnel-client.ps1"
 if errorlevel 1 goto :fail
 call pnpm lint
 if errorlevel 1 goto :fail
@@ -37,11 +36,11 @@ if errorlevel 1 goto :fail
 call pnpm build
 if errorlevel 1 goto :fail
 
-echo 설치와 기본 검증이 완료되었습니다.
+echo Setup and baseline verification completed.
 pause
 exit /b 0
 
 :fail
-echo 설치 중 문제가 발생했습니다. 위 오류를 확인해 주세요.
+echo Setup failed. Review the error above.
 pause
 exit /b 1
