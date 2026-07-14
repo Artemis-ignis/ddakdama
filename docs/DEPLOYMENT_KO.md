@@ -2,7 +2,13 @@
 
 ## 개인 개발 모드
 
-`start-windows.bat`으로 로컬 서버를 실행하고 `tunnel-windows.bat`으로 HTTPS 터널을 엽니다. Quick Tunnel 주소는 재실행 때 바뀔 수 있습니다.
+`start-windows.bat`으로 로컬 서버를 실행하고 `tunnel-windows.bat`으로 OpenAI Secure MCP Tunnel을 시작합니다. 로컬 MCP 서버를 공개 인터넷에 노출하지 않으며, ChatGPT 앱에는 고정된 Platform 터널을 연결합니다.
+
+- 터널 ID: `tunnel_6a558b1cfec48191993a91062fa9f5e3`
+- 로컬 MCP: `http://127.0.0.1:8787/mcp`
+- 런타임 키 권한: Tunnels `Read + Use`
+- 런타임 키 저장: Windows DPAPI, `%LOCALAPPDATA%\DdakDama\secrets`
+- 브라우저 자동 열기: 사용하지 않음
 
 ## 운영 모드
 
@@ -13,3 +19,5 @@
 - CORS 허용 origin, rate limit, 영속 TTL 저장소와 모니터링을 운영 환경에 맞게 제한합니다.
 - 공개 Chrome Web Store 빌드는 실제 사용자 혜택이 없는 한 제휴 기능을 비활성화합니다.
 - ChatGPT 앱과 Chrome Web Store 공개 제출은 별도 사용자 승인 후 진행합니다.
+
+공식 안내: https://developers.openai.com/api/docs/guides/secure-mcp-tunnels

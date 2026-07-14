@@ -9,6 +9,7 @@ dist/
 *.crx
 *.pem
 .tools/
+.run/
 .playwright/
 output/playwright/
 apps/extension/preview-dist/

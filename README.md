@@ -32,7 +32,7 @@
 
 ## 시작
 
-Windows에서는 `setup-windows.bat`을 실행한 뒤 Chrome에서 `apps/extension` 폴더 하나만 불러옵니다. `apps/extension/dist`는 매니페스트가 없는 빌드 산출물 폴더이므로 선택하지 않습니다.
+Windows에서는 `setup-windows.bat`을 실행한 뒤 Chrome에서 `apps/extension` 폴더 하나만 불러옵니다. `apps/extension/dist`는 매니페스트가 없는 빌드 산출물 폴더이므로 선택하지 않습니다. GPT 앱 연결은 `setup-tunnel-key-windows.bat`으로 터널 전용 키를 한 번 안전하게 저장한 뒤 `launch-windows.bat`으로 서버와 OpenAI Secure MCP Tunnel을 함께 실행합니다.
 
 초보자용 문서는 [START_HERE_KO.md](START_HERE_KO.md), [Windows 설치](docs/INSTALL_WINDOWS_KO.md), [Chrome 설정](docs/CHROME_EXTENSION_SETUP_KO.md), [GPT 앱 설정](docs/GPT_APP_SETUP_KO.md), [문제 해결](docs/TROUBLESHOOTING_KO.md) 순서로 확인합니다.
 

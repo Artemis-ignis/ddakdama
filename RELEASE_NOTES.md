@@ -26,6 +26,9 @@
 ## ChatGPT 앱·서버
 
 - OpenAI Apps SDK/MCP 도구와 React 위젯
+- OpenAI Secure MCP Tunnel 기반 로컬 연결과 공식 `tunnel-client` 자동 설치·SHA-256 검증
+- 터널 전용 최소 권한 키(Tunnels Read + Use)를 Windows DPAPI로 암호화 저장
+- 고정 터널 ID를 사용하므로 Quick Tunnel URL 갱신이 필요 없고 브라우저 탭을 자동으로 열지 않음
 - 일회용 페어링 코드, device token, TTL handoff, idempotency key
 - 서버 재시작에도 복원되는 로컬 상태 저장소와 비밀정보 해시 저장
 - 연결 해제 시 device token·grant·pairing·handoff 일괄 폐기
@@ -43,7 +46,7 @@
 ## 검증
 
 - ESLint 및 TypeScript 통과
-- Vitest 45/45 통과
+- Vitest 47/47 통과
 - 실제 Chromium Playwright 26/26 통과
 - MCP 실연결 스모크 테스트 통과
 - 프로덕션 빌드 통과
@@ -69,4 +72,4 @@
 - 서버 시작 시 항상 최신 소스를 빌드하고 이전 딱담아 서버를 교체하며, health의 build ID로 오래된 런타임을 식별
 - GPT 위젯 내부 페어링·전송·상태·해제 도구를 앱 전용으로 숨기고 위젯 리소스 URI를 v3로 갱신
 
-실제 쿠팡 계정 장바구니 변경, 승인된 파트너스 키 호출, ChatGPT Developer Mode 등록은 사용자 계정·권한과 명시적 승인 후 최종 검증해야 합니다.
+Secure MCP Tunnel 런타임 키의 1회 로컬 저장, ChatGPT 앱의 Tunnel 선택, 실제 쿠팡 장바구니 변경은 사용자 계정·권한과 명시적 승인 후 최종 검증해야 합니다.

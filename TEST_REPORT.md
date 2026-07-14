@@ -1,15 +1,15 @@
 # 테스트 보고서
 
-검증일: 2026-07-13
+검증일: 2026-07-14
 
 ## 자동 검증
 
 - ESLint: 통과
 - TypeScript strict 검사: 통과
-- Vitest: 45/45 통과
+- Vitest: 47/47 통과
   - core 11개
   - extension 16개
-  - server 18개
+  - server 20개
 - Playwright 실제 Chromium: 26/26 통과
   - MV3 확장 프로그램·장바구니 상태 머신·탭 재사용 10개
   - 실제 Side Panel 컴포넌트·시각 회귀 16개
@@ -19,6 +19,10 @@
   - 확장 프로그램 수신·ACK
   - 연결 해제 후 device token 폐기(401)
 - 프로덕션 빌드: 통과
+- 배포 ZIP 패키징과 SHA-256 생성: 통과
+- 공식 `openai/tunnel-client` v0.0.10 다운로드와 SHA-256 검증: 통과
+- Secure MCP Tunnel 프로필 생성 및 로컬 MCP health 확인: 통과
+- `tunnel-client doctor`: 런타임 API 키 미설정 1개만 실패, 나머지 구성 검사 통과
 - `pnpm audit --audit-level high`: 알려진 취약점 0개
 
 ## 핵심 회귀 검증
@@ -72,6 +76,7 @@
 
 - 로그인된 실제 쿠팡 장바구니 변경과 productId별 수량 delta 확인
 - 승인된 쿠팡 파트너스 Access/Secret Key를 사용한 Product Search·Deep Link 호출
-- ChatGPT 쓰기 도구 전체 흐름 등록: Full MCP가 지원되는 Business·Enterprise·Edu 워크스페이스 필요(Pro는 읽기·검색 MCP만 지원)
+- OpenAI Platform에서 터널 전용 런타임 키를 생성하고 로컬 DPAPI 저장 창에 한 번 붙여 넣기
+- ChatGPT 앱 설정에서 `딱담아 로컬 MCP` Tunnel을 선택한 뒤 페어링·handoff 전체 흐름 확인
 
 실계정에서 실행하지 않은 항목은 라이브 성공으로 간주하지 않습니다.

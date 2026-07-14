@@ -1,6 +1,6 @@
 # 공식 문서 기준 결정
 
-확인일: 2026-07-13
+확인일: 2026-07-14
 
 ## OpenAI Apps SDK
 
@@ -10,7 +10,10 @@
 - 대화에 필요한 값은 `structuredContent`, 위젯 전용 비공개 값은 `_meta`로 분리합니다.
 - 위젯의 도구 호출은 MCP Apps JSON-RPC 브리지(`ui/initialize`, `ui/notifications/initialized`, `tools/call`)를 우선하고 `window.openai`는 호환 보조 경로로만 둡니다.
 - 연결은 일반 사용자가 서버 주소나 토큰을 입력하지 않는 일회용 6자리 코드 방식으로 구성합니다.
-- ChatGPT 연결에는 원격 HTTPS `/mcp` 주소가 필요합니다.
+- 개인 개발 환경의 ChatGPT 연결은 OpenAI Secure MCP Tunnel을 사용합니다. 로컬 MCP 서버는 공개 URL 없이 `tunnel-client`가 아웃바운드 HTTPS로 연결합니다.
+- 터널 생성·편집은 Tunnels `Read + Manage`, 런타임 실행과 ChatGPT 앱 선택은 Tunnels `Read + Use`가 필요합니다.
+- 터널 런타임 API 키는 `딱담아` Platform 프로젝트의 제한 키로 만들고 Tunnels `Read + Use`만 허용합니다.
+- 키는 현재 Windows 계정 전용 DPAPI로 암호화해 `%LOCALAPPDATA%\DdakDama\secrets`에 저장하고 저장소에는 넣지 않습니다.
 - 2026-07-13 공식 개발자 모드 안내 기준 Pro, Plus, Business, Enterprise, Education 계정은 웹에서 원격 MCP 앱을 연결할 수 있으며 개발자 모드에서 읽기·쓰기 도구를 모두 사용할 수 있습니다.
 - 개인 계정은 `Settings → Security and login → Developer mode`를 켠 뒤 `Settings → Plugins`에서 앱을 만듭니다.
 - 조직용 워크스페이스에서는 관리자가 개발자 모드와 허용 도구 정책을 제한할 수 있습니다.
@@ -19,8 +22,9 @@
 참고:
 
 - https://developers.openai.com/apps-sdk/quickstart
-- https://developers.openai.com/apps-sdk/deploy/connect-chatgpt
-- https://platform.openai.com/docs/guides/developer-mode
+- https://developers.openai.com/apps-sdk/build/mcp-server
+- https://developers.openai.com/apps-sdk/build/chatgpt-ui
+- https://developers.openai.com/api/docs/guides/secure-mcp-tunnels
 
 ## Chrome Web Store
 

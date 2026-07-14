@@ -55,7 +55,9 @@ Copy-Item -Recurse -Force (Join-Path $root "apps\server\assets") -Destination (J
 Copy-Item -Force (Join-Path $root "apps\server\package.json"),(Join-Path $root "apps\server\.env.example") -Destination (Join-Path $serverStage "apps\server")
 Copy-Item -Recurse -Force (Join-Path $root "packages\core\dist") -Destination (Join-Path $serverStage "packages\core")
 Copy-Item -Force (Join-Path $root "packages\core\package.json") -Destination (Join-Path $serverStage "packages\core")
-Copy-Item -Force package.json,pnpm-workspace.yaml,pnpm-lock.yaml,start-windows.bat -Destination $serverStage
+Copy-Item -Force package.json,pnpm-workspace.yaml,pnpm-lock.yaml,start-windows.bat,tunnel-windows.bat,setup-tunnel-key-windows.bat -Destination $serverStage
+New-Item -ItemType Directory -Force -Path (Join-Path $serverStage "scripts") | Out-Null
+Copy-Item -Force (Join-Path $root "scripts\install-openai-tunnel-client.ps1"),(Join-Path $root "scripts\setup-tunnel-key.ps1"),(Join-Path $root "scripts\start-openai-tunnel.ps1") -Destination (Join-Path $serverStage "scripts")
 Compress-Archive -Path (Join-Path $serverStage "*") -DestinationPath $serverZip
 New-Item -ItemType Directory -Force -Path (Join-Path $serverStage "docs") | Out-Null
 Copy-Item -Force (Join-Path $root "docs\GPT_APP_SETUP_KO.md"),(Join-Path $root "docs\OFFICIAL_DOCS_DECISIONS.md"),(Join-Path $root "PRIVACY.md"),(Join-Path $root "TERMS.md"),(Join-Path $root "SECURITY.md") -Destination (Join-Path $serverStage "docs")
@@ -66,7 +68,7 @@ Assert-StagingPath $stage
 Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
 Copy-Item -Recurse -Force apps,packages,docs,scripts,tests -Destination $stage
-Copy-Item -Force package.json,pnpm-workspace.yaml,pnpm-lock.yaml,eslint.config.js,playwright.config.ts,tsconfig.playwright.json,README.md,START_HERE_KO.md,SECURITY.md,PRIVACY.md,TERMS.md,LICENSE,VERSION,RELEASE_NOTES.md,TEST_REPORT.md,sample-list.txt,setup-windows.bat,start-windows.bat,doctor-windows.bat,package-windows.bat,tunnel-windows.bat,launch-windows.bat,install-extension-windows.bat -Destination $stage
+Copy-Item -Force package.json,pnpm-workspace.yaml,pnpm-lock.yaml,eslint.config.js,playwright.config.ts,tsconfig.playwright.json,README.md,START_HERE_KO.md,SECURITY.md,PRIVACY.md,TERMS.md,LICENSE,VERSION,RELEASE_NOTES.md,TEST_REPORT.md,sample-list.txt,setup-windows.bat,start-windows.bat,doctor-windows.bat,package-windows.bat,tunnel-windows.bat,setup-tunnel-key-windows.bat,launch-windows.bat,install-extension-windows.bat -Destination $stage
 Get-ChildItem -Path $stage -Recurse -Directory -Filter node_modules | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -Directory -Filter preview-dist | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -Directory -Filter .data | Remove-Item -Recurse -Force
