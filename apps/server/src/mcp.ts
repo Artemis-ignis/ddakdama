@@ -9,15 +9,41 @@ import {
   parseShoppingList,
   shoppingRequestLineSchema,
 } from "@ddakdama/core";
-import {
-  authenticateGrant,
-  completePairing,
-  createHandoff,
-  handoffStatus,
-  normalizePairingCode,
-  revokeConnectionGrant,
-} from "./store.js";
-import { WIDGET_URI, widgetHtml } from "./widget.js";
+
+type MaybePromise<T> = T | Promise<T>;
+
+export type McpStore = {
+  completePairing: (
+    code: string,
+    clientKey?: string,
+  ) => MaybePromise<{ connectionGrant: string; expiresAt: number } | null>;
+  authenticateGrant: (grant: string) => MaybePromise<string | null>;
+  createHandoff: (
+    deviceId: string,
+    payload: unknown,
+    idempotencyKey: string,
+  ) => MaybePromise<{ id: string; expiresAt: number }>;
+  handoffStatus: (
+    deviceId: string,
+    id: string,
+  ) => MaybePromise<{ received: boolean; expired: boolean } | null>;
+  revokeConnectionGrant: (grant: string) => MaybePromise<boolean>;
+};
+
+export type McpServerOptions = {
+  pairingClientKey?: string;
+  store: McpStore;
+  widgetHtml: string;
+  widgetUri?: string;
+  widgetConnectDomains?: string[];
+  widgetResourceDomains?: string[];
+};
+
+const DEFAULT_WIDGET_URI = "ui://widget/ddakdama-cart-v5.html";
+const normalizePairingCode = (value: string) => {
+  const compact = value.normalize("NFKC").replace(/[\s-]+/g, "");
+  return /^\d{6}$/.test(compact) ? compact : null;
+};
 
 const itemSchema = shoppingRequestLineSchema;
 const invocationMeta = (invoking: string, invoked: string) => ({
@@ -37,9 +63,14 @@ function parsePlan(shoppingList: string) {
   };
 }
 
-export function createMcpServer(
-  { pairingClientKey = "unknown" }: { pairingClientKey?: string } = {},
-) {
+export function createMcpServer({
+  pairingClientKey = "unknown",
+  store,
+  widgetHtml,
+  widgetUri = DEFAULT_WIDGET_URI,
+  widgetConnectDomains = [],
+  widgetResourceDomains = [],
+}: McpServerOptions) {
   const server = new McpServer(
     { name: "ddakdama", version: "1.0.0" },
     {
@@ -48,16 +79,19 @@ export function createMcpServer(
     },
   );
 
-  registerAppResource(server, "ddakdama-widget", WIDGET_URI, {}, async () => ({
+  registerAppResource(server, "ddakdama-widget", widgetUri, {}, async () => ({
     contents: [
       {
-        uri: WIDGET_URI,
+        uri: widgetUri,
         mimeType: RESOURCE_MIME_TYPE,
         text: widgetHtml,
         _meta: {
           ui: {
             prefersBorder: true,
-            csp: { connectDomains: [], resourceDomains: [] },
+            csp: {
+              connectDomains: widgetConnectDomains,
+              resourceDomains: widgetResourceDomains,
+            },
           },
           "openai/widgetDescription":
             "쇼핑 목록의 규격과 수량을 확인하고 딱담아 확장 프로그램으로 보내는 화면입니다.",
@@ -124,7 +158,7 @@ export function createMcpServer(
         idempotentHint: true,
       },
       _meta: {
-        ui: { resourceUri: WIDGET_URI },
+        ui: { resourceUri: widgetUri },
         ...invocationMeta("장바구니 계획을 만드는 중…", "장바구니 계획 준비 완료"),
       },
     },
@@ -166,7 +200,7 @@ export function createMcpServer(
       },
     },
     async ({ pairing_code }) => {
-      const paired = completePairing(pairing_code, pairingClientKey);
+      const paired = await store.completePairing(pairing_code, pairingClientKey);
       if (!paired) {
         return {
           isError: true,
@@ -217,7 +251,7 @@ export function createMcpServer(
       },
     },
     async ({ items, connection_grant, idempotency_key }) => {
-      const deviceId = authenticateGrant(connection_grant);
+      const deviceId = await store.authenticateGrant(connection_grant);
       if (!deviceId) {
         return {
           isError: true,
@@ -230,7 +264,7 @@ export function createMcpServer(
           ],
         };
       }
-      const handoff = createHandoff(
+      const handoff = await store.createHandoff(
         deviceId,
         { items },
         idempotency_key,
@@ -279,8 +313,10 @@ export function createMcpServer(
       _meta: { ui: { visibility: ["app"] } },
     },
     async ({ handoff_id, connection_grant }) => {
-      const deviceId = authenticateGrant(connection_grant);
-      const status = deviceId ? handoffStatus(deviceId, handoff_id) : null;
+      const deviceId = await store.authenticateGrant(connection_grant);
+      const status = deviceId
+        ? await store.handoffStatus(deviceId, handoff_id)
+        : null;
       return {
         structuredContent: status ? { found: true, ...status } : { found: false },
         content: [
@@ -315,7 +351,7 @@ export function createMcpServer(
       _meta: { ui: { visibility: ["app"] } },
     },
     async ({ connection_grant }) => {
-      const disconnected = revokeConnectionGrant(connection_grant);
+      const disconnected = await store.revokeConnectionGrant(connection_grant);
       return {
         structuredContent: { disconnected },
         content: [

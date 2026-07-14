@@ -12,7 +12,7 @@
 ## Chrome Web Store
 
 - [ ] 운영 서버 도메인 확정
-- [ ] `optional_host_permissions`를 운영 도메인으로 축소
+- [ ] `host_permissions`를 운영 Worker origin과 쿠팡 도메인으로 축소
 - [ ] 권한별 필요성을 스토어 개인정보 항목에 설명
 - [ ] 검색·상품·장바구니 최신 DOM에서 회귀 테스트
 - [ ] 가격 미확인·로그인 필요·빈 장바구니·옵션 필요·품절 시나리오 테스트
@@ -22,6 +22,7 @@
 - [ ] 1280×800 또는 640×400 스크린샷 준비
 - [ ] 스토어 설명·아이콘·지원 URL·개인정보 처리방침 URL 등록
 - [ ] 압축 제출본을 다시 풀어 설치 테스트
+- [ ] 단일 `ddakdama-extension-v1.0.0.zip`에 localhost·개발자 설정·파트너스 코드 활성화가 없는지 검사
 
 ### 파트너스 사용 시 추가
 
@@ -49,7 +50,8 @@
 ## 백엔드·파트너스
 
 - [ ] HTTPS·보안 헤더
-- [ ] `DDAKDAMA_EXTENSION_TOKEN` 설정
+- [ ] Durable Object 저장소와 device pairing grant의 TTL·해제·사용자 격리 확인
+- [ ] 공개 확장 프로그램 ID를 `ALLOWED_EXTENSION_IDS`에 설정
 - [ ] Access Key·Secret Key를 비밀 저장소에 보관
 - [ ] 로그에서 Authorization·Secret·쇼핑 목록 마스킹
 - [ ] 요청 본문 크기·URL 개수 제한

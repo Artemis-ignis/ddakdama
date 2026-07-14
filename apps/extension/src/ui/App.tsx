@@ -28,6 +28,7 @@ TS 골드플러스 샴푸 500g
 닥터스베스트 고흡수 마그네슘 100mg 240정`;
 
 const SERVER_ORIGIN = (import.meta.env.VITE_DDAKDAMA_SERVER_ORIGIN || "http://localhost:8787").replace(/\/$/, "");
+const AFFILIATE_ENABLED = import.meta.env.VITE_DDAKDAMA_AFFILIATE_ENABLED === "true";
 const STEP_LABELS = ["목록", "상품 확인", "담기 전 확인", "완료"];
 
 export type SearchCandidate = {
@@ -877,7 +878,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
         {step === 3 && renderReview()}
         {step === 4 && renderComplete()}
         {notice && <div className="notice" role="status" aria-live="polite"><span>{notice}</span><button type="button" onClick={() => setNotice(null)}>닫기</button></div>}
-        <p className="affiliate">쿠팡 파트너스 활동을 통해 일정액의 수수료를 받을 수 있습니다.</p>
+        {AFFILIATE_ENABLED && <p className="affiliate">쿠팡 파트너스 활동을 통해 일정액의 수수료를 받을 수 있습니다.</p>}
       </div>
 
       <footer className="sticky-action">

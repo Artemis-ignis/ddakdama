@@ -14,3 +14,6 @@ dist/
 output/playwright/
 apps/extension/preview-dist/
 apps/server/.data/
+apps/worker/.generated/
+apps/worker/.wrangler/
+apps/worker/.wrangler-dist/

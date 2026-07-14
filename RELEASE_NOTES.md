@@ -18,7 +18,7 @@
 - 설치 경로는 `apps/extension` 하나로 통일
 - Manifest V3 서비스 워커와 Chrome Side Panel
 - content script를 Chrome이 직접 실행할 수 있는 독립 IIFE 파일로 별도 빌드
-- 개발용 ZIP과 localhost 권한을 제거한 Web Store 검토용 ZIP을 분리
+- 소스와 배포물을 하나로 통합하고, 공개 HTTPS 서버만 허용하는 단일 확장 ZIP 생성
 - Apple의 절제된 계층과 Toss의 명확한 단계·숫자·안심 UX를 참고한 독자 UI
 - 일반 사용자 화면에서 서버 URL, MCP, token, raw log 등 개발자 정보 제거
 - 실제 장바구니 바로가기, 실패 상품 재시도, 상품 페이지 열기 제공
@@ -26,9 +26,9 @@
 ## ChatGPT 앱·서버
 
 - OpenAI Apps SDK/MCP 도구와 React 위젯
-- OpenAI Secure MCP Tunnel 기반 로컬 연결과 공식 `tunnel-client` 자동 설치·SHA-256 검증
-- 터널 전용 최소 권한 키(Tunnels Read + Use)를 Windows DPAPI로 암호화 저장
-- 고정 터널 ID를 사용하므로 Quick Tunnel URL 갱신이 필요 없고 브라우저 탭을 자동으로 열지 않음
+- Cloudflare Worker와 Durable Object 기반의 고정 HTTPS 공개 MCP·페어링·handoff 서버
+- 일반 사용자는 로컬 서버, 터널 또는 OpenAI API 키 없이 공개 앱과 확장 프로그램만 사용
+- OpenAI Secure MCP Tunnel은 개발자가 로컬 MCP를 점검할 때만 사용하는 보조 경로
 - 일회용 페어링 코드, device token, TTL handoff, idempotency key
 - 서버 재시작에도 복원되는 로컬 상태 저장소와 비밀정보 해시 저장
 - 연결 해제 시 device token·grant·pairing·handoff 일괄 폐기
@@ -41,12 +41,13 @@
 - API 키는 서버 `.env`에만 저장
 - API 미설정·미지원·오류 시 일반 쿠팡 검색과 일반 링크로 fallback
 - 사용자 opt-in과 제휴 고지 전제
+- 공개 확장 패키지는 직접적 사용자 혜택과 플랫폼 허용이 검증될 때까지 제휴 기능을 빌드 시점에 강제 비활성화
 - 수수료 발생을 보장하지 않음
 
 ## 검증
 
 - ESLint 및 TypeScript 통과
-- Vitest 47/47 통과
+- Vitest 52/52 통과
 - 실제 Chromium Playwright 26/26 통과
 - MCP 실연결 스모크 테스트 통과
 - 프로덕션 빌드 통과
@@ -72,4 +73,4 @@
 - 서버 시작 시 항상 최신 소스를 빌드하고 이전 딱담아 서버를 교체하며, health의 build ID로 오래된 런타임을 식별
 - GPT 위젯 내부 페어링·전송·상태·해제 도구를 앱 전용으로 숨기고 위젯 리소스 URI를 v3로 갱신
 
-Secure MCP Tunnel 런타임 키의 1회 로컬 저장, ChatGPT 앱의 Tunnel 선택, 실제 쿠팡 장바구니 변경은 사용자 계정·권한과 명시적 승인 후 최종 검증해야 합니다.
+Cloudflare 계정 이메일 인증 후 고정 HTTPS Worker 배포, 해당 `/mcp`를 사용한 ChatGPT 앱 연결, 승인된 쿠팡 파트너스 키 호출과 실제 쿠팡 장바구니 변경은 계정·권한 및 명시적 승인 후 최종 검증해야 합니다.

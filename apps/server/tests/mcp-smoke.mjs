@@ -46,14 +46,37 @@ const paired = await client.callTool({
   name: "pair_extension_device",
   arguments: {pairing_code: `${pairing.code.slice(0, 3)} ${pairing.code.slice(3)}`},
 });
-const shoppingList = "스킨1004 히알루 시카 워터핏 선 세럼 50ml 2개";
+const shoppingList = [
+  "닥터지 레드 블레미쉬 포 맨 진정 올인원 150ml",
+  "스킨1004 히알루 시카 워터핏 선 세럼 50ml 2개",
+  "라운드랩 1025 독도 클렌저 150ml 2개",
+  "TS 골드플러스 샴푸 500g",
+  "닥터스베스트 고흡수 마그네슘 100mg 240정",
+].join("\n");
 const parsed = await client.callTool({
   name: "parse_shopping_list",
   arguments: {shopping_list: shoppingList},
 });
+const parsedItems = parsed.structuredContent.items;
+const physicalUnits = parsedItems.reduce(
+  (sum, item) => sum + item.requestedPhysicalUnits,
+  0,
+);
+if (parsedItems.length !== 5 || physicalUnits !== 7) {
+  throw new Error(`FIXTURE_PARSE_MISMATCH:${parsedItems.length}/${physicalUnits}`);
+}
+if (
+  parsedItems[4].strengthValue !== 100 ||
+  parsedItems[4].strengthUnit !== "mg" ||
+  parsedItems[4].packageContentCount !== 240 ||
+  parsedItems[4].packageContentUnit !== "정" ||
+  parsedItems[4].requestedPhysicalUnits !== 1
+) {
+  throw new Error("MAGNESIUM_PARSE_MISMATCH");
+}
 const idempotencyKey = `runtime-smoke-${Date.now()}`;
 const sendArguments = {
-  items: parsed.structuredContent.items,
+  items: parsedItems,
   connection_grant: paired._meta.connectionGrant,
   idempotency_key: idempotencyKey,
 };
@@ -100,7 +123,11 @@ if (revokedDeviceResponse.status !== 401) throw new Error("DEVICE_TOKEN_NOT_REVO
 console.log(JSON.stringify({
   paired: paired.structuredContent,
   sent: sent.structuredContent,
-  receivedRaw: latest.handoff.payload.items[0].rawText,
+  receivedKinds: latest.handoff.payload.items.length,
+  receivedPhysicalUnits: latest.handoff.payload.items.reduce(
+    (sum, item) => sum + item.requestedPhysicalUnits,
+    0,
+  ),
   ack: ack.status,
   missingAck: {status: missingAck.status, body: missingAckBody},
   status: status.structuredContent,

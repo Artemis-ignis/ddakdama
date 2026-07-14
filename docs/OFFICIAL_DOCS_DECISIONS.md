@@ -10,27 +10,29 @@
 - 대화에 필요한 값은 `structuredContent`, 위젯 전용 비공개 값은 `_meta`로 분리합니다.
 - 위젯의 도구 호출은 MCP Apps JSON-RPC 브리지(`ui/initialize`, `ui/notifications/initialized`, `tools/call`)를 우선하고 `window.openai`는 호환 보조 경로로만 둡니다.
 - 연결은 일반 사용자가 서버 주소나 토큰을 입력하지 않는 일회용 6자리 코드 방식으로 구성합니다.
-- 개인 개발 환경의 ChatGPT 연결은 OpenAI Secure MCP Tunnel을 사용합니다. 로컬 MCP 서버는 공개 URL 없이 `tunnel-client`가 아웃바운드 HTTPS로 연결합니다.
-- 터널 생성·편집은 Tunnels `Read + Manage`, 런타임 실행과 ChatGPT 앱 선택은 Tunnels `Read + Use`가 필요합니다.
-- 터널 런타임 API 키는 `딱담아` Platform 프로젝트의 제한 키로 만들고 Tunnels `Read + Use`만 허용합니다.
-- 키는 현재 Windows 계정 전용 DPAPI로 암호화해 `%LOCALAPPDATA%\DdakDama\secrets`에 저장하고 저장소에는 넣지 않습니다.
+- 일반 사용자용 ChatGPT 앱은 안정적인 공개 HTTPS `/mcp`를 사용합니다. 같은 MCP 주소를 모든 사용자에게 제공하고 사용자 데이터는 6자리 일회용 페어링 코드와 device grant로 분리합니다.
+- 공개 MCP는 Cloudflare Worker와 Durable Object로 운영하며 개인정보 처리방침·이용약관·지원 페이지도 같은 안정적 origin에서 제공합니다.
+- OpenAI Secure MCP Tunnel과 로컬 MCP 서버는 배포 전 개발 검증에만 사용합니다. 터널 API 키와 로컬 서버 실행을 일반 사용자에게 요구하지 않습니다.
 - 2026-07-13 공식 개발자 모드 안내 기준 Pro, Plus, Business, Enterprise, Education 계정은 웹에서 원격 MCP 앱을 연결할 수 있으며 개발자 모드에서 읽기·쓰기 도구를 모두 사용할 수 있습니다.
 - 개인 계정은 `Settings → Security and login → Developer mode`를 켠 뒤 `Settings → Plugins`에서 앱을 만듭니다.
 - 조직용 워크스페이스에서는 관리자가 개발자 모드와 허용 도구 정책을 제한할 수 있습니다.
-- 개인 Pro 계정의 실제 플러그인 생성 화면에서 `서버 URL`, `인증 없음`, 원격 `/mcp` 연결을 확인했고 딱담아 앱 등록을 완료했습니다.
+- 공개 베타는 자체 로그인 계정을 요구하지 않으므로 ChatGPT 플러그인 연결 자체는 `인증 없음`을 사용합니다. 확장 프로그램 연결은 앱 내부의 6자리 페어링으로 별도 보호합니다.
+- 제출 전에는 조직 인증, Apps SDK 앱 생성·수정 권한, 운영 MCP URL, 개인정보 처리방침·지원 URL과 테스트 프롬프트를 준비합니다. 게시 후 MCP origin 변경은 새 앱 제출이 필요할 수 있으므로 임시 터널 URL을 운영 주소로 사용하지 않습니다.
 
 참고:
 
 - https://developers.openai.com/apps-sdk/quickstart
 - https://developers.openai.com/apps-sdk/build/mcp-server
 - https://developers.openai.com/apps-sdk/build/chatgpt-ui
+- https://developers.openai.com/apps-sdk/deploy
+- https://developers.openai.com/apps-sdk/deploy/submission
 - https://developers.openai.com/api/docs/guides/secure-mcp-tunnels
 
 ## Chrome Web Store
 
 - 제휴 프로그램은 설치 전 스토어 설명과 사용자 UI에서 명확히 고지해야 합니다.
 - 관련 사용자 동작과 직접적이고 투명한 사용자 혜택 없이 제휴 링크나 쿠키를 삽입하면 안 됩니다.
-- private 빌드는 명시적 사용자 동작 뒤에만 적용하도록 하고, webstore 빌드는 실제 혜택이 구현되기 전까지 제휴 삽입을 차단합니다.
+- private 개발 빌드는 명시적 사용자 동작 뒤에만 적용하도록 하고, 공개 단일 패키지는 실제 혜택과 플랫폼 허용이 구현·검증되기 전까지 `VITE_DDAKDAMA_AFFILIATE_ENABLED=false`로 제휴 검색·딥링크·고지를 모두 차단합니다.
 
 참고: https://developer.chrome.com/docs/webstore/program-policies/affiliate-ads/
 

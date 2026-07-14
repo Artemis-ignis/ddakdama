@@ -3,7 +3,7 @@ import{createHash}from"node:crypto";
 import{readFileSync}from"node:fs";
 import{StreamableHTTPServerTransport}from"@modelcontextprotocol/sdk/server/streamableHttp.js";
 import{z}from"zod";
-import{createMcpServer}from"./mcp.js";
+import{createMcpServer}from"./mcp-node.js";
 import{ackHandoff,authenticateDevice,latestHandoff,revokeDeviceToken,startPairing}from"./store.js";
 import{createDeepLinks,normalizeDeepLinkPayload,normalizeSearchPayload,partnersConfigured,searchProducts}from"./partners.js";
 

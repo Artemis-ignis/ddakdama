@@ -11,10 +11,14 @@
 - 검색 카드 배송비 오인 제거 후 확인가: 닥터지 14,360원, 스킨1004 43,890원, 라운드랩 18,620원, TS 11,540원, 닥터스베스트 36,800원
 - 상세 구매 영역 밖 검색 카테고리를 제외한 결과, 잘못된 필수 옵션 판정 0/5
 - 로컬 MCP 서버 health(`http://127.0.0.1:8787/health`)
+- Cloudflare Worker 로컬 런타임 health와 공개 랜딩·개인정보·약관·지원 페이지
 - Platform의 `딱담아 로컬 MCP` 터널 생성 및 개인 ChatGPT 워크스페이스 연결
 - 공식 `openai/tunnel-client` v0.0.10 설치, SHA-256 검증과 로컬 터널 프로필 생성
 - `tunnel-client doctor`에서 런타임 API 키 미설정 외 모든 구성 검사 통과
 - 6자리 페어링 코드, 계획 전송, 기기 토큰 수신과 ACK
+- Cloudflare Worker 런타임에서 고정 목록 5종·실물 7개 페어링·전송·ACK·연결 해제
+- 서로 다른 두 사용자 연결에서 각 장바구니 계획이 교차 노출되지 않는 격리 스모크 테스트
+- 연결 코드 발급의 전역 IP별 rate limit 스모크 테스트: 10회 허용, 11번째 429 차단
 - Playwright 번들 Chromium에서 확장 로드와 MV3 서비스 워커 발견
 - 동적 extension ID의 실제 Side Panel 페이지 로드
 - Side Panel 컴포넌트의 후보·사전검사·전체 성공·부분 실패 시나리오
@@ -34,25 +38,24 @@
 - 최신 쿠팡 구매 영역 가격 selector의 지연 렌더링·미끼 가격 배제
 - 실제 쿠팡 검색 카드의 배송비·적립금 제외는 라이브 확인, 장바구니 변경은 fixture 검증
 
-## USER APPROVAL REQUIRED
+## USER ACTION REQUIRED
 
 - 실제 장바구니 변경과 productId별 수량 delta 확인
-- 터널 전용 API 키의 로컬 저장 승인 또는 Platform 키 생성 화면에서 `Create secret key`를 누른 뒤 키를 로컬 DPAPI 입력창에 한 번 붙여 넣기
-- ChatGPT 앱 연결 방식을 `Tunnel`로 갱신하고 `딱담아 로컬 MCP` 선택
+- Cloudflare 계정 이메일 인증 링크 확인
+- 실제 장바구니 검증 후 추가된 테스트 상품을 유지할지 제거할지 선택
 
 ## BLOCKED BY EXTERNAL ACCOUNT STATE
 
-- OpenAI Developers 연결은 복구되어 `IGNIS / 딱담아` 프로젝트 목록 조회까지 통과했지만, 로컬 키 저장 승인 단계가 `not_approved`를 반환하여 비밀키 생성·쓰기를 중단함
-- 현재 등록된 GPT 앱은 만료된 임시 주소 `https://driver-icq-decrease-easter.trycloudflare.com/mcp`를 사용해 실호출 시 `UNAVAILABLE / Connection failed`가 발생함
-- 터널 런타임 API 키가 아직 생성되지 않아 OpenAI 제어 평면 연결과 ChatGPT Tunnel 도구 호출은 미검증
+- Cloudflare Wrangler 로그인은 완료했지만 계정 이메일 미인증으로 Worker 배포가 `code 10034`에서 차단됨
+- 고정 HTTPS Worker가 아직 배포되지 않아 ChatGPT 앱의 운영 Server URL 전환은 대기 중
 - 쿠팡 파트너스 계정이 최종 승인 상태가 아니어서 실제 API 키 발급·호출 미검증
 
-## 공식 해결 경로
+## 다음 실제 검증 경로
 
-1. `딱담아` Platform 프로젝트의 제한 키에 Tunnels `Read + Use`만 부여합니다.
-2. `setup-tunnel-key-windows.bat`으로 키를 Windows DPAPI에 저장합니다.
-3. `launch-windows.bat`으로 로컬 서버와 `tunnel-client`를 실행합니다.
-4. ChatGPT 앱 설정에서 연결 방식 `Tunnel`과 `딱담아 로컬 MCP`를 선택합니다.
-5. 페어링 코드와 고정 쇼핑 목록으로 handoff를 검증합니다.
+1. Cloudflare 계정 이메일 인증을 완료합니다.
+2. Worker를 배포하고 공개 `/health`와 `/mcp` 스모크 테스트를 실행합니다.
+3. 공개 서버 주소를 포함해 확장 프로그램을 다시 빌드합니다.
+4. ChatGPT 앱의 Server URL을 공개 `/mcp`로 전환합니다.
+5. 페어링 코드와 고정 쇼핑 목록으로 공개 환경 handoff를 검증합니다.
 
-공식 문서: https://developers.openai.com/api/docs/guides/secure-mcp-tunnels
+공식 문서: https://developers.openai.com/apps-sdk/deploy
