@@ -9,7 +9,7 @@ import {
   createMcpServer as createSharedMcpServer,
   type McpStore,
 } from "./mcp.js";
-import { WIDGET_URI, widgetHtml } from "./widget.js";
+import { LEGACY_WIDGET_URIS, WIDGET_URI, widgetHtml } from "./widget.js";
 
 const store: McpStore = {
   authenticateGrant,
@@ -27,5 +27,6 @@ export function createMcpServer(
     store,
     widgetHtml,
     widgetUri: WIDGET_URI,
+    legacyWidgetUris: LEGACY_WIDGET_URIS,
   });
 }

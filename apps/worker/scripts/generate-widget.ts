@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  LEGACY_WIDGET_URIS,
   WIDGET_URI,
   widgetHtml,
 } from "../../server/src/widget.ts";
@@ -15,6 +16,6 @@ if (!iconDataUrl) throw new Error("WIDGET_ICON_NOT_FOUND");
 await mkdir(outputDir, { recursive: true });
 await writeFile(
   output,
-  `// Generated from apps/server/src/widget.ts. Do not edit.\nexport const WIDGET_URI = ${JSON.stringify(WIDGET_URI)};\nexport const widgetHtml = ${JSON.stringify(widgetHtml)};\nexport const appIconDataUrl = ${JSON.stringify(iconDataUrl)};\n`,
+  `// Generated from apps/server/src/widget.ts. Do not edit.\nexport const WIDGET_URI = ${JSON.stringify(WIDGET_URI)};\nexport const LEGACY_WIDGET_URIS = ${JSON.stringify(LEGACY_WIDGET_URIS)};\nexport const widgetHtml = ${JSON.stringify(widgetHtml)};\nexport const appIconDataUrl = ${JSON.stringify(iconDataUrl)};\n`,
   "utf8",
 );

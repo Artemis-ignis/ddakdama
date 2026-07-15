@@ -5,6 +5,7 @@ import {
   type McpStore,
 } from "../../server/src/mcp.js";
 import {
+  LEGACY_WIDGET_URIS,
   WIDGET_URI,
   appIconDataUrl,
   widgetHtml,
@@ -425,6 +426,7 @@ export default {
           store: createStore(env),
           widgetHtml,
           widgetUri: WIDGET_URI,
+          legacyWidgetUris: LEGACY_WIDGET_URIS,
         });
         return createMcpHandler(server, {
           route: "/mcp",

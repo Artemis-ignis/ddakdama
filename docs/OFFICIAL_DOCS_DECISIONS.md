@@ -1,6 +1,6 @@
 # 공식 문서 기준 결정
 
-확인일: 2026-07-14
+확인일: 2026-07-15
 
 ## OpenAI Apps SDK
 
@@ -18,12 +18,15 @@
 - 조직용 워크스페이스에서는 관리자가 개발자 모드와 허용 도구 정책을 제한할 수 있습니다.
 - 공개 베타는 자체 로그인 계정을 요구하지 않으므로 ChatGPT 플러그인 연결 자체는 `인증 없음`을 사용합니다. 확장 프로그램 연결은 앱 내부의 6자리 페어링으로 별도 보호합니다.
 - 제출 전에는 조직 인증, Apps SDK 앱 생성·수정 권한, 운영 MCP URL, 개인정보 처리방침·지원 URL과 테스트 프롬프트를 준비합니다. 게시 후 MCP origin 변경은 새 앱 제출이 필요할 수 있으므로 임시 터널 URL을 운영 주소로 사용하지 않습니다.
+- 위젯 URI는 ChatGPT의 캐시 키이므로 HTML·JS·CSS 변경 시 새 버전 URI를 사용하고 도구의 `_meta.ui.resourceUri`, 호환용 `openai/outputTemplate`, 등록 리소스의 `contents[].uri`를 함께 갱신합니다. 이미 배포된 URI를 참조하는 기존 대화가 실패하지 않도록 직전 URI는 동일한 최신 위젯을 반환하는 읽기 전용 호환 리소스로 유지합니다.
 
 참고:
 
 - https://developers.openai.com/apps-sdk/quickstart
 - https://developers.openai.com/apps-sdk/build/mcp-server
 - https://developers.openai.com/apps-sdk/build/chatgpt-ui
+- https://developers.openai.com/apps-sdk/reference
+- https://developers.openai.com/apps-sdk/deploy/troubleshooting
 - https://developers.openai.com/apps-sdk/deploy
 - https://developers.openai.com/apps-sdk/deploy/submission
 - https://developers.openai.com/api/docs/guides/secure-mcp-tunnels

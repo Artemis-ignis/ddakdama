@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 
 export const WIDGET_URI = "ui://widget/ddakdama-cart-v6.html";
+export const LEGACY_WIDGET_URIS = [
+  "ui://widget/ddakdama-cart-v5.html",
+] as const;
 
 const WIDGET_ICON = `data:image/png;base64,${readFileSync(
   new URL("../assets/icon-48.png", import.meta.url),

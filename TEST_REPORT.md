@@ -34,6 +34,7 @@
 - 공개 Durable Object에서 5종·7개 사용자와 1종·3개 사용자의 데이터 격리 통과
 - 공개 ChatGPT 앱 `create_cart_plan` 호출에서 5종·7개·`100mg 240정` 구조화 결과 확인
 - 공개 위젯 v6의 연결 유지·계획 자동 전송·라이트/다크 테마 계약과 실제 다크 렌더링 확인
+- 공개 MCP에서 현재 위젯 URI `v6`와 기존 ChatGPT 캐시 호환 URI `v5`의 `resources/read`가 모두 동일한 최신 위젯을 반환하는지 확인
 - `pnpm audit --audit-level high`: 알려진 취약점 0개
 
 ## 핵심 회귀 검증

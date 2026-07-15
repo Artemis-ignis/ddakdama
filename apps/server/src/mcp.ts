@@ -34,12 +34,12 @@ export type McpServerOptions = {
   pairingClientKey?: string;
   store: McpStore;
   widgetHtml: string;
-  widgetUri?: string;
+  widgetUri: string;
+  legacyWidgetUris?: readonly string[];
   widgetConnectDomains?: string[];
   widgetResourceDomains?: string[];
 };
 
-const DEFAULT_WIDGET_URI = "ui://widget/ddakdama-cart-v5.html";
 const normalizePairingCode = (value: string) => {
   const compact = value.normalize("NFKC").replace(/[\s-]+/g, "");
   return /^\d{6}$/.test(compact) ? compact : null;
@@ -67,7 +67,8 @@ export function createMcpServer({
   pairingClientKey = "unknown",
   store,
   widgetHtml,
-  widgetUri = DEFAULT_WIDGET_URI,
+  widgetUri,
+  legacyWidgetUris = [],
   widgetConnectDomains = [],
   widgetResourceDomains = [],
 }: McpServerOptions) {
@@ -79,27 +80,36 @@ export function createMcpServer({
     },
   );
 
-  registerAppResource(server, "ddakdama-widget", widgetUri, {}, async () => ({
-    contents: [
-      {
-        uri: widgetUri,
-        mimeType: RESOURCE_MIME_TYPE,
-        text: widgetHtml,
-        _meta: {
-          ui: {
-            prefersBorder: true,
-            csp: {
-              connectDomains: widgetConnectDomains,
-              resourceDomains: widgetResourceDomains,
+  const registeredWidgetUris = [...new Set([widgetUri, ...legacyWidgetUris])];
+  for (const [index, resourceUri] of registeredWidgetUris.entries()) {
+    registerAppResource(
+      server,
+      index === 0 ? "ddakdama-widget" : `ddakdama-widget-legacy-${index}`,
+      resourceUri,
+      {},
+      async () => ({
+        contents: [
+          {
+            uri: resourceUri,
+            mimeType: RESOURCE_MIME_TYPE,
+            text: widgetHtml,
+            _meta: {
+              ui: {
+                prefersBorder: true,
+                csp: {
+                  connectDomains: widgetConnectDomains,
+                  resourceDomains: widgetResourceDomains,
+                },
+              },
+              "openai/widgetDescription":
+                "쇼핑 목록의 규격과 수량을 확인하고 딱담아 확장 프로그램으로 보내는 화면입니다.",
+              "openai/widgetPrefersBorder": true,
             },
           },
-          "openai/widgetDescription":
-            "쇼핑 목록의 규격과 수량을 확인하고 딱담아 확장 프로그램으로 보내는 화면입니다.",
-          "openai/widgetPrefersBorder": true,
-        },
-      },
-    ],
-  }));
+        ],
+      }),
+    );
+  }
 
   // Data-only tool: it must not attach a widget template.
   registerAppTool(
@@ -160,6 +170,7 @@ export function createMcpServer({
       },
       _meta: {
         ui: { resourceUri: widgetUri },
+        "openai/outputTemplate": widgetUri,
         ...invocationMeta("장바구니 계획을 만드는 중…", "장바구니 계획 준비 완료"),
       },
     },

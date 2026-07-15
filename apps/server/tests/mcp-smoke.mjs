@@ -3,6 +3,7 @@ import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/st
 
 const origin = process.env.DDAKDAMA_TEST_ORIGIN ?? "http://localhost:8787";
 const expectedWidgetUri = "ui://widget/ddakdama-cart-v6.html";
+const legacyWidgetUris = ["ui://widget/ddakdama-cart-v5.html"];
 const pairing = await fetch(`${origin}/api/pairing/start`, {
   method: "POST",
   headers: {"content-type": "application/json"},
@@ -19,6 +20,13 @@ if (cartPlanTool?._meta?.ui?.resourceUri !== expectedWidgetUri) {
 }
 const widgetResource = await client.readResource({uri: expectedWidgetUri});
 const widgetText = widgetResource.contents.find((content) => "text" in content)?.text ?? "";
+for (const legacyWidgetUri of legacyWidgetUris) {
+  const legacyResource = await client.readResource({uri: legacyWidgetUri});
+  const legacyText = legacyResource.contents.find((content) => "text" in content)?.text ?? "";
+  if (legacyText !== widgetText) {
+    throw new Error(`LEGACY_WIDGET_MISMATCH:${legacyWidgetUri}`);
+  }
+}
 if (!widgetText.includes('src="data:image/png;base64,')) throw new Error("WIDGET_ICON_MISSING");
 if (widgetText.includes('maxlength="6"') || !widgetText.includes("/^[0-9]{6}$/")) {
   throw new Error("PAIRING_INPUT_FIX_MISSING");
