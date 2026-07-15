@@ -1,19 +1,19 @@
 # 테스트 보고서
 
-검증일: 2026-07-14
+검증일: 2026-07-15
 
 ## 자동 검증
 
 - ESLint: 통과
 - TypeScript strict 검사: 통과
-- Vitest: 52/52 통과
+- Vitest: 58/58 통과
   - core 11개
-  - extension 17개
-  - server 20개
+  - extension 21개
+  - server 22개
   - Cloudflare Worker 4개
-- Playwright 실제 Chromium: 26/26 통과
-  - MV3 확장 프로그램·장바구니 상태 머신·탭 재사용 10개
-  - 실제 Side Panel 컴포넌트·시각 회귀 16개
+- Playwright 실제 Chromium: 28/28 통과
+  - MV3 확장 프로그램·장바구니 상태 머신·탭 재사용 11개
+  - 실제 Side Panel 컴포넌트·시각 회귀 17개
 - 새 빌드를 격리된 로컬 포트에서 실행한 MCP HTTP 스모크 테스트: 통과
   - 페어링
   - 장바구니 계획 전송
@@ -21,7 +21,7 @@
   - 연결 해제 후 device token 폐기(401)
   - 고정 목록 5종·실물 7개 전달
 - 프로덕션 빌드: 통과
-- 이전 로컬 패키징과 SHA-256 생성: 통과. 최신 공개 단일 패키지는 고정 HTTPS Worker 배포 후 다시 생성·검증 예정
+- 고정 HTTPS 공개 단일 패키징과 SHA-256 생성: 통과
 - 공식 `openai/tunnel-client` v0.0.10 다운로드와 SHA-256 검증: 통과
 - Secure MCP Tunnel 프로필 생성 및 로컬 MCP health 확인: 통과
 - 터널 전용 런타임 키는 Windows DPAPI에 저장되었고 제어 평면 인증을 통과
@@ -29,6 +29,11 @@
 - 공개 Worker 로컬 런타임의 `/health`, `/mcp`, `/privacy`, `/terms`, `/support` 확인
 - 동일 클라이언트의 연결 코드 발급은 분산 shard와 무관하게 분당 10회만 허용되고 11번째 요청은 429로 차단
 - 공개 HTTPS origin이 없으면 `pnpm package`가 배포 ZIP 생성을 차단하는 release guard 확인
+- 공개 확장 ZIP에 운영 origin만 포함되고 localhost·비밀정보·제휴 기능이 없는 release 검증 통과
+- 공개 Worker `https://ddakdama.ddakdama.workers.dev`의 `/health`와 `/mcp` 실연결 통과
+- 공개 Durable Object에서 5종·7개 사용자와 1종·3개 사용자의 데이터 격리 통과
+- 공개 ChatGPT 앱 `create_cart_plan` 호출에서 5종·7개·`100mg 240정` 구조화 결과 확인
+- 공개 위젯 v6의 연결 유지·계획 자동 전송·라이트/다크 테마 계약과 실제 다크 렌더링 확인
 - `pnpm audit --audit-level high`: 알려진 취약점 0개
 
 ## 핵심 회귀 검증
@@ -61,6 +66,8 @@
 - 부분 사전검사 CTA의 상품 종류·실물수량·금액 일치 검증
 - 2개 묶음 결과의 실물 수량 설명과 부분 실패 재시도 우선순위 검증
 - 공식 MCP Apps bridge 기반 위젯 도구 호출과 6자리 페어링 UI 계약 검증
+- 같은 확장 연결을 새 ChatGPT 계획에서도 재사용하고 계획별 idempotency key로 자동 전송하는 계약 검증
+- ChatGPT 호스트 테마와 운영체제 색상 설정을 모두 따르는 다크모드 회귀 검증
 
 ## 검증 구분
 
@@ -71,8 +78,9 @@
 - MCP 서버 로컬 실연결과 페어링·handoff·ACK·연결 해제
 - Cloudflare Worker 로컬 런타임에서 5종·실물 7개 MCP·페어링·handoff·ACK·연결 해제
 - 서로 다른 두 기기의 페어링·handoff를 동시에 실행해 5종·7개와 1종·3개가 섞이지 않는 사용자 격리 확인
+- 등록된 딱담아 GPT 앱에서 서비스 상태와 고정 목록 파싱·계획 생성 확인
 - 공개 확장 빌드에서 파트너스 검색·딥링크·고지가 비활성화되는 정책 gate 확인
-- 이전 개발용 패키지 구조와 SHA-256 체크섬. 최신 공개 단일 확장 ZIP은 Worker 배포 후 재검증 예정
+- 공개 HTTPS가 주입된 단일 확장 ZIP과 SHA-256 체크섬
 - 로그인된 실제 쿠팡 검색 화면과 상세페이지에서 고정 목록 5종의 상품 식별자·판매가·재고·장바구니 버튼 확인
 
 ### FIXTURE_VERIFIED
@@ -85,7 +93,6 @@
 
 - 로그인된 실제 쿠팡 장바구니 변경과 productId별 수량 delta 확인
 - 승인된 쿠팡 파트너스 Access/Secret Key를 사용한 Product Search·Deep Link 호출
-- Cloudflare 계정 이메일 인증 후 Worker 고정 HTTPS 주소 배포
-- 고정 HTTPS `/mcp`를 ChatGPT 앱 Server URL로 연결한 실사용 검증
+- 로그인된 Chrome의 실제 Side Panel과 공개 GPT 앱 사이 사용자 주도 페어링·라이브 장바구니 추가 검증
 
 실계정에서 실행하지 않은 항목은 라이브 성공으로 간주하지 않습니다.

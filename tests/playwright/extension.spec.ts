@@ -10,6 +10,8 @@ type CartFixtureProduct={
  optionRequired?:boolean;
  delayedPriceMs?:number;
  delayedButtonMs?:number;
+ detailTitle?:string;
+ cartOmitsIdentifiers?:boolean;
 };
 
 const productUrl=(product:CartFixtureProduct)=>`https://www.coupang.com/vp/products/${product.productId}?itemId=${product.itemId}&vendorItemId=${product.vendorItemId}`;
@@ -111,11 +113,22 @@ test("실제 background 상태머신이 복합 SKU 수량 delta를 검증하고 
  expect(preflight.results[0]).toMatchObject({status:"READY",verifiedPrice:21800});
  const runId=crypto.randomUUID();
  const first=await page.evaluate(({runId,job})=>chrome.runtime.sendMessage({type:"DDAKDAMA_RUN_CART_JOBS",runId,jobs:[job]}),{runId,job});
- expect(first.results[0]).toMatchObject({status:"SUCCESS",beforeQuantity:1,afterQuantity:3,verifiedPrice:21800,cartPrice:65400,expectedSubtotal:65400,priceDifference:0});
+ expect(first.results[0]).toMatchObject({status:"SUCCESS",beforeQuantity:1,afterQuantity:3,verifiedPrice:21800,beforeCartPrice:21800,cartPrice:65400,expectedSubtotal:43600,cartAddedSubtotal:43600,priceDifference:0});
  expect((await fixtureQuantities())[`${product.productId}:${product.vendorItemId}:${product.itemId}`]).toBe(3);
  const resumed=await page.evaluate(({runId,job})=>chrome.runtime.sendMessage({type:"DDAKDAMA_RUN_CART_JOBS",runId,jobs:[job]}),{runId,job});
  expect(resumed.results[0]).toMatchObject({status:"SUCCESS",beforeQuantity:1,afterQuantity:3});
  expect((await fixtureQuantities())[`${product.productId}:${product.vendorItemId}:${product.itemId}`]).toBe(3);
+});
+
+test("검색·상세 제목이 다르고 장바구니에서 옵션 ID가 생략돼도 같은 단일 SKU의 수량과 가격을 검증한다",async({page,extensionId})=>{
+ const product:CartFixtureProduct={productId:"700020",vendorItemId:"800020",itemId:"900020",title:"[로켓프레시] 하림 닭강정 에어프라이어 1kg, 2개",detailTitle:"하림 닭강정 1kg",price:12900,cartOmitsIdentifiers:true};
+ await installCartFixture([product]);
+ await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
+ const job=cartJob(product);
+ const preflight=await page.evaluate(job=>chrome.runtime.sendMessage({type:"DDAKDAMA_PREFLIGHT",jobs:[job]}),job);
+ expect(preflight.results[0]).toMatchObject({status:"READY",verifiedPrice:12900});
+ const response=await page.evaluate(job=>chrome.runtime.sendMessage({type:"DDAKDAMA_RUN_CART_JOBS",runId:crypto.randomUUID(),jobs:[job]}),job);
+ expect(response.results[0]).toMatchObject({status:"SUCCESS",beforeQuantity:0,afterQuantity:1,expectedSubtotal:12900,cartAddedSubtotal:12900});
 });
 
 test("가격 미확인과 필수 옵션을 분리하고 성공 상품과 함께 부분 실패로 반환한다",async({page,extensionId})=>{

@@ -41,6 +41,14 @@ $webstoreManifest.host_permissions = @($webstoreManifest.host_permissions | Wher
 $serverPermission = $parsedServerOrigin.GetLeftPart([UriPartial]::Authority).TrimEnd('/') + "/*"
 $webstoreManifest.host_permissions = @($webstoreManifest.host_permissions + $serverPermission | Select-Object -Unique)
 $webstoreManifest | ConvertTo-Json -Depth 20 | Set-Content -Encoding utf8 (Join-Path $extensionStage "manifest.json")
+$releaseMetadata = [ordered]@{
+  version = $version
+  distributionMode = "webstore"
+  serverOrigin = $env:VITE_DDAKDAMA_SERVER_ORIGIN
+  affiliateEnabled = $false
+  builtAt = (Get-Date).ToUniversalTime().ToString("o")
+}
+$releaseMetadata | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 (Join-Path $extensionStage "release-metadata.json")
 Compress-Archive -Path (Join-Path $extensionStage "*") -DestinationPath $extensionZip
 Remove-Item -LiteralPath $extensionStage -Recurse -Force
 $serverStage = Join-Path $out "_server"
@@ -79,7 +87,7 @@ Assert-StagingPath $stage
 Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
 Copy-Item -Recurse -Force apps,packages,docs,scripts,tests -Destination $stage
-Copy-Item -Force package.json,pnpm-workspace.yaml,pnpm-lock.yaml,eslint.config.js,playwright.config.ts,tsconfig.playwright.json,README.md,START_HERE_KO.md,SECURITY.md,PRIVACY.md,TERMS.md,LICENSE,VERSION,RELEASE_NOTES.md,TEST_REPORT.md,sample-list.txt,setup-windows.bat,start-windows.bat,doctor-windows.bat,package-windows.bat,tunnel-windows.bat,setup-tunnel-key-windows.bat,launch-windows.bat,install-extension-windows.bat -Destination $stage
+Copy-Item -Force package.json,pnpm-workspace.yaml,pnpm-lock.yaml,eslint.config.js,playwright.config.ts,tsconfig.playwright.json,README.md,START_HERE_KO.md,SECURITY.md,PRIVACY.md,TERMS.md,LICENSE,VERSION,RELEASE_NOTES.md,TEST_REPORT.md,sample-list.txt,setup-windows.bat,start-windows.bat,doctor-windows.bat,package-windows.bat,tunnel-windows.bat,setup-tunnel-key-windows.bat,launch-windows.bat,install-extension-windows.bat,resume-public-release-windows.bat -Destination $stage
 Get-ChildItem -Path $stage -Recurse -Directory -Filter node_modules | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -Directory -Filter preview-dist | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -Directory -Filter .generated | Remove-Item -Recurse -Force

@@ -82,9 +82,12 @@ type CartResult = {
   beforeQuantity?: number;
   afterQuantity?: number;
   verifiedPrice?: number;
+  beforeCartPrice?: number;
   cartPrice?: number;
   expectedSubtotal?: number;
+  cartAddedSubtotal?: number;
   priceDifference?: number;
+  mismatchReasons?: string[];
 };
 
 type RecoverableJournal = { runId: string; jobs: CartJob[]; results: CartResult[] };
@@ -105,10 +108,18 @@ const stateLabel = (line: ShoppingRequestLine) => {
   return [specification, packageContent, `실물 ${line.requestedPhysicalUnits}개`].filter(Boolean).join(" · ");
 };
 
-const statusMessage = (status?: string) =>
-  ({
+const mismatchMessage = (reasons?: string[]) => {
+  if (reasons?.includes("PRODUCT_URL") || reasons?.includes("PRODUCT_ID")) return "선택한 상품과 열린 상세페이지가 달라 다시 확인이 필요합니다.";
+  if (reasons?.includes("VENDOR_ITEM_ID") || reasons?.includes("ITEM_ID")) return "선택한 판매 옵션이 바뀌어 다시 확인이 필요합니다.";
+  if (reasons?.includes("UNITS_PER_PACKAGE")) return "선택한 묶음 수량과 상세페이지의 묶음 수량이 다릅니다.";
+  if (reasons?.includes("UNIT_SIZE") || reasons?.includes("STRENGTH") || reasons?.includes("PACKAGE_CONTENT")) return "요청한 용량·함량과 상세페이지에 표시된 규격이 다릅니다.";
+  if (reasons?.includes("TITLE")) return "검색 결과와 상세 상품명이 달라 확인이 필요합니다.";
+  return "요청한 상품과 상세페이지의 상품이 일치하지 않습니다.";
+};
+
+const statusMessage = (status?: string, mismatchReasons?: string[]) =>
+  status === "PRODUCT_MISMATCH" ? mismatchMessage(mismatchReasons) : ({
     PRICE_UNVERIFIED: "현재 판매가격을 확인하지 못해 자동으로 담지 않았습니다.",
-    PRODUCT_MISMATCH: "요청한 규격과 상품 페이지의 규격이 일치하지 않습니다.",
     QUANTITY_MISMATCH: "요청한 수량과 실제 장바구니 수량이 달라 확인이 필요합니다.",
     OPTION_REQUIRED: "필수 옵션을 직접 선택해야 하는 상품입니다.",
     OUT_OF_STOCK: "현재 품절이거나 재고를 확인하지 못했습니다.",
@@ -160,16 +171,16 @@ const manualSelectionWarnings = (line: ShoppingRequestLine, item: SearchCandidat
 };
 
 const resultMessage = (result: CartResult, line?: ShoppingRequestLine, item?: SearchCandidate | null, manuallySelected = false) => {
-  if (result.status !== "SUCCESS") return statusMessage(result.status);
+  if (result.status !== "SUCCESS") return statusMessage(result.status, result.mismatchReasons);
   if (!line || !item) return "요청한 수량을 장바구니에서 확인했습니다.";
   const quantity = purchaseQuantity(line, item, manuallySelected);
   const packageLabel = item.unitsPerPackage > 1
     ? `${item.unitsPerPackage}개 묶음 ${quantity}세트 담음`
     : `단품 ${quantity}개 담음`;
   const parts = [`${packageLabel} · 실물 ${line.requestedPhysicalUnits}개`];
-  if (result.verifiedPrice) parts.push(priceBreakdown(result.verifiedPrice, line, item));
-  const verifiedSubtotal = result.verifiedPrice ? result.verifiedPrice * quantity : null;
-  if (result.cartPrice && result.cartPrice !== verifiedSubtotal) parts.push(`장바구니 표시 ${result.cartPrice.toLocaleString()}원`);
+  const verifiedSubtotal = result.expectedSubtotal ?? (result.verifiedPrice ? result.verifiedPrice * quantity : null);
+  if (verifiedSubtotal !== null) parts.push(`확인가 ${verifiedSubtotal.toLocaleString()}원`);
+  if (result.cartAddedSubtotal !== undefined && result.cartAddedSubtotal !== verifiedSubtotal) parts.push(`장바구니 확인 ${result.cartAddedSubtotal.toLocaleString()}원`);
   if (result.priceDifference !== undefined) {
     parts.push(`차액 ${result.priceDifference > 0 ? "+" : ""}${result.priceDifference.toLocaleString()}원`);
   }
@@ -280,6 +291,17 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     if (!line || !item) return sum;
     return sum + (result.verifiedPrice ?? 0) * purchaseQuantity(line, item, selectedIds[line.id] === item.id);
   }, 0);
+  const completedSuccessResults = cartResults.filter((result) => result.status === "SUCCESS");
+  const completedVerifiedTotal = completedSuccessResults.reduce((sum, result) => {
+    if (result.expectedSubtotal !== undefined) return sum + result.expectedSubtotal;
+    const line = lines.find((candidate) => candidate.id === result.id);
+    const item = selected[result.id];
+    if (!line || !item || !result.verifiedPrice) return sum;
+    return sum + result.verifiedPrice * purchaseQuantity(line, item, selectedIds[line.id] === item.id);
+  }, 0);
+  const completedCartTotalKnown = completedSuccessResults.length > 0
+    && completedSuccessResults.every((result) => result.cartAddedSubtotal !== undefined);
+  const completedCartTotal = completedSuccessResults.reduce((sum, result) => sum + (result.cartAddedSubtotal ?? 0), 0);
 
   const resetAfterInput = (nextLines: ShoppingRequestLine[]) => {
     cartRunId.current = null;
@@ -353,7 +375,9 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       itemId: item.itemId,
       cartPurchaseQuantity: purchaseQuantity(line, item, manuallySelected),
       expectedBrand: manuallySelected ? null : line.brand,
-      expectedProductName: manuallySelected ? item.title : line.productName,
+      // 상세페이지 검증은 사용자가 실제로 선택한 검색 후보를 기준으로 합니다.
+      // 원문 오탈자나 검색/상세 제목의 판촉 문구 차이를 상품 불일치로 오판하지 않습니다.
+      expectedProductName: item.title,
       expectedUnitsPerPackage: item.unitsPerPackage,
       expectedUnitSize: manuallySelected ? null : line.unitSizeValue ? `${line.unitSizeValue}${line.unitSizeUnit}` : null,
       expectedStrength: manuallySelected ? null : line.strengthValue ? `${line.strengthValue}${line.strengthUnit}` : null,
@@ -577,6 +601,15 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   const openCart = () => chrome?.runtime?.sendMessage
     ? chrome.runtime.sendMessage({ type: "DDAKDAMA_OPEN_CART" })
     : window.open("https://cart.coupang.com/cartView.pang");
+  const startNewList = async () => {
+    setInput("");
+    resetAfterInput([]);
+    setRecoverable(null);
+    setNotice(null);
+    if (chrome?.runtime?.sendMessage) {
+      await chrome.runtime.sendMessage({ type: "DDAKDAMA_CLEAR_CART_JOURNAL" }).catch(() => undefined);
+    }
+  };
   const openProduct = (lineId: string) => {
     const url = selected[lineId]?.productUrl;
     if (url && chrome?.tabs?.create) void chrome.tabs.create({ url });
@@ -599,7 +632,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       const result = response?.results?.[0] as CartResult | undefined;
       if (!result) throw new Error("EMPTY_RESULT");
       setCartResults((current) => [...current.filter((item) => item.id !== lineId), result]);
-      setNotice(result.status === "SUCCESS" ? "해당 상품을 정확한 수량으로 담았습니다." : statusMessage(result.status));
+      setNotice(result.status === "SUCCESS" ? "해당 상품을 정확한 수량으로 담았습니다." : statusMessage(result.status, result.mismatchReasons));
       await chrome.runtime.sendMessage({ type: "DDAKDAMA_OPEN_CART" });
     } catch {
       setNotice("재시도하지 못했습니다. 상품 페이지에서 상태를 확인해 주세요.");
@@ -773,7 +806,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
             return (
               <div className="verification-row" key={line.id}>
                 <span className={ready ? "verification-dot ready" : "verification-dot"} />
-                <span><strong>{line.productName}</strong><small>{ready && result.verifiedPrice && item ? `${priceBreakdown(result.verifiedPrice, line, item, selectedIds[line.id] === item.id)} · 상세 확인 완료` : ready ? "상세 확인 완료" : statusMessage(result?.status)}</small></span>
+                <span><strong>{line.productName}</strong><small>{ready && result.verifiedPrice && item ? `${priceBreakdown(result.verifiedPrice, line, item, selectedIds[line.id] === item.id)} · 상세 확인 완료` : ready ? "상세 확인 완료" : statusMessage(result?.status, result?.mismatchReasons)}</small></span>
                 {!ready && <button type="button" onClick={() => openProduct(line.id)}>상품 페이지</button>}
               </div>
             );
@@ -799,6 +832,15 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
           <h1>{allSuccess ? "정확하게 모두 담았어요" : "일부 상품을 담지 못했어요"}</h1>
           <p>요청 {lines.length}종 · 성공 {success}종 · 실패 {lines.length - success}종</p>
         </section>
+        <section className="complete-price-summary" aria-label="담은 상품 가격 합계">
+          <div><small>담은 상품 확인가</small><strong>{completedVerifiedTotal.toLocaleString()}원</strong></div>
+          <div><small>장바구니에서 확인</small><strong>{completedCartTotalKnown ? `${completedCartTotal.toLocaleString()}원` : "확인 불가"}</strong></div>
+          <p>{completedCartTotalKnown
+            ? completedCartTotal === completedVerifiedTotal
+              ? "상세페이지에서 확인한 금액과 장바구니 금액이 같아요."
+              : `장바구니 금액이 확인가와 ${(completedCartTotal - completedVerifiedTotal).toLocaleString()}원 달라요.`
+            : "장바구니 금액을 읽지 못해 상세페이지에서 확인한 가격 합계를 먼저 보여드려요."}</p>
+        </section>
         <section className="result-group" aria-label="장바구니 처리 결과">
           {cartResults.map((result) => {
             const line = lines.find((item) => item.id === result.id);
@@ -812,6 +854,10 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
             );
           })}
         </section>
+        <div className="complete-actions">
+          <button type="button" onClick={() => void startNewList()}><RefreshCw size={16} />새 목록 담기</button>
+          <button type="button" onClick={openCart}><ShoppingBag size={16} />쿠팡 장바구니 보기</button>
+        </div>
       </>
     );
   };
@@ -835,8 +881,8 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     }
     const failed = cartResults.filter((result) => result.status !== "SUCCESS").length;
     return failed
-      ? { label: `실패 ${failed}종 다시 시도`, onClick: retryFailed, disabled: adding, icon: <RefreshCw size={17} />, amountLabel: "미완료", amount: `${failed}종` }
-      : { label: "쿠팡 장바구니 보기", onClick: openCart, disabled: false, icon: <ShoppingBag size={18} />, amountLabel: "처리 결과", amount: `${lines.length}/${lines.length}종` };
+      ? { label: `실패 ${failed}종 다시 시도`, onClick: retryFailed, disabled: adding, icon: <RefreshCw size={17} />, amountLabel: "성공 상품 확인가", amount: `${completedVerifiedTotal.toLocaleString()}원` }
+      : { label: "새 목록 담기", onClick: () => void startNewList(), disabled: false, icon: <RefreshCw size={18} />, amountLabel: completedCartTotalKnown ? "장바구니 확인가" : "담은 상품 확인가", amount: `${(completedCartTotalKnown ? completedCartTotal : completedVerifiedTotal).toLocaleString()}원` };
   };
   const action = actionBar();
 
@@ -847,7 +893,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
         <button className="cart-link" type="button" onClick={openCart}><ShoppingBag size={19} />장바구니<ChevronRight size={17} /></button>
       </header>
       <StepProgress step={step} />
-      {step > 1 && <button className="back-button" type="button" onClick={goBack}><ArrowLeft size={17} />이전</button>}
+      {step > 1 && step < 4 && <button className="back-button" type="button" onClick={goBack}><ArrowLeft size={17} />이전</button>}
 
       <div className="screen-content">
         {step === 1 && (

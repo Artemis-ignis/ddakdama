@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "description": "자연어 쇼핑 목록을 정확한 쿠팡 상품과 수량으로 확인하고 장바구니에 담습니다.",
   "permissions": ["storage", "tabs", "scripting", "sidePanel"],
-  "host_permissions": ["https://www.coupang.com/*", "https://m.coupang.com/*", "https://cart.coupang.com/*", "http://localhost:8787/*"],
+  "host_permissions": ["https://www.coupang.com/*", "https://m.coupang.com/*", "https://cart.coupang.com/*", "https://ddakdama.ddakdama.workers.dev/*", "http://localhost:8787/*"],
   "background": {"service_worker": "dist/background.js", "type": "module"},
   "side_panel": {"default_path": "dist/index.html"},
   "icons": {

@@ -1,5 +1,5 @@
 import{parseUnitsPerPackage}from"@ddakdama/core/product";
-type CartSnapshot={productId:string;vendorItemId:string|null;itemId:string|null;quantity:number;price:number|null;title:string};
+type CartSnapshot={productId:string;vendorItemId:string|null;itemId:string|null;quantity:number;price:number|null;priceIsLineTotal:boolean;title:string};
 const won=(text:string)=>{const n=Number(text.replace(/[^0-9]/g,""));return Number.isFinite(n)&&n>0?n:null};
 const currentIdentity=()=>{const root=document.body?.dataset??{};return{productId:location.pathname.match(/products\/(\d+)/)?.[1]??root.productId??null,vendorItemId:new URL(location.href).searchParams.get("vendorItemId")??root.vendorItemId??null,itemId:new URL(location.href).searchParams.get("itemId")??root.itemId??null}};
 const securityRequired=()=>/captcha|access denied|로봇|보안 확인|접근이 제한/i.test(`${document.title} ${location.pathname} ${document.body?.innerText.slice(0,500)??""}`);
@@ -24,8 +24,9 @@ function cart():CartSnapshot[]{
  const rows=[...document.querySelectorAll<HTMLElement>("[data-product-id],.cart-deal-item,[id^='item_'][data-vid]")];
  return rows.map(row=>{
   const links=[...row.querySelectorAll<HTMLAnchorElement>('a[href*="/vp/products/"]')];const link=links.find(candidate=>candidate.innerText.trim())??links[0];const url=link?new URL(link.href,location.origin):null;
-  const priceText=(row.querySelector<HTMLElement>(".price-value,.unit-price-area,[data-line-total]")?.innerText??row.innerText).replace(/\([^)]*(?:당|개당|ml당|mL당|g당|정당)[^)]*\)/giu,"");const priceMatches=priceText.match(/\d[\d,]*\s*원/g)||[];
-  return{productId:row.dataset.productId??url?.pathname.match(/products\/(\d+)/)?.[1]??"",vendorItemId:row.dataset.vid??url?.searchParams.get("vendorItemId")??null,itemId:url?.searchParams.get("itemId")??null,title:link?.innerText.trim()??"",quantity:Number(row.querySelector<HTMLInputElement>("input.cart-quantity-input,input[type='number'],[data-quantity]")?.value??row.querySelector<HTMLElement>("[data-quantity]")?.dataset.quantity??1),price:won(row.dataset.lineTotal??priceMatches.at(-1)??"")};
+  const explicitLineTotal=row.dataset.lineTotal??row.querySelector<HTMLElement>("[data-line-total]")?.dataset.lineTotal??row.querySelector<HTMLElement>(".cart-deal-item__total-price,.cart-product-price,[class*='total-price']")?.innerText??"";
+  const priceText=(row.querySelector<HTMLElement>(".price-value,.unit-price-area")?.innerText??row.innerText).replace(/\([^)]*(?:당|개당|ml당|mL당|g당|정당)[^)]*\)/giu,"");const priceMatches=priceText.match(/\d[\d,]*\s*원/g)||[];
+  return{productId:row.dataset.productId??url?.pathname.match(/products\/(\d+)/)?.[1]??"",vendorItemId:row.dataset.vid??url?.searchParams.get("vendorItemId")??null,itemId:url?.searchParams.get("itemId")??null,title:link?.innerText.trim()??"",quantity:Number(row.querySelector<HTMLInputElement>("input.cart-quantity-input,input[type='number'],[data-quantity]")?.value??row.querySelector<HTMLElement>("[data-quantity]")?.dataset.quantity??1),price:won(explicitLineTotal||priceMatches.at(-1)||""),priceIsLineTotal:Boolean(explicitLineTotal)};
  }).filter(item=>item.productId&&Number.isInteger(item.quantity)&&item.quantity>0);
 }
 function searchResults(){

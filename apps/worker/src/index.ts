@@ -43,6 +43,8 @@ export interface Env {
   COUPANG_PARTNERS_SECRET_KEY?: string;
   COUPANG_PARTNERS_SUB_ID?: string;
   ALLOWED_EXTENSION_IDS?: string;
+  SUPPORT_ADMIN_TOKEN?: string;
+  SUPPORT_TICKET_TTL_SECONDS?: string;
 }
 
 const jsonHeaders = {
@@ -181,6 +183,44 @@ const deepLinkInput = z.object({
     .max(20),
 });
 
+const supportInput = z.object({
+  email: z.string().trim().email().max(320),
+  subject: z.string().trim().min(2).max(120),
+  message: z.string().trim().min(10).max(4_000),
+  website: z.string().max(200).optional().default(""),
+});
+
+const readSupportInput = async (request: Request) => {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    const text = await request.text();
+    if (new TextEncoder().encode(text).byteLength > 16_384) {
+      throw new Error("BODY_TOO_LARGE");
+    }
+    return supportInput.parse(Object.fromEntries(new URLSearchParams(text)));
+  }
+  return supportInput.parse(await readJson(request));
+};
+
+const constantTimeEqual = async (left: string, right: string) => {
+  if (!left || !right) return false;
+  const encoder = new TextEncoder();
+  const [leftHash, rightHash] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(left)),
+    crypto.subtle.digest("SHA-256", encoder.encode(right)),
+  ]);
+  const leftBytes = new Uint8Array(leftHash);
+  const rightBytes = new Uint8Array(rightHash);
+  let difference = 0;
+  for (let index = 0; index < leftBytes.length; index += 1) {
+    difference |= leftBytes[index] ^ rightBytes[index];
+  }
+  return difference === 0;
+};
+
+const supportAdminAuthorized = (request: Request, env: Env) =>
+  constantTimeEqual(bearer(request), (env.SUPPORT_ADMIN_TOKEN ?? "").trim());
+
 async function handleApi(request: Request, env: Env, url: URL) {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders(request, env) });
@@ -199,6 +239,70 @@ async function handleApi(request: Request, env: Env, url: URL) {
       ttl(env.DEVICE_TOKEN_TTL_SECONDS, 2_592_000),
     );
     return responseJson(request, env, pairing, 201);
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/support") {
+    const origin = request.headers.get("origin");
+    if (origin && origin !== url.origin) {
+      return responseJson(request, env, { error: "forbidden_origin" }, 403);
+    }
+    const input = await readSupportInput(request);
+    const isForm = (request.headers.get("content-type") ?? "").includes(
+      "application/x-www-form-urlencoded",
+    );
+    if (input.website) {
+      return isForm
+        ? Response.redirect(`${url.origin}/support?submitted=1`, 303)
+        : responseJson(request, env, { ok: true }, 201);
+    }
+    const rateState = stateForShard(env, "support-rate");
+    if (!(await rateState.allowSupportSubmission(clientKey(request), 5))) {
+      return isForm
+        ? Response.redirect(`${url.origin}/support?error=rate`, 303)
+        : responseJson(request, env, { error: "rate_limited" }, 429);
+    }
+    const ticket = await stateForShard(env, "support-inbox").createSupportTicket(
+      {
+        email: input.email,
+        subject: input.subject,
+        message: input.message,
+      },
+      ttl(env.SUPPORT_TICKET_TTL_SECONDS, 2_592_000),
+    );
+    return isForm
+      ? Response.redirect(
+          `${url.origin}/support?submitted=1&ticket=${encodeURIComponent(ticket.id)}`,
+          303,
+        )
+      : responseJson(request, env, { ok: true, ticketId: ticket.id }, 201);
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/support/tickets") {
+    if (!(await supportAdminAuthorized(request, env))) {
+      return responseJson(request, env, { error: "unauthorized" }, 401);
+    }
+    const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 50, 1), 100);
+    return responseJson(request, env, {
+      tickets: await stateForShard(env, "support-inbox").listSupportTickets(limit),
+    });
+  }
+
+  const resolveTicket = url.pathname.match(
+    /^\/api\/support\/tickets\/([A-Z0-9-]+)\/resolve$/,
+  );
+  if (request.method === "POST" && resolveTicket) {
+    if (!(await supportAdminAuthorized(request, env))) {
+      return responseJson(request, env, { error: "unauthorized" }, 401);
+    }
+    const ticket = await stateForShard(env, "support-inbox").resolveSupportTicket(
+      resolveTicket[1],
+    );
+    return responseJson(
+      request,
+      env,
+      ticket ? { ok: true, ticket } : { error: "not_found" },
+      ticket ? 200 : 404,
+    );
   }
 
   if (request.method === "GET" && url.pathname === "/api/handoffs/latest") {
@@ -345,7 +449,12 @@ export default {
           : url.pathname === "/terms"
             ? termsPage
             : url.pathname === "/support"
-              ? supportPage
+              ? (icon: string) =>
+                  supportPage(icon, {
+                    submitted: url.searchParams.get("submitted") === "1",
+                    ticketId: url.searchParams.get("ticket") ?? undefined,
+                    rateLimited: url.searchParams.get("error") === "rate",
+                  })
               : null;
       if (publicPage) {
         return new Response(publicPage(appIconDataUrl), {
@@ -353,7 +462,7 @@ export default {
             "content-type": "text/html; charset=utf-8",
             "cache-control": "public, max-age=300",
             "x-content-type-options": "nosniff",
-            "content-security-policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+            "content-security-policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
           },
         });
       }

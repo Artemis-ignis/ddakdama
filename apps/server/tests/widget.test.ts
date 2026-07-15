@@ -11,7 +11,7 @@ describe("ChatGPT 위젯 계약", () => {
   });
 
   it("공식 component bridge로 연결·전송·상태 확인·연결 해제를 수행한다", () => {
-    expect(WIDGET_URI).toBe("ui://widget/ddakdama-cart-v5.html");
+    expect(WIDGET_URI).toBe("ui://widget/ddakdama-cart-v6.html");
     expect(widgetHtml).toContain('rpcRequest("ui/initialize"');
     expect(widgetHtml).toContain('rpcNotify("ui/notifications/initialized"');
     expect(widgetHtml).toContain('rpcRequest("tools/call"');
@@ -46,7 +46,23 @@ describe("ChatGPT 위젯 계약", () => {
     expect(widgetHtml).toContain("connectionGrant,");
     expect(widgetHtml).toContain("handoffId,");
     expect(widgetHtml).toContain("idempotencyKey,");
+    expect(widgetHtml).toContain("ddakdama.connection.v2");
+    expect(widgetHtml).toContain("localStorage.setItem");
+    expect(widgetHtml).toContain("localStorage.getItem");
     expect(widgetHtml).not.toContain("ui/update-model-context");
+  });
+
+  it("연결된 사용자의 새 계획을 확장 프로그램으로 자동 전송한다", () => {
+    expect(widgetHtml).toContain("typeof plan.planId");
+    expect(widgetHtml).toContain("void bridgeReady.then(() => sendPlan())");
+  });
+
+  it("ChatGPT의 밝은·어두운 테마를 모두 따라간다", () => {
+    expect(widgetHtml).toContain("color-scheme:light dark");
+    expect(widgetHtml).toContain(':root[data-theme="dark"]');
+    expect(widgetHtml).toContain("@media(prefers-color-scheme:dark)");
+    expect(widgetHtml).toContain("applyTheme(window.openai?.theme)");
+    expect(widgetHtml).toContain("applyTheme(globals.theme)");
   });
 
   it("전송 후 버튼은 재전송하지 않고 실제 상태 도구를 호출한다", () => {

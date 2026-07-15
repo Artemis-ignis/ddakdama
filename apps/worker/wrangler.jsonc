@@ -23,6 +23,7 @@
     "DEVICE_TOKEN_TTL_SECONDS": "2592000",
     "CONNECTION_GRANT_TTL_SECONDS": "2592000",
     "HANDOFF_TTL_SECONDS": "900",
+    "SUPPORT_TICKET_TTL_SECONDS": "2592000",
     "COUPANG_PARTNERS_SUB_ID": "ddakdama-extension"
   },
   "observability": {

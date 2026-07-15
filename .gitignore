@@ -11,7 +11,7 @@ dist/
 .tools/
 .run/
 .playwright/
-output/playwright/
+output/
 apps/extension/preview-dist/
 apps/server/.data/
 apps/worker/.generated/

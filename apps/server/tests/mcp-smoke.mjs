@@ -2,7 +2,7 @@ import {Client} from "@modelcontextprotocol/sdk/client/index.js";
 import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 const origin = process.env.DDAKDAMA_TEST_ORIGIN ?? "http://localhost:8787";
-const expectedWidgetUri = "ui://widget/ddakdama-cart-v5.html";
+const expectedWidgetUri = "ui://widget/ddakdama-cart-v6.html";
 const pairing = await fetch(`${origin}/api/pairing/start`, {
   method: "POST",
   headers: {"content-type": "application/json"},

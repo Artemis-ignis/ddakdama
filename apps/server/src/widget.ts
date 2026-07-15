@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-export const WIDGET_URI = "ui://widget/ddakdama-cart-v5.html";
+export const WIDGET_URI = "ui://widget/ddakdama-cart-v6.html";
 
 const WIDGET_ICON = `data:image/png;base64,${readFileSync(
   new URL("../assets/icon-48.png", import.meta.url),
@@ -12,7 +12,42 @@ export const widgetHtml = `<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    :root{font-family:Inter,Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#191f28;background:#fff}*{box-sizing:border-box}body{margin:0;padding:16px}.wrap{border:1px solid #e5e8eb;border-radius:22px;padding:18px;box-shadow:0 12px 32px rgba(0,23,51,.07)}.head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.brand{display:flex;align-items:center;gap:9px}.logo{display:block;width:36px;height:36px;border-radius:12px;object-fit:cover;box-shadow:0 3px 10px rgba(49,130,246,.2)}.eyebrow{margin:0 0 2px;color:#8b95a1;font-size:11px;font-weight:700}h2{margin:0;font-size:20px;letter-spacing:-.4px}.sub{color:#6b7684;font-size:13px;line-height:1.5;margin:12px 0 16px}.connection{display:flex;align-items:center;gap:6px;border-radius:999px;padding:7px 9px;background:#f2f4f6;color:#6b7684;font-size:11px;font-weight:700}.connection::before{content:"";width:7px;height:7px;border-radius:50%;background:#b0b8c1}.connection.connected{background:#e8f3ff;color:#1b64da}.connection.connected::before{background:#3182f6}.summary{display:flex;justify-content:space-between;background:#f2f7ff;padding:12px 14px;border-radius:14px;font-weight:800;color:#1b64da}.items{margin:12px 0;display:grid;gap:8px}.item{padding:12px;border:1px solid #edf0f2;border-radius:14px}.item b{display:block;font-size:13px;line-height:1.4}.specs{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.specs label{display:flex;align-items:center;gap:4px;color:#8b95a1;font-size:10px}.specs input{width:58px;border:1px solid #d9dfe5;border-radius:9px;padding:7px;color:#333d4b;background:#fff;font:inherit}.connect-card{margin-top:14px;padding:14px;border-radius:16px;background:#f7f8fa}.connect-title{margin:0 0 4px;font-size:13px;font-weight:800}.connect-help{margin:0 0 10px;color:#8b95a1;font-size:11px;line-height:1.45}.pair{display:flex;gap:8px}.pair input{min-width:0;flex:1;border:1px solid #d9dfe5;border-radius:12px;padding:11px;font-size:16px;letter-spacing:4px;text-align:center}.button{border:0;border-radius:12px;padding:11px 14px;font-weight:800;cursor:pointer}.button:disabled{cursor:not-allowed;opacity:.45}.pair .button{color:#1769e0;background:#e8f3ff}.actions{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:12px}.primary{color:#fff;background:#3182f6}.secondary{color:#4e5968;background:#f2f4f6}.status{display:flex;align-items:flex-start;gap:8px;margin:12px 2px 0;color:#6b7684;font-size:11px;line-height:1.45}.status::before{content:"";flex:0 0 auto;width:8px;height:8px;margin-top:4px;border-radius:50%;background:#b0b8c1}.status.success{color:#16883f}.status.success::before{background:#20a653}.status.error{color:#e42939}.status.error::before{background:#e42939}.status.busy::before{background:#3182f6;animation:pulse 1s infinite}.received{display:none;margin-top:12px;padding:12px;border-radius:14px;background:#edf8f1;color:#16883f;font-size:12px;font-weight:750}.received.show{display:block}@keyframes pulse{50%{opacity:.3}}@media(max-width:420px){body{padding:10px}.wrap{padding:15px}.head{display:block}.connection{width:max-content;margin-top:10px}.actions{grid-template-columns:1fr}.secondary{width:100%}}
+    :root{
+      color-scheme:light dark;
+      font-family:Inter,Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      --page:transparent;--surface:#fff;--surface-soft:#f7f8fa;--surface-blue:#f2f7ff;
+      --text:#191f28;--text-sub:#6b7684;--text-muted:#8b95a1;--line:#e5e8eb;
+      --input:#fff;--primary:#3182f6;--primary-strong:#1769e0;--primary-soft:#e8f3ff;
+      --success:#16883f;--success-bg:#edf8f1;--danger:#e42939;--shadow:0 12px 32px rgba(0,23,51,.07)
+    }
+    :root[data-theme="dark"]{
+      --surface:#17191c;--surface-soft:#212429;--surface-blue:#17243a;
+      --text:#f2f4f6;--text-sub:#c7cbd1;--text-muted:#9199a4;--line:#30343a;
+      --input:#23272c;--primary:#4d91ff;--primary-strong:#82b2ff;--primary-soft:#172d4d;
+      --success:#5bd686;--success-bg:#163224;--danger:#ff6b78;--shadow:0 16px 42px rgba(0,0,0,.28)
+    }
+    *{box-sizing:border-box}body{margin:0;padding:12px;background:var(--page);color:var(--text)}
+    .wrap{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:18px;box-shadow:var(--shadow)}
+    .head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.brand{display:flex;align-items:center;gap:10px}
+    .logo{display:block;width:38px;height:38px;border-radius:13px;object-fit:cover;box-shadow:0 4px 14px rgba(49,130,246,.22)}
+    .eyebrow{margin:0 0 2px;color:var(--text-muted);font-size:11px;font-weight:750}h2{margin:0;font-size:20px;letter-spacing:-.45px}
+    .sub{color:var(--text-sub);font-size:13px;line-height:1.55;margin:14px 0 16px}
+    .connection{display:flex;align-items:center;gap:6px;border-radius:999px;padding:7px 10px;background:var(--surface-soft);color:var(--text-sub);font-size:11px;font-weight:750;white-space:nowrap}
+    .connection::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--text-muted)}.connection.connected{background:var(--primary-soft);color:var(--primary-strong)}.connection.connected::before{background:var(--primary)}
+    .summary{display:flex;justify-content:space-between;background:var(--surface-blue);padding:13px 14px;border-radius:15px;font-weight:850;color:var(--primary-strong)}
+    .items{margin:12px 0;display:grid;gap:8px}.item{padding:13px;border:1px solid var(--line);border-radius:15px;background:var(--surface)}.item b{display:block;font-size:13px;line-height:1.45}
+    .specs{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.specs label{display:flex;align-items:center;gap:5px;color:var(--text-muted);font-size:10px;font-weight:650}
+    .specs input{width:60px;border:1px solid var(--line);border-radius:10px;padding:8px;color:var(--text);background:var(--input);font:inherit;outline:none}.specs input:focus,.pair input:focus{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 20%,transparent)}
+    .connect-card{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:17px;background:var(--surface-soft)}.connect-title{margin:0 0 4px;font-size:13px;font-weight:850}.connect-help{margin:0 0 11px;color:var(--text-muted);font-size:11px;line-height:1.5}
+    .pair{display:flex;gap:8px}.pair input{min-width:0;flex:1;border:1px solid var(--line);border-radius:12px;padding:11px;color:var(--text);background:var(--input);font-size:16px;letter-spacing:4px;text-align:center;outline:none}
+    .button{border:0;border-radius:12px;padding:12px 14px;font-weight:850;cursor:pointer;transition:transform .12s ease,filter .12s ease}.button:hover:not(:disabled){filter:brightness(.97)}.button:active:not(:disabled){transform:scale(.985)}.button:disabled{cursor:not-allowed;opacity:.45}
+    .pair .button{color:var(--primary-strong);background:var(--primary-soft)}.actions{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:12px}.primary{color:#fff;background:var(--primary)}.secondary{color:var(--text-sub);background:var(--surface-soft)}
+    .status{display:flex;align-items:flex-start;gap:8px;margin:12px 2px 0;color:var(--text-sub);font-size:11px;line-height:1.5}.status::before{content:"";flex:0 0 auto;width:8px;height:8px;margin-top:4px;border-radius:50%;background:var(--text-muted)}
+    .status.success{color:var(--success)}.status.success::before{background:var(--success)}.status.error{color:var(--danger)}.status.error::before{background:var(--danger)}.status.busy::before{background:var(--primary);animation:pulse 1s infinite}
+    .received{display:none;margin-top:12px;padding:12px;border-radius:14px;background:var(--success-bg);color:var(--success);font-size:12px;font-weight:750}.received.show{display:block}
+    @keyframes pulse{50%{opacity:.3}}
+    @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--surface:#17191c;--surface-soft:#212429;--surface-blue:#17243a;--text:#f2f4f6;--text-sub:#c7cbd1;--text-muted:#9199a4;--line:#30343a;--input:#23272c;--primary:#4d91ff;--primary-strong:#82b2ff;--primary-soft:#172d4d;--success:#5bd686;--success-bg:#163224;--danger:#ff6b78;--shadow:0 16px 42px rgba(0,0,0,.28)}}
+    @media(max-width:420px){body{padding:8px}.wrap{padding:15px}.head{align-items:center}.eyebrow{display:none}.connection{padding:6px 8px}.actions{grid-template-columns:1fr}.secondary{width:100%}}
   </style>
 </head>
 <body>
@@ -34,24 +69,46 @@ export const widgetHtml = `<!doctype html>
     <p class="status" id="status" aria-live="polite">먼저 확장 프로그램을 6자리 코드로 연결해 주세요.</p>
   </main>
   <script type="module">
-    const STATE_VERSION = 1;
+    const STATE_VERSION = 2;
+    const CONNECTION_STORAGE_KEY = "ddakdama.connection.v2";
     const SEND_LABEL = "확장 프로그램으로 보내기";
     const CHECK_LABEL = "전송 상태 다시 확인";
     const RECEIVED_LABEL = "수신 완료";
     const hostState = window.openai?.widgetState && typeof window.openai.widgetState === "object"
       ? window.openai.widgetState
       : {};
+    const storedConnection = (() => {
+      try {
+        const value = JSON.parse(localStorage.getItem(CONNECTION_STORAGE_KEY) || "null");
+        return value && typeof value === "object" ? value : {};
+      } catch {
+        return {};
+      }
+    })();
     let plan = window.openai?.toolOutput || {};
-    let connectionGrant = typeof hostState.connectionGrant === "string" ? hostState.connectionGrant : null;
-    let grantExpiresAt = Number(hostState.grantExpiresAt) || null;
+    let connectionGrant = typeof hostState.connectionGrant === "string"
+      ? hostState.connectionGrant
+      : typeof storedConnection.connectionGrant === "string"
+        ? storedConnection.connectionGrant
+        : null;
+    let grantExpiresAt = Number(hostState.grantExpiresAt || storedConnection.grantExpiresAt) || null;
     let handoffId = typeof hostState.handoffId === "string" ? hostState.handoffId : null;
     let handoffExpiresAt = Number(hostState.handoffExpiresAt) || null;
     let handoffReceived = hostState.handoffReceived === true;
-    let idempotencyKey = typeof hostState.idempotencyKey === "string" && hostState.idempotencyKey.length >= 8
-      ? hostState.idempotencyKey
-      : crypto.randomUUID();
+    let idempotencyKey = typeof plan.planId === "string" && plan.planId.length >= 8
+      ? plan.planId
+      : typeof hostState.idempotencyKey === "string" && hostState.idempotencyKey.length >= 8
+        ? hostState.idempotencyKey
+        : crypto.randomUUID();
     let statusTimer = null;
     let statusAttempts = 0;
+
+    const applyTheme = (theme) => {
+      const normalized = theme === "dark" || theme === "light" ? theme : "";
+      if (normalized) document.documentElement.dataset.theme = normalized;
+      else delete document.documentElement.dataset.theme;
+    };
+    applyTheme(window.openai?.theme);
 
     const now = Date.now();
     if (grantExpiresAt && grantExpiresAt <= now) {
@@ -60,6 +117,7 @@ export const widgetHtml = `<!doctype html>
       handoffId = null;
       handoffExpiresAt = null;
       handoffReceived = false;
+      try { localStorage.removeItem(CONNECTION_STORAGE_KEY); } catch {}
     } else if (handoffExpiresAt && handoffExpiresAt <= now) {
       handoffId = null;
       handoffExpiresAt = null;
@@ -70,16 +128,24 @@ export const widgetHtml = `<!doctype html>
     const $ = (selector) => document.querySelector(selector);
     const escapeHtml = (value) => String(value ?? "").replace(/[&<>\"]/g, (character) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[character]));
     const persistState = () => {
-      if (!window.openai?.setWidgetState) return;
-      window.openai.setWidgetState({
-        version: STATE_VERSION,
-        connectionGrant,
-        grantExpiresAt,
-        handoffId,
-        handoffExpiresAt,
-        handoffReceived,
-        idempotencyKey,
-      });
+      if (window.openai?.setWidgetState) {
+        window.openai.setWidgetState({
+          version: STATE_VERSION,
+          connectionGrant,
+          grantExpiresAt,
+          handoffId,
+          handoffExpiresAt,
+          handoffReceived,
+          idempotencyKey,
+        });
+      }
+      try {
+        if (connectionGrant && grantExpiresAt && grantExpiresAt > Date.now()) {
+          localStorage.setItem(CONNECTION_STORAGE_KEY, JSON.stringify({connectionGrant, grantExpiresAt}));
+        } else {
+          localStorage.removeItem(CONNECTION_STORAGE_KEY);
+        }
+      } catch {}
     };
     const setStatus = (message, tone = "") => {
       $("#status").textContent = message;
@@ -112,7 +178,9 @@ export const widgetHtml = `<!doctype html>
       updateSendButton();
     };
     const resetDelivery = () => {
-      idempotencyKey = crypto.randomUUID();
+      idempotencyKey = typeof plan.planId === "string" && plan.planId.length >= 8
+        ? plan.planId
+        : crypto.randomUUID();
       handoffId = null;
       handoffExpiresAt = null;
       handoffReceived = false;
@@ -174,6 +242,7 @@ export const widgetHtml = `<!doctype html>
     }, {passive:true});
     window.addEventListener("openai:set_globals", (event) => {
       const globals = event.detail?.globals;
+      if (globals?.theme !== undefined) applyTheme(globals.theme);
       if (globals?.toolOutput !== undefined) applyPlan(globals.toolOutput);
     }, {passive:true});
     const initializeBridge = async () => {
@@ -278,7 +347,7 @@ export const widgetHtml = `<!doctype html>
         );
       }
     };
-    $("#send").onclick = async () => {
+    const sendPlan = async () => {
       if (!connectionGrant || !plan.items?.length) return;
       // Once a handoff exists, this action is a true status query. It never resends.
       if (handoffId) {
@@ -317,6 +386,7 @@ export const widgetHtml = `<!doctype html>
         updateSendButton();
       }
     };
+    $("#send").onclick = () => void sendPlan();
     $("#disconnect").onclick = async () => {
       if (!connectionGrant) return;
       $("#disconnect").disabled = true;
@@ -344,6 +414,9 @@ export const widgetHtml = `<!doctype html>
       void bridgeReady.then(() => checkStatus(false));
     }
     render();
+    if (connectionGrant && plan.items?.length && !handoffId && !handoffReceived) {
+      void bridgeReady.then(() => sendPlan());
+    }
   </script>
 </body>
 </html>`;

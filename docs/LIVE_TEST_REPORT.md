@@ -17,6 +17,9 @@
 - `tunnel-client doctor`에서 런타임 API 키 미설정 외 모든 구성 검사 통과
 - 6자리 페어링 코드, 계획 전송, 기기 토큰 수신과 ACK
 - Cloudflare Worker 런타임에서 고정 목록 5종·실물 7개 페어링·전송·ACK·연결 해제
+- 고정 HTTPS Worker `https://ddakdama.ddakdama.workers.dev` 공개 배포
+- 공개 `/health` 응답과 공개 `/mcp`의 5종·실물 7개 페어링·전송·ACK·연결 해제
+- 공개 Durable Object에서 두 사용자 계획이 섞이지 않는 다중 사용자 격리
 - 서로 다른 두 사용자 연결에서 각 장바구니 계획이 교차 노출되지 않는 격리 스모크 테스트
 - 연결 코드 발급의 전역 IP별 rate limit 스모크 테스트: 10회 허용, 11번째 429 차단
 - Playwright 번들 Chromium에서 확장 로드와 MV3 서비스 워커 발견
@@ -41,21 +44,18 @@
 ## USER ACTION REQUIRED
 
 - 실제 장바구니 변경과 productId별 수량 delta 확인
-- Cloudflare 계정 이메일 인증 링크 확인
 - 실제 장바구니 검증 후 추가된 테스트 상품을 유지할지 제거할지 선택
+- ChatGPT 딱담아 앱의 기존 임시 Server URL을 `https://ddakdama.ddakdama.workers.dev/mcp`로 교체
 
 ## BLOCKED BY EXTERNAL ACCOUNT STATE
 
-- Cloudflare Wrangler 로그인은 완료했지만 계정 이메일 미인증으로 Worker 배포가 `code 10034`에서 차단됨
-- 고정 HTTPS Worker가 아직 배포되지 않아 ChatGPT 앱의 운영 Server URL 전환은 대기 중
 - 쿠팡 파트너스 계정이 최종 승인 상태가 아니어서 실제 API 키 발급·호출 미검증
 
 ## 다음 실제 검증 경로
 
-1. Cloudflare 계정 이메일 인증을 완료합니다.
-2. Worker를 배포하고 공개 `/health`와 `/mcp` 스모크 테스트를 실행합니다.
-3. 공개 서버 주소를 포함해 확장 프로그램을 다시 빌드합니다.
-4. ChatGPT 앱의 Server URL을 공개 `/mcp`로 전환합니다.
-5. 페어링 코드와 고정 쇼핑 목록으로 공개 환경 handoff를 검증합니다.
+1. ChatGPT 앱의 Server URL을 `https://ddakdama.ddakdama.workers.dev/mcp`로 전환합니다.
+2. 공개 패키지 확장 프로그램을 다시 불러옵니다.
+3. 페어링 코드와 고정 쇼핑 목록으로 ChatGPT 앱 → 확장 프로그램 handoff를 검증합니다.
+4. 사용자 승인 후 실제 쿠팡 장바구니 수량 delta를 검증합니다.
 
 공식 문서: https://developers.openai.com/apps-sdk/deploy

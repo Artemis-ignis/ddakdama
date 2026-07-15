@@ -14,10 +14,18 @@ pnpm --filter @ddakdama/worker run deploy
 
 Cloudflare 계정 이메일 인증이 완료되어 있어야 합니다. 배포가 끝나면 Wrangler가 출력한 `https://...workers.dev` 주소를 기록합니다.
 
+현재 운영 주소:
+
+```text
+https://ddakdama.ddakdama.workers.dev
+```
+
+이메일 인증과 최초 `workers.dev` 서브도메인이 준비된 뒤에는 루트의 `resume-public-release-windows.bat`으로 배포, 공개 MCP 검사, 전체 테스트, 단일 패키징과 배포물 검증을 한 번에 실행할 수 있습니다.
+
 검증:
 
 ```powershell
-$env:DDAKDAMA_TEST_ORIGIN = "https://배포주소"
+$env:DDAKDAMA_TEST_ORIGIN = "https://ddakdama.ddakdama.workers.dev"
 node apps/server/tests/mcp-smoke.mjs
 node apps/server/tests/mcp-multiuser-smoke.mjs
 ```
@@ -27,7 +35,7 @@ node apps/server/tests/mcp-multiuser-smoke.mjs
 ## 2. Chrome 확장 프로그램
 
 ```powershell
-$env:VITE_DDAKDAMA_SERVER_ORIGIN = "https://배포주소"
+$env:VITE_DDAKDAMA_SERVER_ORIGIN = "https://ddakdama.ddakdama.workers.dev"
 pnpm --filter @ddakdama/extension build
 pnpm package
 ```
@@ -39,7 +47,7 @@ pnpm package
 ChatGPT 앱의 Server URL은 다음으로 설정합니다.
 
 ```text
-https://배포주소/mcp
+https://ddakdama.ddakdama.workers.dev/mcp
 ```
 
 공개 베타는 앱 자체 계정을 만들지 않으므로 인증 없음으로 연결합니다. 사용자별 장바구니 계획은 6자리 일회용 코드와 무작위 연결 권한으로 분리합니다.

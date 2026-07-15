@@ -31,7 +31,7 @@ describe("공개 Worker 핵심 계약", () => {
     expect(Number(secureShard())).toBeLessThanOrEqual(9);
   });
 
-  it("쿠팡 파트너스 HMAC이 Node 서버와 같은 값을 만든다", async () => {
+  it("쿠팡 파트너스 HMAC은 Node 서버와 같은 형식을 만든다", async () => {
     const value = await authorization(
       "GET",
       "/v2/test?keyword=abc",
@@ -43,12 +43,18 @@ describe("공개 Worker 핵심 계약", () => {
     );
   });
 
-  it("공개 사용자 페이지에 운영·개인정보·지원 정보를 제공한다", () => {
+  it("공개 페이지에 운영·개인정보·지원 정보를 제공한다", () => {
     const icon = "data:image/png;base64,aWNvbg==";
-    expect(landingPage(icon)).toContain("쇼핑 목록을<br>딱, 장바구니로");
+    expect(landingPage(icon)).toContain("쇼핑 목록을<br>한 번에 장바구니로");
     expect(landingPage(icon)).toContain(icon);
-    expect(privacyPage(icon)).toContain("기기 연결 정보: 최대 30일");
+    expect(privacyPage(icon)).toContain("지원 문의: 접수일로부터 최대 30일");
     expect(termsPage(icon)).toContain("자동 결제나 주문 확정을 수행하지 않으며");
-    expect(supportPage(icon)).toContain("API 키, 비밀번호, 인증 코드나 결제 정보");
+    const support = supportPage(icon, {
+      submitted: true,
+      ticketId: "DD-12345678",
+    });
+    expect(support).toContain('action="/api/support"');
+    expect(support).toContain("DD-12345678");
+    expect(support).toContain("API 키, 비밀번호, 인증 코드, 결제 정보");
   });
 });

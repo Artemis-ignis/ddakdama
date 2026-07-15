@@ -16,11 +16,11 @@
 ## 운영자 최초 등록
 
 1. Cloudflare에 딱담아 Worker를 배포합니다.
-2. `https://운영주소/health`가 `ok: true`를 반환하는지 확인합니다.
-3. MCP 클라이언트로 `https://운영주소/mcp`의 도구와 위젯을 검증합니다.
+2. `https://ddakdama.ddakdama.workers.dev/health`가 `ok: true`를 반환하는지 확인합니다.
+3. MCP 클라이언트로 `https://ddakdama.ddakdama.workers.dev/mcp`의 도구와 위젯을 검증합니다.
 4. ChatGPT Developer Mode의 앱/플러그인 관리에서 새 앱을 만듭니다.
 5. 연결 방식은 `Server URL`, 인증은 현재 공개 베타에서 `인증 없음`을 선택합니다.
-6. Server URL에는 `https://운영주소/mcp`를 입력합니다.
+6. Server URL에는 `https://ddakdama.ddakdama.workers.dev/mcp`를 입력합니다.
 7. 이름은 `딱담아`, 아이콘은 `apps/extension/assets/icon-256.png`를 사용합니다.
 8. 앱을 저장한 뒤 새 채팅에서 고정 테스트 목록을 실행합니다.
 
@@ -48,9 +48,9 @@ TS 골드플러스 샴푸 500g
 ## 공개 제출 전 확인
 
 - 고정 HTTPS 도메인
-- 개인정보 처리방침: `https://운영주소/privacy`
-- 이용약관: `https://운영주소/terms`
-- 사용자 지원: `https://운영주소/support`
+- 개인정보 처리방침: `https://ddakdama.ddakdama.workers.dev/privacy`
+- 이용약관: `https://ddakdama.ddakdama.workers.dev/terms`
+- 사용자 지원: `https://ddakdama.ddakdama.workers.dev/support`
 - 앱 아이콘과 스크린샷
 - 도구 설명과 read/write annotation
 - CSP와 연결 도메인

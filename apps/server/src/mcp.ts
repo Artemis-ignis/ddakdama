@@ -150,6 +150,7 @@ export function createMcpServer({
         items: z.array(itemSchema),
         itemKinds: z.number().int(),
         physicalUnits: z.number().int(),
+        planId: z.string().uuid(),
       },
       annotations: {
         readOnlyHint: true,
@@ -163,7 +164,10 @@ export function createMcpServer({
       },
     },
     async ({ shopping_list }) => ({
-      structuredContent: parsePlan(shopping_list),
+      structuredContent: {
+        ...parsePlan(shopping_list),
+        planId: crypto.randomUUID(),
+      },
       content: [
         {
           type: "text",

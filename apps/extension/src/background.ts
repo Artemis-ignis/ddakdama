@@ -1,9 +1,9 @@
 import{planCartResume,type CartCheckpoint}from"./cart-journal";
-import{detailStatus,validateProductUrl,type ProductDetail}from"./product-validation";
+import{detailStatus,productMismatchReasons,validateProductUrl,type ProductDetail,type ProductMismatchReason}from"./product-validation";
 
 chrome.runtime.onInstalled.addListener(()=>chrome.sidePanel.setPanelBehavior({openPanelOnActionClick:true}));
 type Job={id:string;productUrl:string;navigationUrl?:string;productId:string;vendorItemId:string|null;itemId:string|null;cartPurchaseQuantity:number;expectedBrand:string|null;expectedProductName:string;expectedUnitsPerPackage:number;expectedUnitSize:string|null;expectedStrength:string|null;expectedPackageContent:string|null;status:string};
-type JobResult=Job&{status:string;beforeQuantity?:number;afterQuantity?:number;verifiedPrice?:number;cartPrice?:number;expectedSubtotal?:number;priceDifference?:number};
+type JobResult=Job&{status:string;beforeQuantity?:number;afterQuantity?:number;verifiedPrice?:number;beforeCartPrice?:number;cartPrice?:number;expectedSubtotal?:number;cartAddedSubtotal?:number;priceDifference?:number;mismatchReasons?:ProductMismatchReason[]};
 type Journal={runId:string;jobs:Job[];results:JobResult[];checkpoints:Record<string,CartCheckpoint>;startedAt:number;updatedAt:number};
 const journalKey="ddakdama-cart-journal";
 const serverOrigin=(import.meta.env.VITE_DDAKDAMA_SERVER_ORIGIN||"http://localhost:8787").replace(/\/$/,"");
@@ -20,21 +20,31 @@ async function navigateWorkerTab(tabId:number,url:string){await chrome.tabs.upda
 async function closeWorkerTab(tabId:number|undefined){if(tabId!==undefined)await chrome.tabs.remove(tabId).catch(()=>{})}
 async function inspectProductDetail(tabId:number){let detail:ProductDetail|null=null;for(let attempt=0;attempt<10;attempt+=1){detail=await sendToTab(tabId,{type:"DDAKDAMA_INSPECT_PRODUCT"}) as ProductDetail;if(detail.securityRequired||detail.loginRequired||(detail.price!==null&&(detail.inStock||detail.optionRequired)))return detail;if(attempt<9)await new Promise(resolve=>setTimeout(resolve,200))}if(!detail)throw new Error("PRODUCT_DETAIL_UNAVAILABLE");return detail}
 async function cartSnapshot(tabId:number){const current=await chrome.tabs.get(tabId);if(current.url?.startsWith(cartUrl)){await chrome.tabs.reload(tabId);await waitComplete(tabId)}else await navigateWorkerTab(tabId,cartUrl);return await sendToTab(tabId,{type:"DDAKDAMA_CART_SNAPSHOT"})}
-type SnapshotItem={productId:string;vendorItemId:string|null;itemId:string|null;quantity:number;price:number|null};
-const itemOf=(snapshot:{items?:SnapshotItem[]},job:Job)=>snapshot.items?.find(item=>item.productId===job.productId&&(!job.vendorItemId||item.vendorItemId===job.vendorItemId)&&(!job.itemId||!item.itemId||item.itemId===job.itemId));
+type SnapshotItem={productId:string;vendorItemId:string|null;itemId:string|null;quantity:number;price:number|null;priceIsLineTotal?:boolean};
+const itemOf=(snapshot:{items?:SnapshotItem[]},job:Job)=>{
+ const productItems=snapshot.items?.filter(item=>item.productId===job.productId)??[];
+ if(!productItems.length)return undefined;
+ const exactVendor=job.vendorItemId?productItems.find(item=>item.vendorItemId===job.vendorItemId&&(!job.itemId||!item.itemId||item.itemId===job.itemId)):undefined;
+ if(exactVendor)return exactVendor;
+ const identifiedItems=productItems.filter(item=>item.vendorItemId||item.itemId);
+ if(job.vendorItemId&&identifiedItems.some(item=>item.vendorItemId)&&!exactVendor)return undefined;
+ const exactItem=job.itemId?productItems.find(item=>item.itemId===job.itemId):undefined;
+ if(exactItem)return exactItem;
+ return productItems.length===1?productItems[0]:undefined;
+};
 const quantityOf=(snapshot:{items?:SnapshotItem[]},job:Job)=>itemOf(snapshot,job)?.quantity??0;
-async function inspectJob(job:Job,tabId:number){if(!validateProductUrl(job))return{...job,status:"PRODUCT_MISMATCH"};await navigateWorkerTab(tabId,job.navigationUrl??job.productUrl);const detail=await inspectProductDetail(tabId);return{...job,status:detailStatus(job,detail),verifiedPrice:detail.price,verifiedTitle:detail.title}}
+async function inspectJob(job:Job,tabId:number){if(!validateProductUrl(job))return{...job,status:"PRODUCT_MISMATCH",mismatchReasons:["PRODUCT_URL"] as ProductMismatchReason[]};await navigateWorkerTab(tabId,job.navigationUrl??job.productUrl);const detail=await inspectProductDetail(tabId);const status=detailStatus(job,detail);return{...job,status,verifiedPrice:detail.price,verifiedTitle:detail.title,mismatchReasons:status==="PRODUCT_MISMATCH"?productMismatchReasons(job,detail):undefined}}
 async function waitForQuantity(job:Job,minimum:number,cartTabId:number){for(let attempt=0;attempt<4;attempt++){const quantity=quantityOf(await cartSnapshot(cartTabId),job);if(quantity>=minimum)return quantity;await new Promise(resolve=>setTimeout(resolve,350))}return quantityOf(await cartSnapshot(cartTabId),job)}
 
 async function runJob(job:Job,checkpoint:CartCheckpoint|undefined,persist:(value:CartCheckpoint)=>Promise<void>,productTabId:number,cartTabId:number){
- const current=quantityOf(await cartSnapshot(cartTabId),job);
+ const initialSnapshot=await cartSnapshot(cartTabId);const initialItem=itemOf(initialSnapshot,job);const current=initialItem?.quantity??0;const beforeCartPrice=initialItem?.priceIsLineTotal?initialItem.price??0:undefined;
  const resume=planCartResume(current,job.cartPurchaseQuantity,checkpoint);
  const nextCheckpoint:CartCheckpoint={jobId:job.id,beforeQuantity:resume.beforeQuantity,targetQuantity:resume.targetQuantity,updatedAt:Date.now()};
  await persist(nextCheckpoint);
- await navigateWorkerTab(productTabId,job.navigationUrl??job.productUrl);const detail=await inspectProductDetail(productTabId);const status=detailStatus(job,detail);if(status!=="READY")return{...job,status};
+ await navigateWorkerTab(productTabId,job.navigationUrl??job.productUrl);const detail=await inspectProductDetail(productTabId);const status=detailStatus(job,detail);if(status!=="READY")return{...job,status,mismatchReasons:status==="PRODUCT_MISMATCH"?productMismatchReasons(job,detail):undefined};
  let observed=current;for(let i=0;i<resume.remainingQuantity;i++){const expectedAfterClick=current+i+1;const added=await sendToTab(productTabId,{type:"DDAKDAMA_ADD_TO_CART"});if(!added.ok)return{...job,status:added.reason??"ADD_BUTTON_NOT_FOUND"};observed=await waitForQuantity(job,expectedAfterClick,cartTabId);if(observed<expectedAfterClick)return{...job,status:"CART_VERIFICATION_FAILED"}}
- const finalSnapshot=await cartSnapshot(cartTabId);const after=quantityOf(finalSnapshot,job);const cartPrice=itemOf(finalSnapshot,job)?.price??undefined;const expectedSubtotal=detail.price?detail.price*after:undefined;const priceDifference=cartPrice!==undefined&&expectedSubtotal!==undefined?cartPrice-expectedSubtotal:undefined;
- return{...job,status:after===resume.targetQuantity?"SUCCESS":"QUANTITY_MISMATCH",beforeQuantity:resume.beforeQuantity,afterQuantity:after,verifiedPrice:detail.price??undefined,cartPrice,expectedSubtotal,priceDifference};
+ const finalSnapshot=await cartSnapshot(cartTabId);const finalItem=itemOf(finalSnapshot,job);const after=finalItem?.quantity??0;const cartPrice=finalItem?.price??undefined;const addedQuantity=Math.max(0,after-resume.beforeQuantity);const expectedSubtotal=detail.price?detail.price*addedQuantity:undefined;const cartAddedSubtotal=finalItem?.priceIsLineTotal&&cartPrice!==undefined?Math.max(0,cartPrice-(beforeCartPrice??0)):undefined;const priceDifference=cartAddedSubtotal!==undefined&&expectedSubtotal!==undefined?cartAddedSubtotal-expectedSubtotal:undefined;
+ return{...job,status:after===resume.targetQuantity?"SUCCESS":"QUANTITY_MISMATCH",beforeQuantity:resume.beforeQuantity,afterQuantity:after,verifiedPrice:detail.price??undefined,beforeCartPrice,cartPrice,expectedSubtotal,cartAddedSubtotal,priceDifference};
 }
 async function runCartJobs(runId:string,jobs:Job[]){
  const stored=await chrome.storage.local.get(journalKey);const previous=stored[journalKey] as Journal|undefined;

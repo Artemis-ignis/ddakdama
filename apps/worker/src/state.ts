@@ -27,6 +27,17 @@ export type Handoff = {
   idempotencyKey: string;
 };
 
+export type SupportTicket = {
+  id: string;
+  email: string;
+  subject: string;
+  message: string;
+  createdAt: number;
+  expiresAt: number;
+  status: "open" | "resolved";
+  resolvedAt: number | null;
+};
+
 type AttemptWindow = {
   count: number;
   resetAt: number;
@@ -83,6 +94,14 @@ export class DdakDamaState extends DurableObject<StateEnv> {
 
   async allowPairingAttempt(clientKey: string, maximum = 30) {
     return this.allow(`rate:complete:${await hash(clientKey)}`, maximum);
+  }
+
+  async allowSupportSubmission(clientKey: string, maximum = 5) {
+    return this.allow(
+      `rate:support:${await hash(clientKey)}`,
+      maximum,
+      60 * 60 * 1_000,
+    );
   }
 
   async startPairing(
@@ -249,5 +268,62 @@ export class DdakDamaState extends DurableObject<StateEnv> {
     }
     if (keys.length) await this.ctx.storage.delete(keys);
     return true;
+  }
+
+  async createSupportTicket(
+    input: Pick<SupportTicket, "email" | "subject" | "message">,
+    ttlMs: number,
+  ) {
+    const now = Date.now();
+    const id = `DD-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    const ticket: SupportTicket = {
+      id,
+      ...input,
+      createdAt: now,
+      expiresAt: now + ttlMs,
+      status: "open",
+      resolvedAt: null,
+    };
+    await this.ctx.storage.put(`support:${now}:${id}`, ticket);
+    return ticket;
+  }
+
+  async listSupportTickets(limit = 50) {
+    const now = Date.now();
+    const entries = await this.ctx.storage.list<SupportTicket>({
+      prefix: "support:",
+      reverse: true,
+      limit: Math.min(Math.max(limit, 1), 100),
+    });
+    const tickets: SupportTicket[] = [];
+    for (const [key, ticket] of entries) {
+      if (ticket.expiresAt <= now) {
+        await this.ctx.storage.delete(key);
+      } else {
+        tickets.push(ticket);
+      }
+    }
+    return tickets;
+  }
+
+  async resolveSupportTicket(id: string) {
+    const entries = await this.ctx.storage.list<SupportTicket>({
+      prefix: "support:",
+    });
+    for (const [key, ticket] of entries) {
+      if (ticket.id !== id) continue;
+      if (ticket.expiresAt <= Date.now()) {
+        await this.ctx.storage.delete(key);
+        return null;
+      }
+      const resolved: SupportTicket = {
+        ...ticket,
+        status: "resolved",
+        resolvedAt: Date.now(),
+      };
+      await this.ctx.storage.put(key, resolved);
+      return resolved;
+    }
+    return null;
   }
 }
