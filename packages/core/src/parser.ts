@@ -13,18 +13,21 @@ const sizeAliases: Record<string, SizeUnit> = {
 const strengthAliases: Record<string, StrengthUnit> = {
   mg: "mg", mcg: "mcg", ug: "mcg", "\u03BCg": "mcg", iu: "IU", "%": "%",
 };
-const packageUnits = new Set(["\uC815", "\uCEA1\uC290", "\uD3EC", "\uB9E4", "\uAC1C\uC785", "\uC2A4\uD2F1", "\uD328\uCE58"]);
+const packageUnits = new Set(["\uC815", "\uCEA1\uC290", "\uD3EC", "\uB9E4", "\uAC1C\uC785", "\uC2A4\uD2F1", "\uD328\uCE58", "\uC778\uBD84"]);
 const physicalUnits = new Set(["\uAC1C", "\uBCD1", "\uCE94", "\uBD09", "\uD1B5", "\uD329"]);
 const containerUnits = new Set(["\uBC15\uC2A4", "\uBB36\uC74C", "\uC138\uD2B8"]);
 
 const sizeUnitPattern = "mL|ml|L|l|kg|g|\\uBC00\\uB9AC\\uB9AC\\uD130|\\uB9AC\\uD130|\\uD0AC\\uB85C\\uADF8\\uB7A8|\\uADF8\\uB7A8";
-const tokenUnitPattern = `${sizeUnitPattern}|mg|mcg|ug|\\u03BCg|IU|iu|%|\\uC815|\\uCEA1\\uC290|\\uD3EC|\\uB9E4|\\uAC1C\\uC785|\\uC2A4\\uD2F1|\\uD328\\uCE58|\\uAC1C|\\uBCD1|\\uCE94|\\uBD09|\\uD1B5|\\uD329|\\uBC15\\uC2A4|\\uBB36\\uC74C|\\uC138\\uD2B8`;
+const tokenUnitPattern = `${sizeUnitPattern}|mg|mcg|ug|\\u03BCg|IU|iu|%|\\uC815|\\uCEA1\\uC290|\\uD3EC|\\uB9E4|\\uAC1C\\uC785|\\uC2A4\\uD2F1|\\uD328\\uCE58|\\uC778\\uBD84|\\uAC1C|\\uBCD1|\\uCE94|\\uBD09|\\uD1B5|\\uD329|\\uBC15\\uC2A4|\\uBB36\\uC74C|\\uC138\\uD2B8`;
 const tokenPattern = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${tokenUnitPattern})`, "giu");
 // Keep this explicit instead of composing it from the broad token pattern:
 // optional single-letter units (L/g) otherwise made `6~8kg` ambiguous.
 const rangePattern = /(\d+(?:\.\d+)?)\s*(mL|ml|L|l|kg|g|\uBC00\uB9AC\uB9AC\uD130|\uB9AC\uD130|\uD0AC\uB85C\uADF8\uB7A8|\uADF8\uB7A8)?\s*(?:~|\u2013|-)\s*(\d+(?:\.\d+)?)\s*(mL|ml|L|l|kg|g|\uBC00\uB9AC\uB9AC\uD130|\uB9AC\uD130|\uD0AC\uB85C\uADF8\uB7A8|\uADF8\uB7A8)/giu;
 const leadingListMarker = /^\s*\d{1,3}[.)]\s*/u;
 const multiplicativeQuantity = /[x\u00d7]\s*(\d+)\s*(\uAC1C|\uBCD1|\uCE94|\uBD09|\uD1B5|\uD329)?/giu;
+const servingPlanPattern = /(\d+)\s*\uC778\uBD84\s*\uAD6C\uC131\s*,?\s*\uCD1D\s*(\d+)\s*\uC778\uBD84/iu;
+const approximateSizePattern = /(\d+(?:\.\d+)?)\s*(mL|ml|L|l|kg|g|\uBC00\uB9AC\uB9AC\uD130|\uB9AC\uD130|\uD0AC\uB85C\uADF8\uB7A8|\uADF8\uB7A8)\s*\uB0B4\uC678/iu;
+const trailingPurchasePattern = /,\s*(\d+)\s*(\uBC15\uC2A4|\uBB36\uC74C|\uC138\uD2B8|\uD329|\uBD09|\uD1B5)(?:\s|$)/iu;
 
 const lowerUnit = (value: string) => value.toLowerCase();
 const tokenize = (text: string): NumericToken[] =>
@@ -64,11 +67,13 @@ const sizeRangeToken = (text: string) => {
 
 const cleanProductName = (text: string) => {
   const withoutRanges = text.replace(rangePattern, " ");
-  const withoutComponents = withoutRanges.replace(/(?:^|\s|\+)\s*(\uBCF8\uD488|\uB9AC\uD544)\s*\d+\s*(\uAC1C|\uBCD1|\uD1B5|\uD329|\uC138\uD2B8)(?=\s|\+|$)/gu, " ");
+  const withoutServingPlan = withoutRanges.replace(servingPlanPattern, " ");
+  const withoutComponents = withoutServingPlan.replace(/(?:^|\s|\+)\s*(\uBCF8\uD488|\uB9AC\uD544)\s*\d+\s*(\uAC1C|\uBCD1|\uD1B5|\uD329|\uC138\uD2B8)(?=\s|\+|$)/gu, " ");
   const withoutSizes = withoutComponents.replace(tokenPattern, " ");
   const withoutMultipliers = withoutSizes.replace(multiplicativeQuantity, " ");
   return withoutMultipliers
     .replace(/[,:/]/gu, " ")
+    .replace(/\uB0B4\uC678/gu, " ")
     .replace(/[~\u2013\-\u00d7x]+/giu, " ")
     .replace(/\s+/gu, " ")
     .trim();
@@ -86,6 +91,8 @@ export function parseShoppingLine(rawText: string, index = 0): ShoppingRequestLi
   const normalizedText = rawText.trim().replace(leadingListMarker, "").replace(/\s+/gu, " ");
   const tokens = tokenize(normalizedText);
   const range = sizeRangeToken(normalizedText);
+  const servingPlan = normalizedText.match(servingPlanPattern);
+  const approximateSize = normalizedText.match(approximateSizePattern);
   let unitSizeValue: number | null = range?.minimum.value ?? null;
   let unitSizeUnit: ShoppingRequestLine["unitSizeUnit"] = range?.minimum.unit ?? null;
   let strengthValue: number | null = null;
@@ -133,13 +140,40 @@ export function parseShoppingLine(rawText: string, index = 0): ShoppingRequestLi
   const components = componentMatches(normalizedText);
   const variantTokens = components.map((match) => `${match[1]} ${match[2]}${match[3]}`);
   if (components.length) requestedPhysicalUnits = components.reduce((sum, match) => sum + Number(match[2]), 0);
+  if (servingPlan) {
+    const servingsPerPackage = Number(servingPlan[1]);
+    const totalServings = Number(servingPlan[2]);
+    if (totalServings % servingsPerPackage === 0) {
+      packageContentCount = servingsPerPackage;
+      packageContentUnit = "\uC778\uBD84";
+      requestedPhysicalUnits = totalServings / servingsPerPackage;
+      requestedPurchaseUnits = requestedPhysicalUnits;
+    }
+  }
+  const trailingPurchase = normalizedText.match(trailingPurchasePattern);
+  if (trailingPurchase) {
+    requestedPurchaseUnits = Number(trailingPurchase[1]);
+    hasExplicitContainer = true;
+  }
   if (!hasExplicitContainer && requestedPhysicalUnits !== null) requestedPurchaseUnits = requestedPhysicalUnits;
   if (range) variantTokens.push(`size-range:${range.minimum.value}-${range.maximum.value}:${range.minimum.unit}`);
+  if (!range && approximateSize) {
+    const unit = sizeAliases[lowerUnit(approximateSize[2])];
+    if (unit) {
+      const value = Number(approximateSize[1]);
+      variantTokens.push(`size-range:${Number((value * 0.8).toFixed(3))}-${Number((value * 1.2).toFixed(3))}:${unit}`);
+    }
+  }
 
-  const productName = cleanProductName(normalizedText);
+  const standaloneServing = !servingPlan ? normalizedText.match(/(\d+)\s*\uC778\uBD84/iu)?.[0] : null;
+  const cleanedProductName = cleanProductName(normalizedText);
+  const productName = standaloneServing && !cleanedProductName.includes(standaloneServing)
+    ? `${cleanedProductName} ${standaloneServing}`.trim()
+    : cleanedProductName;
   const parseWarnings: string[] = [];
   if (!productName) parseWarnings.push("\uC0C1\uD488\uBA85\uC744 \uD655\uC778\uD574 \uC8FC\uC138\uC694.");
   if (range) parseWarnings.push(`\uC6A9\uB7C9 \uBC94\uC704 ${range.minimum.value}~${range.maximum.value}${range.minimum.unit}\uB85C \uAC80\uC0C9\uD569\uB2C8\uB2E4.`);
+  if (approximateSize) parseWarnings.push("\u2018\uB0B4\uC678\u2019 \uADDC\uACA9\uC740 \u00b120% \uBC94\uC704\uB85C \uBE44\uAD50\uD569\uB2C8\uB2E4.");
 
   return shoppingRequestLineSchema.parse({
     id: `line-${index + 1}`,
@@ -164,8 +198,9 @@ export function parseShoppingLine(rawText: string, index = 0): ShoppingRequestLi
 export const parseShoppingList = (input: string) =>
   input.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean).map(parseShoppingLine);
 
-export const searchQueryForShoppingLine = (line: Pick<ShoppingRequestLine, "productName" | "unitSizeValue" | "unitSizeUnit">) => {
+export const searchQueryForShoppingLine = (line: Pick<ShoppingRequestLine, "productName" | "unitSizeValue" | "unitSizeUnit" | "packageContentCount" | "packageContentUnit">) => {
   const product = line.productName.trim();
+  if (line.packageContentCount && line.packageContentUnit === "\uC778\uBD84") return `${product} ${line.packageContentCount}\uC778\uBD84`;
   // Broad product families and range requests should return candidates for the
   // user to compare, rather than being over-constrained by an exact size token.
   return product || `${line.unitSizeValue ?? ""}${line.unitSizeUnit ?? ""}`.trim();

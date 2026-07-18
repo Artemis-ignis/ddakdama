@@ -56,4 +56,17 @@ describe("상품 후보 자동선택", () => {
     expect(candidateMatchesRequest(sun!, liveCandidate)).toBe(true);
     expect(selectBestCandidate(sun!, [liveCandidate])).toBe(liveCandidate);
   });
+
+  it("'또는' 선호 표현은 공통 제품명과 허용 대안이 맞는 후보만 선택한다", () => {
+    const [iceBar] = parseShoppingList("제로 또는 저당 아이스크림 바 70~100ml × 10개, 1세트");
+    const lowSugar = {
+      title: "저당 아이스크림 바 90mL 10개입",
+      currentPrice: 18_000,
+      unitsPerPackage: 10,
+      rocketDelivery: true,
+      advertised: false,
+    };
+    expect(candidateMatchesRequest(iceBar!, lowSugar)).toBe(true);
+    expect(candidateMatchesRequest(iceBar!, { ...lowSugar, title: "일반 아이스크림 바 90mL 10개입" })).toBe(false);
+  });
 });

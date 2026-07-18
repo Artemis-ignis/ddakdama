@@ -79,7 +79,7 @@ export function createMcpServer({
     { name: "ddakdama", version: "1.0.0" },
     {
       instructions:
-        "딱담아는 쇼핑 목록을 구조화하고, 사용자가 검토한 계획을 페어링된 Chrome 확장 프로그램으로 보냅니다. 실제 상품 검색, 가격 검증과 장바구니 추가는 확장 프로그램에서 사용자 승인 후 진행합니다. 단독 6자리 숫자나 3자리-3자리 숫자는 상품명이 아니라 확장 프로그램 연결 코드이므로 쇼핑 목록 도구에 전달하지 마세요.",
+        "딱담아는 쇼핑 목록을 구조화하고, 사용자가 검토한 계획을 페어링된 Chrome 확장 프로그램으로 보냅니다. 실제 상품 검색, 가격 검증과 장바구니 추가는 확장 프로그램에서 사용자 승인 후 진행합니다. 목록을 만들거나 분석할 때는 한 줄에 하나의 실제 구매 단위를 적고, 상품명·1개 기준 규격·필요 수량을 분리하세요. '총 4인분'처럼 총량만 있으면 구매 가능한 포장 단위로 환산하세요(예: 2인분 구성 총 4인분 → 2인분 2봉). 'A 또는 B'는 하나의 검색어로 넘기지 말고 사용자의 우선 선택을 확인하거나 대표 상품 하나를 정하세요. '내외' 같은 모호한 표현은 목표 규격으로 정리하세요. 단독 6자리 숫자나 3자리-3자리 숫자는 상품명이 아니라 확장 프로그램 연결 코드이므로 쇼핑 목록 도구에 전달하지 마세요.",
     },
   );
 
@@ -124,7 +124,7 @@ export function createMcpServer({
       title: "쇼핑 목록 분석",
       description:
         "사용자가 제품명이 포함된 여러 줄의 쇼핑 목록을 제품명, 규격, 함량과 요청 수량으로 구조화할 때 사용합니다. 단독 6자리 연결 코드는 쇼핑 목록으로 분석하지 마세요.",
-      inputSchema: { shopping_list: z.string().min(1).max(20_000) },
+      inputSchema: { shopping_list: z.string().min(1).max(20_000).describe("Before calling, normalize the list into one purchasable intent per line. Keep product name, per-unit size, and requested physical quantity separate. Convert total servings into package count (for example: '냉면 2인분 구성, 총 4인분' becomes '냉면 2인분 2봉'). Do not put alternatives such as 'A 또는 B' in one line: choose the user’s stated primary preference or ask a short clarification. Replace approximate wording such as '내외' with the target size. Examples: '생수 1L 12병', '비빔면 130g 5봉', '냉동 치킨텐더 1kg 1봉'.") },
       outputSchema: {
         items: z.array(itemSchema),
         itemKinds: z.number().int(),
@@ -160,7 +160,7 @@ export function createMcpServer({
       title: "장바구니 계획 만들기",
       description:
         "제품명이 포함된 쇼핑 목록을 사용자가 위젯에서 검토하고 확장 프로그램으로 보낼 수 있도록 렌더링할 때 사용합니다. 단독 6자리 연결 코드는 이 도구에 전달하지 마세요.",
-      inputSchema: { shopping_list: z.string().min(1).max(20_000) },
+      inputSchema: { shopping_list: z.string().min(1).max(20_000).describe("Before calling, normalize the list into one purchasable intent per line. Keep product name, per-unit size, and requested physical quantity separate. Convert total servings into package count (for example: '냉면 2인분 구성, 총 4인분' becomes '냉면 2인분 2봉'). Do not put alternatives such as 'A 또는 B' in one line: choose the user’s stated primary preference or ask a short clarification. Replace approximate wording such as '내외' with the target size. Examples: '생수 1L 12병', '비빔면 130g 5봉', '냉동 치킨텐더 1kg 1봉'.") },
       outputSchema: {
         items: z.array(itemSchema),
         itemKinds: z.number().int(),

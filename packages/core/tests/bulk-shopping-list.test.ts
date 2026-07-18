@@ -52,3 +52,32 @@ describe("bulk grocery list parsing", () => {
     expect(parseUnitsPerPackage("\uB9C8\uADF8\uB124\uC298 100mg 240\uC815")).toBe(1);
   });
 });
+
+describe("GPT normalized shopping-list contract", () => {
+  const lines = parseShoppingList([
+    "\uC0DD\uC218 1L \u00d7 12\uBCD1, 1\uBB36\uC74C",
+    "\uB0C9\uBA74 2\uC778\uBD84 \uAD6C\uC131, \uCD1D 4\uC778\uBD84",
+    "\uBE44\uBE54\uBA74 130g \uB0B4\uC678 \u00d7 5\uBD09, 1\uD329",
+    "\uB0C9\uB3D9 \uCE58\uD0A8\uD150\uB354 1kg \uB0B4\uC678, 1\uBD09",
+  ].join("\n"));
+
+  it("converts serving totals into purchasable packages", () => {
+    expect(lines[1]).toMatchObject({
+      productName: "\uB0C9\uBA74",
+      packageContentCount: 2,
+      packageContentUnit: "\uC778\uBD84",
+      requestedPhysicalUnits: 2,
+      requestedPurchaseUnits: 2,
+    });
+  });
+
+  it("keeps the requested pack separate from the physical contents", () => {
+    expect(lines[2]).toMatchObject({ productName: "\uBE44\uBE54\uBA74", requestedPhysicalUnits: 5, requestedPurchaseUnits: 1 });
+    expect(lines[3]).toMatchObject({ productName: "\uB0C9\uB3D9 \uCE58\uD0A8\uD150\uB354", requestedPhysicalUnits: 1, requestedPurchaseUnits: 1 });
+  });
+
+  it("turns approximate size wording into a comparison range without keeping it in the search name", () => {
+    expect(lines[2].variantTokens).toContain("size-range:104-156:g");
+    expect(lines[3].variantTokens).toContain("size-range:0.8-1.2:kg");
+  });
+});

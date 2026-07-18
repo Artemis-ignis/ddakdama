@@ -151,13 +151,13 @@ export const widgetHtml = `<!doctype html>
       --page:transparent;--surface:#fff;--surface-soft:#f7f8fa;--surface-blue:#f2f7ff;
       --text:#191f28;--text-sub:#6b7684;--text-muted:#8b95a1;--line:#e5e8eb;
       --input:#fff;--primary:#3182f6;--primary-strong:#1769e0;--primary-soft:#e8f3ff;
-      --success:#16883f;--success-bg:#edf8f1;--danger:#e42939;--shadow:0 12px 32px rgba(0,23,51,.07)
+      --success:#16883f;--success-bg:#edf8f1;--warning:#b56a00;--danger:#e42939;--shadow:0 12px 32px rgba(0,23,51,.07)
     }
     :root[data-theme="dark"]{
       --surface:#17191c;--surface-soft:#212429;--surface-blue:#17243a;
       --text:#f2f4f6;--text-sub:#c7cbd1;--text-muted:#9199a4;--line:#30343a;
       --input:#23272c;--primary:#4d91ff;--primary-strong:#82b2ff;--primary-soft:#172d4d;
-      --success:#5bd686;--success-bg:#163224;--danger:#ff6b78;--shadow:0 16px 42px rgba(0,0,0,.28)
+      --success:#5bd686;--success-bg:#163224;--warning:#ffc55c;--danger:#ff6b78;--shadow:0 16px 42px rgba(0,0,0,.28)
     }
     *{box-sizing:border-box}html{color-scheme:light dark}body{margin:0;padding:10px;background:var(--page);color:var(--text);font-synthesis:none}
     .wrap{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:var(--shadow);overflow:hidden}
@@ -170,7 +170,7 @@ export const widgetHtml = `<!doctype html>
     .summary{display:flex;justify-content:space-between;background:var(--surface-blue);padding:13px 14px;border-radius:15px;font-weight:850;color:var(--primary-strong)}
     .items{max-height:min(52vh,520px);margin:12px -4px 0;padding:0 4px 4px;display:grid;gap:8px;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}.item{padding:13px;border:1px solid var(--line);border-radius:14px;background:var(--surface);transition:background .14s ease,border-color .14s ease}.item:hover{background:var(--surface-soft)}.item b{display:block;font-size:13px;line-height:1.45}
     .items:empty{display:none}
-    .specs{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.specs label{display:flex;align-items:center;gap:5px;color:var(--text-muted);font-size:10px;font-weight:650}
+    .specs{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.specs label{display:flex;align-items:center;gap:5px;color:var(--text-muted);font-size:10px;font-weight:650}.warnings{display:grid;gap:5px;margin:10px 0 0}.warning{color:var(--warning);font-size:11px;line-height:1.45}
     .specs input{width:60px;border:1px solid var(--line);border-radius:10px;padding:8px;color:var(--text);background:var(--input);font:inherit;outline:none}.specs input:focus,.pair input:focus{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 20%,transparent)}
     .connect-card{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:17px;background:var(--surface-soft)}.connect-title{margin:0 0 4px;font-size:13px;font-weight:850}.connect-help{margin:0 0 11px;color:var(--text-muted);font-size:11px;line-height:1.5}
     .pair{display:flex;gap:8px}.pair input{min-width:0;flex:1;border:1px solid var(--line);border-radius:12px;padding:11px;color:var(--text);background:var(--input);font-size:16px;letter-spacing:4px;text-align:center;outline:none}
@@ -180,7 +180,7 @@ export const widgetHtml = `<!doctype html>
     .status.success{color:var(--success)}.status.success::before{background:var(--success)}.status.error{color:var(--danger)}.status.error::before{background:var(--danger)}.status.busy::before{background:var(--primary);animation:pulse 1s infinite}
     .received{display:none;margin-top:12px;padding:12px;border-radius:14px;background:var(--success-bg);color:var(--success);font-size:12px;font-weight:750}.received.show{display:block}
     @keyframes pulse{50%{opacity:.3}}
-    @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--surface:#17191c;--surface-soft:#212429;--surface-blue:#17243a;--text:#f2f4f6;--text-sub:#c7cbd1;--text-muted:#9199a4;--line:#30343a;--input:#23272c;--primary:#4d91ff;--primary-strong:#82b2ff;--primary-soft:#172d4d;--success:#5bd686;--success-bg:#163224;--danger:#ff6b78;--shadow:0 16px 42px rgba(0,0,0,.28)}}
+    @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--surface:#17191c;--surface-soft:#212429;--surface-blue:#17243a;--text:#f2f4f6;--text-sub:#c7cbd1;--text-muted:#9199a4;--line:#30343a;--input:#23272c;--primary:#4d91ff;--primary-strong:#82b2ff;--primary-soft:#172d4d;--success:#5bd686;--success-bg:#163224;--warning:#ffc55c;--danger:#ff6b78;--shadow:0 16px 42px rgba(0,0,0,.28)}}
     @media(max-width:420px){body{padding:8px}.wrap{padding:15px}.head{align-items:center}.eyebrow{display:none}.connection{padding:6px 8px}.actions{grid-template-columns:1fr}.secondary{width:100%}}
   </style>
 </head>
@@ -405,10 +405,13 @@ export const widgetHtml = `<!doctype html>
       updateSendButton();
     };
     const field = (index, name, label, value) => value == null ? "" : '<label>' + label + '<input type="number" min="1" max="9999" data-index="' + index + '" data-field="' + name + '" value="' + escapeHtml(value) + '"></label>';
+    const renderWarnings = (item) => Array.isArray(item.parseWarnings) && item.parseWarnings.length
+      ? '<div class="warnings">' + item.parseWarnings.map((warning) => '<span class="warning">' + escapeHtml(String(warning)) + '</span>').join("") + '</div>'
+      : "";
     const render = () => {
       const items = plan.items || [];
       summary();
-      $("#items").innerHTML = items.map((item, index) => '<div class="item"><b>' + escapeHtml(item.productName || item.rawText) + '</b><div class="specs">' + field(index, "unitSizeValue", "용량", item.unitSizeValue) + field(index, "strengthValue", "함량", item.strengthValue) + field(index, "packageContentCount", "포장", item.packageContentCount) + field(index, "requestedPhysicalUnits", "수량", item.requestedPhysicalUnits) + '</div></div>').join("");
+      $("#items").innerHTML = items.map((item, index) => '<div class="item"><b>' + escapeHtml(item.productName || item.rawText) + '</b><div class="specs">' + field(index, "unitSizeValue", "용량", item.unitSizeValue) + field(index, "strengthValue", "함량", item.strengthValue) + field(index, "packageContentCount", "포장", item.packageContentCount) + field(index, "requestedPhysicalUnits", "수량", item.requestedPhysicalUnits) + '</div>' + renderWarnings(item) + '</div>').join("");
     };
 
     let rpcId = 0;

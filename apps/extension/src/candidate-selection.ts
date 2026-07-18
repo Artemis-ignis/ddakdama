@@ -10,6 +10,35 @@ export type CandidateForSelection = {
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^0-9a-z가-힣]/gu, "");
 
+/**
+ * A request such as "제로 또는 저당 아이스크림 바" is a preference set, not
+ * a literal product title. Keep the shared product words mandatory while
+ * accepting either of the alternatives. Exact size/package checks still run
+ * below, so this only relaxes the human-facing wording, not the cart guard.
+ */
+const matchesProductIdentity = (title: string, line: ShoppingRequestLine) => {
+  if (!line.productName.includes("또는")) {
+    return titleContainsProductIdentity(title, line.brand, line.productName);
+  }
+
+  const [before, after] = line.productName.split(/\s+또는\s+/u, 2);
+  if (!before || !after) return titleContainsProductIdentity(title, line.brand, line.productName);
+
+  const beforeTokens = before.trim().split(/\s+/u).filter(Boolean);
+  const afterTokens = after.trim().split(/\s+/u).filter(Boolean);
+  const requiredTokens = [
+    ...beforeTokens.slice(1),
+    ...afterTokens.slice(1),
+  ].map(normalize).filter(Boolean);
+  const alternativeTokens = [beforeTokens[0], afterTokens[0]].map(normalize).filter(Boolean);
+  const normalizedTitle = normalize(title);
+  const brandToken = line.brand ? normalize(line.brand) : "";
+
+  return (!brandToken || normalizedTitle.includes(brandToken))
+    && requiredTokens.every((token) => normalizedTitle.includes(token))
+    && alternativeTokens.some((token) => normalizedTitle.includes(token));
+};
+
 const containsSpec = (title: string, value: number | null, unit: string | null) =>
   !value || !unit || normalize(title).includes(normalize(`${value}${unit}`));
 
@@ -38,7 +67,7 @@ export function candidateMatchesRequest(
 ): boolean {
   if (!Number.isInteger(candidate.unitsPerPackage) || candidate.unitsPerPackage <= 0) return false;
   if (line.requestedPhysicalUnits % candidate.unitsPerPackage !== 0) return false;
-  if (!titleContainsProductIdentity(candidate.title, line.brand, line.productName)) return false;
+  if (!matchesProductIdentity(candidate.title, line)) return false;
   const range = rangeFor(line);
   if (range ? !candidateSizeInsideRange(candidate.title, range) : !containsSpec(candidate.title, line.unitSizeValue, line.unitSizeUnit)) return false;
   if (!containsSpec(candidate.title, line.strengthValue, line.strengthUnit)) return false;
