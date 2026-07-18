@@ -81,3 +81,35 @@ describe("GPT normalized shopping-list contract", () => {
     expect(lines[3].variantTokens).toContain("size-range:0.8-1.2:kg");
   });
 });
+
+describe("real-world summer grocery list regression", () => {
+  const lines = parseShoppingList([
+    "생수 1L × 12병, 1묶음",
+    "제로 탄산음료 355ml × 12캔, 1박스",
+    "이온음료 500ml × 6병, 1묶음",
+    "냉면 2인분 구성, 총 4인분",
+    "메밀소바 2인분 구성, 총 4인분",
+    "비빔면 130g 내외 × 5봉, 1팩",
+    "냉동 치킨텐더 1kg 내외, 1봉",
+    "냉동 군만두 1kg 내외, 1봉",
+    "제로 또는 저당 아이스크림 바 70~100ml × 10개, 1세트",
+    "개별포장 젤리 또는 과일젤리 20~30g × 10개, 1봉",
+    "수박 5kg 1개",
+  ].join("\n"));
+
+  it("keeps every requested product as a searchable plan row", () => {
+    expect(lines).toHaveLength(11);
+    expect(lines.map((line) => line.productName)).toEqual([
+      "생수", "제로 탄산음료", "이온음료", "냉면", "메밀소바", "비빔면",
+      "냉동 치킨텐더", "냉동 군만두", "제로 또는 저당 아이스크림 바",
+      "개별포장 젤리 또는 과일젤리", "수박",
+    ]);
+  });
+
+  it("separates package contents, servings and cart quantities", () => {
+    expect(lines.map((line) => line.requestedPhysicalUnits)).toEqual([12, 12, 6, 2, 2, 5, 1, 1, 10, 10, 1]);
+    expect(lines.map((line) => line.requestedPurchaseUnits)).toEqual([1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1]);
+    expect(lines[3]).toMatchObject({ packageContentCount: 2, packageContentUnit: "인분" });
+    expect(lines[4]).toMatchObject({ packageContentCount: 2, packageContentUnit: "인분" });
+  });
+});
