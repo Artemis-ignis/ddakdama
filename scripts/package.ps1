@@ -8,7 +8,10 @@ function Assert-StagingPath([string]$Path) {
     throw "Packaging path is outside the workspace: $pathFull"
   }
 }
-$productionServerOrigin = $env:VITE_DDAKDAMA_SERVER_ORIGIN
+# The production extension has the same public Worker as its runtime fallback.
+# Keeping this default here prevents a locally-set development value from being
+# required just to create a reviewable public package.
+$productionServerOrigin = if ($env:VITE_DDAKDAMA_SERVER_ORIGIN) { $env:VITE_DDAKDAMA_SERVER_ORIGIN } else { "https://ddakdama.ddakdama.workers.dev" }
 $parsedServerOrigin = $null
 if (-not $productionServerOrigin -or -not [Uri]::TryCreate($productionServerOrigin, [UriKind]::Absolute, [ref]$parsedServerOrigin) -or $parsedServerOrigin.Scheme -ne "https") {
   throw "Public packaging requires a stable HTTPS VITE_DDAKDAMA_SERVER_ORIGIN, for example https://ddakdama.example.workers.dev"
@@ -94,7 +97,7 @@ Get-ChildItem -Path $stage -Recurse -Directory -Filter .generated | Remove-Item 
 Get-ChildItem -Path $stage -Recurse -Directory -Filter .wrangler | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -Directory -Filter .wrangler-dist | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -Directory -Filter .data | Remove-Item -Recurse -Force
-Get-ChildItem -Path $stage -Recurse -File -Include .env,*.log | Remove-Item -Force
+Get-ChildItem -Path $stage -Recurse -File | Where-Object { $_.Name -like ".env*" -or $_.Extension -eq ".log" } | Remove-Item -Force
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $fullZip
 Remove-Item -LiteralPath $stage -Recurse -Force
 Copy-Item -Force (Join-Path $root "RELEASE_NOTES.md") -Destination (Join-Path $out "RELEASE_NOTES.md")

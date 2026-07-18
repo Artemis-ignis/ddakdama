@@ -2,13 +2,7 @@
 setlocal
 cd /d "%~dp0"
 if not exist "apps\extension\manifest.json" goto :missing
-if not exist "apps\extension\dist\index.html" goto :build
-if not exist "apps\extension\dist\background.js" goto :build
-if not exist "apps\extension\dist\content.js" goto :build
-goto :ready
-
-:build
-call pnpm build
+call pnpm --filter @ddakdama/extension build
 if errorlevel 1 goto :fail
 if not exist "apps\extension\manifest.json" goto :missing
 if not exist "apps\extension\dist\index.html" goto :incomplete

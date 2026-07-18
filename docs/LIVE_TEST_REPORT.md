@@ -1,6 +1,6 @@
 # 라이브 테스트 보고서
 
-검증일: 2026-07-14
+검증일: 2026-07-16
 
 ## VERIFIED
 
@@ -59,3 +59,61 @@
 4. 사용자 승인 후 실제 쿠팡 장바구니 수량 delta를 검증합니다.
 
 공식 문서: https://developers.openai.com/apps-sdk/deploy
+
+## 2026-07-16 재검증
+
+### VERIFIED
+
+- 공개 Worker v8 위젯 배포: `ui://widget/ddakdama-cart-v8.html`
+- 기존 v7·v6·v5 위젯 URI가 v8과 같은 리소스를 반환하는 하위 호환 확인
+- 공개 `/health`: `ok=true`, `status=available`
+- 공개 MCP에서 페어링 전 `connected=false`, 실제 GPT 앱 도구 연결 후 `connected=true`, 연결 해제 후 기기 토큰 `401` 확인
+- 같은 위젯 nonce로 페어링 응답을 재시도할 때 동일한 연결 grant를 복구하고 다른 nonce는 거부
+- 공개 MCP에서 고정 목록 5종·실물 7개 파싱, 계획 전송, 기기 수신, ACK, 상태 확인, 연결 해제와 토큰 폐기
+- Cloudflare Worker 배포 버전 `9f29a244-b8ad-4ccd-a94b-77baab0eb12c`
+- 확장 프로그램·서버·Worker 린트, 타입 검사, 프로덕션 빌드 통과
+- 단위 테스트 69개 통과: core 11, extension 30, server 24, worker 4
+- Chromium UI·확장 검증 35개 통과: preview 22, extension fixture 12, 공개 서버 실연결 1
+- 라이트·다크·시스템 테마, 후보 변경, 상품 제외·재포함, 수량 변경, 가격 합계, 재연결 코드, 부분 실패, 새 목록 시작 화면 검증
+- 완료 화면에서 `쿠팡 장바구니 보기`와 `새 목록 담기`를 별도 동작으로 제공하고 자동 탭 전환 제거
+- 공개 배포 ZIP 5종 생성 및 `.env`, 로그, `node_modules` 미포함 확인
+- `pnpm audit --audit-level high`: 알려진 취약점 0개
+
+### FIXTURE_VERIFIED
+
+- 실제 Chromium 확장 환경에서 상세 가격 검증, 묶음 수량 delta, 재개 시 중복 추가 방지, 비정상 거대 가격 차단
+- 후보가 없을 때 행별 검색어 수정과 수동 후보 선택, 선택 단계에서 품목 제외·재포함
+- 완료 화면 가격 합계, 장바구니 바로가기, 새 목록 시작
+
+### NOT VERIFIED
+
+- 새로 등록할 ChatGPT 플러그인 UI에서 v8 위젯을 직접 불러온 최종 화면
+- 로그인된 실제 쿠팡 장바구니에서 이번 빌드의 상품별 수량 delta
+- 쿠팡 파트너스 실제 전환 및 수수료 인정
+
+## 2026-07-17 최종 재검증
+
+이 절은 위의 2026-07-16 상태를 대체하는 최신 결과입니다.
+
+### VERIFIED
+
+- 공개 MCP 현재 위젯 `ui://widget/ddakdama-cart-v12.html`과 기존 v11~v5 호환 리소스 응답
+- 실제 ChatGPT 공개 v12 위젯에서 고정 목록 5종·실물 7개 렌더링, 6자리 페어링, 계획 전송, 확장 수신 상태, 연결 해제 확인
+- 실제 MV3 확장 프로그램이 공개 MCP에서 연결 코드를 발급하고 동일 코드로 페어링한 뒤 5종·실물 7개 목록을 수신·ACK하고 연결 해제 후 device token이 401이 되는 E2E
+- 실제 Side Panel UI에서 후보 검색, 첫 품목 제외·재포함, 상세검증 5/5, 5종 담기, 92,250원 완료 합계, 장바구니 열기, 새 목록 시작 흐름
+- 프로덕션 `apps/extension/dist`와 테스트 `output/extension-test-dist` 빌드 분리 및 설치 스크립트의 항상 최신 빌드 동작
+- ESLint, TypeScript, 프로덕션 빌드 통과
+- Vitest 72/72 통과: core 11, extension 30, server 27, worker 4
+- Playwright 실제 Chromium 38/38 통과: preview 22, extension fixture·공개 서버 15, ChatGPT 위젯 1
+- `pnpm audit --prod`: 알려진 취약점 0개
+
+### FIXTURE_VERIFIED
+
+- 실제 background 상태 머신의 상세가격 재검증, 묶음 수량 계산, 장바구니 수량 delta, 서비스 워커 재개 시 중복 추가 방지
+- 상품 제외·재포함, 가격 합계, 완료 후 장바구니 열기와 새 목록 시작
+- 부분 실패, 가격 미확인, 규격 불일치, 필수 옵션, 로그인·보안 확인 분기
+
+### NOT VERIFIED
+
+- 사용자의 로그인된 Chrome 프로필에서 이번 최신 `dist`를 다시 로드한 뒤 실제 쿠팡 장바구니를 변경하고 productId별 수량 delta를 확인하는 마지막 라이브 실행
+- 승인된 쿠팡 파트너스 API 키로 실제 Product Search·Deep Link·전환을 확인하는 작업

@@ -123,7 +123,7 @@ const stateFromDevice = (env: Env, value: string) => {
 };
 
 const createStore = (env: Env): McpStore => ({
-  async completePairing(code, pairingClientKey = "unknown") {
+  async completePairing(code, pairingClientKey = "unknown", pairingNonce) {
     const normalized = normalizePairingCode(code);
     if (!normalized) return null;
     if (!(await pairingRateState(env).allowPairingAttempt(pairingClientKey, 30))) {
@@ -133,6 +133,7 @@ const createStore = (env: Env): McpStore => ({
       normalized,
       pairingClientKey,
       ttl(env.CONNECTION_GRANT_TTL_SECONDS, 2_592_000),
+      pairingNonce,
     );
   },
   async authenticateGrant(grant) {
@@ -240,6 +241,16 @@ async function handleApi(request: Request, env: Env, url: URL) {
       ttl(env.DEVICE_TOKEN_TTL_SECONDS, 2_592_000),
     );
     return responseJson(request, env, pairing, 201);
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/pairing/status") {
+    const token = bearer(request);
+    const state = stateFromOpaque(env, token);
+    const deviceId = state ? await state.authenticateDevice(token) : null;
+    if (!state || !deviceId) {
+      return responseJson(request, env, { error: "unauthorized" }, 401);
+    }
+    return responseJson(request, env, await state.pairingStatus(deviceId));
   }
 
   if (request.method === "POST" && url.pathname === "/api/support") {
@@ -427,6 +438,7 @@ export default {
           widgetHtml,
           widgetUri: WIDGET_URI,
           legacyWidgetUris: LEGACY_WIDGET_URIS,
+          widgetDomain: url.origin,
         });
         return createMcpHandler(server, {
           route: "/mcp",

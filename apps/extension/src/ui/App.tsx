@@ -9,9 +9,15 @@ import {
   CircleHelp,
   Link2,
   LoaderCircle,
+  Minus,
+  MinusCircle,
+  Monitor,
+  Moon,
+  Plus,
   RefreshCw,
   Search,
   ShoppingBag,
+  Sun,
   Unlink,
 } from "lucide-react";
 import { parseShoppingList, type ShoppingRequestLine } from "@ddakdama/core";
@@ -20,6 +26,7 @@ import {
   candidateMatchesRequest,
   selectBestCandidate,
 } from "../candidate-selection.js";
+import { SERVER_ORIGIN } from "../config.js";
 
 const SAMPLE = `닥터지 레드 블레미쉬 포 맨 진정 올인원 150ml
 스킨1004 히알루 시카 워터핏 선 세럼 50ml 2개
@@ -27,8 +34,9 @@ const SAMPLE = `닥터지 레드 블레미쉬 포 맨 진정 올인원 150ml
 TS 골드플러스 샴푸 500g
 닥터스베스트 고흡수 마그네슘 100mg 240정`;
 
-const SERVER_ORIGIN = (import.meta.env.VITE_DDAKDAMA_SERVER_ORIGIN || "http://localhost:8787").replace(/\/$/, "");
 const AFFILIATE_ENABLED = import.meta.env.VITE_DDAKDAMA_AFFILIATE_ENABLED === "true";
+const CHATGPT_APP_URL = import.meta.env.VITE_DDAKDAMA_CHATGPT_APP_URL?.trim() || "https://chatgpt.com/apps";
+const HAS_PUBLIC_CHATGPT_APP_LINK = Boolean(import.meta.env.VITE_DDAKDAMA_CHATGPT_APP_URL?.trim());
 const STEP_LABELS = ["목록", "상품 확인", "담기 전 확인", "완료"];
 
 export type SearchCandidate = {
@@ -40,6 +48,7 @@ export type SearchCandidate = {
   currentPrice: number | null;
   unitsPerPackage: number;
   productUrl: string;
+  navigationUrl?: string;
   imageUrl: string | null;
   rocketDelivery: boolean;
   rating: number | null;
@@ -49,18 +58,22 @@ export type SearchCandidate = {
 };
 
 export type SearchGroup = { requestLineId: string; results: SearchCandidate[]; error?: string };
+export type ThemeMode = "system" | "light" | "dark";
 export type PreviewState = {
   groups?: SearchGroup[];
   step?: number;
   preflight?: boolean;
   preflightResults?: Array<{ id: string; status: string; verifiedPrice?: number }>;
   cartResults?: Array<{ id: string; status: string }>;
+  excludedIds?: string[];
   notice?: string;
+  theme?: ThemeMode;
 };
 
 type CartJob = {
   id: string;
   productUrl: string;
+  navigationUrl?: string;
   productId: string;
   vendorItemId: string | null;
   itemId: string | null;
@@ -79,6 +92,7 @@ type CartResult = {
   status: string;
   productUrl?: string;
   expectedProductName?: string;
+  verifiedTitle?: string;
   beforeQuantity?: number;
   afterQuantity?: number;
   verifiedPrice?: number;
@@ -92,6 +106,28 @@ type CartResult = {
 
 type RecoverableJournal = { runId: string; jobs: CartJob[]; results: CartResult[] };
 type PairingState = "idle" | "code" | "connected" | "unavailable";
+type PairingStatus = { connected: boolean; grantExpiresAt: number | null };
+
+const pairingStorageKeys = [
+  "ddakdama-device-id",
+  "ddakdama-device-token",
+  "ddakdama-pairing-code",
+  "ddakdama-pairing-expires-at",
+] as const;
+
+const fetchPairingStatus = async (token: string): Promise<PairingStatus> => {
+  const response = await fetch(`${SERVER_ORIGIN}/api/pairing/status`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  if (response.status === 401) throw new Error("PAIRING_UNAUTHORIZED");
+  if (!response.ok) throw new Error("PAIRING_STATUS_FAILED");
+  const data = await response.json() as Partial<PairingStatus>;
+  if (typeof data.connected !== "boolean") throw new Error("INVALID_PAIRING_STATUS");
+  return {
+    connected: data.connected,
+    grantExpiresAt: typeof data.grantExpiresAt === "number" ? data.grantExpiresAt : null,
+  };
+};
 
 const physicalUnits = (lines: ShoppingRequestLine[]) =>
   lines.reduce((sum, line) => sum + line.requestedPhysicalUnits, 0);
@@ -150,6 +186,14 @@ const priceBreakdown = (price: number, line: ShoppingRequestLine, item: SearchCa
     : `${subtotal.toLocaleString()}원`;
 };
 
+const plausibleCartSubtotal = (result: CartResult) => {
+  const value = result.cartAddedSubtotal;
+  if (!Number.isSafeInteger(value) || Number(value) < 0 || Number(value) > 1_000_000_000) return undefined;
+  const expected = result.expectedSubtotal;
+  if (expected !== undefined && value! > Math.max(expected * 3, expected + 100_000)) return undefined;
+  return value;
+};
+
 const normalizeSpecText = (value: string) => value.toLowerCase().replace(/[^0-9a-z가-힣]/gu, "");
 
 const manualSelectionWarnings = (line: ShoppingRequestLine, item: SearchCandidate) => {
@@ -180,9 +224,11 @@ const resultMessage = (result: CartResult, line?: ShoppingRequestLine, item?: Se
   const parts = [`${packageLabel} · 실물 ${line.requestedPhysicalUnits}개`];
   const verifiedSubtotal = result.expectedSubtotal ?? (result.verifiedPrice ? result.verifiedPrice * quantity : null);
   if (verifiedSubtotal !== null) parts.push(`확인가 ${verifiedSubtotal.toLocaleString()}원`);
-  if (result.cartAddedSubtotal !== undefined && result.cartAddedSubtotal !== verifiedSubtotal) parts.push(`장바구니 확인 ${result.cartAddedSubtotal.toLocaleString()}원`);
-  if (result.priceDifference !== undefined) {
-    parts.push(`차액 ${result.priceDifference > 0 ? "+" : ""}${result.priceDifference.toLocaleString()}원`);
+  const cartSubtotal = plausibleCartSubtotal(result);
+  if (cartSubtotal !== undefined && cartSubtotal !== verifiedSubtotal) parts.push(`장바구니 확인 ${cartSubtotal.toLocaleString()}원`);
+  if (cartSubtotal !== undefined && verifiedSubtotal !== null && cartSubtotal !== verifiedSubtotal) {
+    const difference = cartSubtotal - verifiedSubtotal;
+    parts.push(`차액 ${difference > 0 ? "+" : ""}${difference.toLocaleString()}원`);
   }
   return parts.join(" · ");
 };
@@ -219,12 +265,16 @@ function ProductImage({ item }: { item: SearchCandidate | null }) {
 export function App({ preview }: { preview?: PreviewState } = {}) {
   const initialInput = (preview?.step ?? 1) > 1 ? SAMPLE : "";
   const [input, setInput] = useState(initialInput);
+  const [appendInput, setAppendInput] = useState("");
   const [lines, setLines] = useState(() => parseShoppingList(initialInput));
   const [expanded, setExpanded] = useState(-1);
   const [step, setStep] = useState(preview?.step ?? 1);
   const [notice, setNotice] = useState<string | null>(preview?.notice ?? null);
   const [groups, setGroups] = useState<SearchGroup[]>(preview?.groups ?? []);
   const [selectedIds, setSelectedIds] = useState<Record<string, string>>({});
+  const [excludedIds, setExcludedIds] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries((preview?.excludedIds ?? []).map((id) => [id, true])),
+  );
   const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
   const [searchingLineId, setSearchingLineId] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
@@ -235,28 +285,96 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   const [adding, setAdding] = useState(false);
   const [cartResults, setCartResults] = useState<CartResult[]>(preview?.cartResults ?? []);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairingExpiresAt, setPairingExpiresAt] = useState<number | null>(null);
   const [pairingState, setPairingState] = useState<PairingState>("idle");
   const [pairingBusy, setPairingBusy] = useState(false);
   const [recoverable, setRecoverable] = useState<RecoverableJournal | null>(null);
+  const [theme, setTheme] = useState<ThemeMode>(preview?.theme ?? "system");
   const cartRunId = useRef<string | null>(null);
 
   useEffect(() => {
+    if (preview?.theme || typeof chrome === "undefined" || !chrome.storage?.local) return;
+    void chrome.storage.local.get(["ddakdama-theme"]).then((stored) => {
+      const saved = stored["ddakdama-theme"];
+      if (saved === "light" || saved === "dark" || saved === "system") setTheme(saved);
+    }).catch(() => undefined);
+  }, [preview?.theme]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "system") delete root.dataset.theme;
+    else root.dataset.theme = theme;
+    root.style.colorScheme = theme === "system" ? "light dark" : theme;
+    if (!preview?.theme && typeof chrome !== "undefined" && chrome.storage?.local) {
+      void chrome.storage.local.set({ "ddakdama-theme": theme }).catch(() => undefined);
+    }
+  }, [preview?.theme, theme]);
+
+
+  useEffect(() => {
     if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) return;
+    let cancelled = false;
     void chrome.runtime.sendMessage({ type: "DDAKDAMA_GET_CART_JOURNAL" })
       .then((response) => setRecoverable(response?.journal ?? null))
       .catch(() => undefined);
-    void chrome.storage.local.get(["ddakdama-device-token", "ddakdama-pairing-code", "ddakdama-pairing-expires-at"]).then((stored) => {
-      if (!stored["ddakdama-device-token"]) return;
+    void chrome.storage.local.get([...pairingStorageKeys]).then(async (stored) => {
+      const token = String(stored["ddakdama-device-token"] ?? "");
+      if (!token || cancelled) return;
       const code = String(stored["ddakdama-pairing-code"] ?? "");
       const expiresAt = Number(stored["ddakdama-pairing-expires-at"] ?? 0);
-      if (/^\d{6}$/.test(code) && expiresAt > Date.now()) {
+      const activeCode = /^\d{6}$/.test(code) && expiresAt > Date.now();
+      if (activeCode) {
         setPairingCode(code);
+        setPairingExpiresAt(expiresAt);
         setPairingState("code");
-      } else {
-        setPairingState("connected");
+      } else if (code) {
+        await fetch(`${SERVER_ORIGIN}/api/device/revoke`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${token}` },
+        }).catch(() => undefined);
+        await chrome.storage.local.remove([...pairingStorageKeys]);
+        if (cancelled) return;
+        setPairingState("idle");
+        return;
       }
+      try {
+        const status = await fetchPairingStatus(token);
+        if (cancelled) return;
+        if (status.connected) {
+          await chrome.storage.local.remove(["ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
+          setPairingCode(null);
+          setPairingExpiresAt(null);
+          setPairingState("connected");
+        } else if (!activeCode) {
+          await chrome.storage.local.remove([...pairingStorageKeys]);
+          setPairingState("idle");
+        }
+      } catch {
+        if (!cancelled && !activeCode) setPairingState("unavailable");
+      }
+    }).catch(() => {
+      if (!cancelled) setPairingState("unavailable");
     });
+    return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (pairingState !== "code" || !pairingExpiresAt) return;
+    const remaining = pairingExpiresAt - Date.now();
+    const expirePairing = () => {
+      void chrome.storage.local.remove(["ddakdama-device-id", "ddakdama-device-token", "ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
+      setPairingCode(null);
+      setPairingExpiresAt(null);
+      setPairingState("idle");
+      setNotice("연결 코드가 만료됐습니다. 새 6자리 코드를 만들어 주세요.");
+    };
+    if (remaining <= 0) {
+      expirePairing();
+      return;
+    }
+    const timer = window.setTimeout(expirePairing, remaining);
+    return () => window.clearTimeout(timer);
+  }, [pairingExpiresAt, pairingState]);
 
   useEffect(() => {
     if (!notice) return;
@@ -273,20 +391,23 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     [lines, groups, selectedIds],
   );
 
-  const selectedCount = lines.filter((line) => selected[line.id]).length;
-  const pricedSelectedCount = lines.filter((line) => Number(selected[line.id]?.currentPrice) > 0).length;
-  const searchTotal = lines.reduce((sum, line) => {
+  const activeLines = useMemo(() => lines.filter((line) => !excludedIds[line.id]), [lines, excludedIds]);
+  const activeLineIds = useMemo(() => new Set(activeLines.map((line) => line.id)), [activeLines]);
+  const excludedCount = lines.length - activeLines.length;
+  const selectedCount = activeLines.filter((line) => selected[line.id]).length;
+  const pricedSelectedCount = activeLines.filter((line) => Number(selected[line.id]?.currentPrice) > 0).length;
+  const searchTotal = activeLines.reduce((sum, line) => {
     const item = selected[line.id];
     const manuallySelected = Boolean(item && selectedIds[line.id] === item.id);
     return sum + (item?.currentPrice ?? 0) * (item ? purchaseQuantity(line, item, manuallySelected) : 0);
   }, 0);
-  const preflightReadyCount = preflightResults.filter((result) => result.status === "READY").length;
-  const preflightIssueCount = preflightResults.filter((result) => result.status !== "READY").length;
-  const preflightReadyIds = new Set(preflightResults.filter((result) => result.status === "READY").map((result) => result.id));
-  const preflightReadyPhysicalUnits = lines.reduce((sum, line) => sum + (preflightReadyIds.has(line.id) ? line.requestedPhysicalUnits : 0), 0);
+  const preflightReadyCount = preflightResults.filter((result) => activeLineIds.has(result.id) && result.status === "READY").length;
+  const preflightIssueCount = preflightResults.filter((result) => activeLineIds.has(result.id) && result.status !== "READY").length;
+  const preflightReadyIds = new Set(preflightResults.filter((result) => activeLineIds.has(result.id) && result.status === "READY").map((result) => result.id));
+  const preflightReadyPhysicalUnits = activeLines.reduce((sum, line) => sum + (preflightReadyIds.has(line.id) ? line.requestedPhysicalUnits : 0), 0);
   const verifiedTotal = preflightResults.reduce((sum, result) => {
-    if (result.status !== "READY") return sum;
-    const line = lines.find((candidate) => candidate.id === result.id);
+    if (!activeLineIds.has(result.id) || result.status !== "READY") return sum;
+    const line = activeLines.find((candidate) => candidate.id === result.id);
     const item = selected[result.id];
     if (!line || !item) return sum;
     return sum + (result.verifiedPrice ?? 0) * purchaseQuantity(line, item, selectedIds[line.id] === item.id);
@@ -300,14 +421,23 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     return sum + result.verifiedPrice * purchaseQuantity(line, item, selectedIds[line.id] === item.id);
   }, 0);
   const completedCartTotalKnown = completedSuccessResults.length > 0
-    && completedSuccessResults.every((result) => result.cartAddedSubtotal !== undefined);
-  const completedCartTotal = completedSuccessResults.reduce((sum, result) => sum + (result.cartAddedSubtotal ?? 0), 0);
+    && completedSuccessResults.every((result) => plausibleCartSubtotal(result) !== undefined);
+  const completedCartTotal = completedSuccessResults.reduce((sum, result) => sum + (plausibleCartSubtotal(result) ?? 0), 0);
+
+  const displayProductTitle = (line?: ShoppingRequestLine, result?: CartResult, item?: SearchCandidate | null) =>
+    result?.verifiedTitle?.trim()
+    || result?.expectedProductName?.trim()
+    || item?.title?.trim()
+    || line?.productName
+    || result?.id
+    || "상품";
 
   const resetAfterInput = (nextLines: ShoppingRequestLine[]) => {
     cartRunId.current = null;
     setLines(nextLines);
     setGroups([]);
     setSelectedIds({});
+    setExcludedIds({});
     setSearchQueries({});
     setSearchingLineId(null);
     setPreflight(false);
@@ -363,13 +493,14 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     }
   };
 
-  const makeJobs = (): CartJob[] => lines.flatMap((line) => {
+  const makeJobs = (): CartJob[] => activeLines.flatMap((line) => {
     const item = selected[line.id];
     if (!item) return [];
     const manuallySelected = selectedIds[line.id] === item.id;
     return [{
       id: line.id,
       productUrl: item.productUrl,
+      navigationUrl: item.navigationUrl,
       productId: item.productId,
       vendorItemId: item.vendorItemId,
       itemId: item.itemId,
@@ -385,6 +516,39 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       status: "QUEUED" as const,
     }];
   });
+
+  const clearPreparedCartState = () => {
+    cartRunId.current = null;
+    setPreflight(false);
+    setPreflightResults([]);
+    setCartResults([]);
+  };
+
+  const excludeLine = (line: ShoppingRequestLine, index: number) => {
+    clearPreparedCartState();
+    setExcludedIds((current) => ({ ...current, [line.id]: true }));
+    if (expanded === index) setExpanded(-1);
+    setNotice(`${line.productName}을 이번 장바구니에서 뺐습니다. 언제든 다시 포함할 수 있어요.`);
+  };
+
+  const includeLine = (line: ShoppingRequestLine) => {
+    clearPreparedCartState();
+    setExcludedIds((current) => {
+      const next = { ...current };
+      delete next[line.id];
+      return next;
+    });
+    setNotice(`${line.productName}을 다시 담기 대상에 포함했습니다.`);
+  };
+
+  const updateRequestedQuantity = (line: ShoppingRequestLine, delta: number) => {
+    const nextQuantity = Math.max(1, Math.min(99, line.requestedPhysicalUnits + delta));
+    if (nextQuantity === line.requestedPhysicalUnits) return;
+    clearPreparedCartState();
+    setLines((current) => current.map((item) => item.id === line.id
+      ? { ...item, requestedPhysicalUnits: nextQuantity, requestedPurchaseUnits: nextQuantity }
+      : item));
+  };
 
   const retryCandidateSearch = async (line: ShoppingRequestLine) => {
     const query = (searchQueries[line.id] ?? line.productName).trim();
@@ -424,8 +588,35 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     }
   };
 
+  const refreshActiveCandidates = async () => {
+    if (searching || !activeLines.length) return;
+    setSearching(true);
+    setNotice(null);
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "DDAKDAMA_SEARCH_ALL", items: activeLines });
+      if (!response?.ok || !Array.isArray(response.output)) throw new Error(response?.error ?? "SEARCH_FAILED");
+      const output = response.output as SearchGroup[];
+      const outputIds = new Set(output.map((group) => group.requestLineId));
+      if (output.length !== activeLines.length || activeLines.some((line) => !outputIds.has(line.id))) throw new Error("INCOMPLETE_SEARCH_RESPONSE");
+      setGroups((current) => [
+        ...current.filter((group) => !activeLineIds.has(group.requestLineId)),
+        ...output,
+      ]);
+      setSelectedIds((current) => Object.fromEntries(Object.entries(current).filter(([lineId]) => !activeLineIds.has(lineId))));
+      const exact = activeLines.filter((line) => selectBestCandidate(line, output.find((group) => group.requestLineId === line.id)?.results ?? [])).length;
+      setExpanded(lines.findIndex((line) => activeLineIds.has(line.id) && !selectBestCandidate(line, output.find((group) => group.requestLineId === line.id)?.results ?? [])));
+      setNotice(exact === activeLines.length
+        ? `담을 상품 ${activeLines.length}종의 후보를 다시 확인했습니다.`
+        : `정확한 후보 ${exact}종 · 직접 확인 필요 ${activeLines.length - exact}종입니다.`);
+    } catch {
+      setNotice("담을 상품 후보를 다시 찾지 못했습니다. 잠시 후 재시도해 주세요.");
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const runPreflight = async () => {
-    if (adding || selectedCount !== lines.length) return;
+    if (adding || activeLines.length === 0 || selectedCount !== activeLines.length) return;
     setAdding(true);
     try {
       const response = await chrome.runtime.sendMessage({ type: "DDAKDAMA_PREFLIGHT", jobs: makeJobs() });
@@ -434,9 +625,9 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       setPreflight(true);
       setStep(3);
       const ready = results.filter((result) => result.status === "READY").length;
-      setNotice(ready === lines.length
-        ? `상품 ${lines.length}종의 현재 가격과 규격을 확인했습니다.`
-        : `${lines.length - ready}개 상품은 현재 가격 또는 규격을 다시 확인해야 합니다.`);
+      setNotice(ready === activeLines.length
+        ? `담을 상품 ${activeLines.length}종의 현재 가격과 규격을 확인했습니다.`
+        : `${activeLines.length - ready}개 상품은 현재 가격 또는 규격을 다시 확인해야 합니다.`);
     } catch {
       setNotice("상품 상세정보를 확인하지 못했습니다. 다시 시도해 주세요.");
     } finally {
@@ -449,10 +640,56 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     setRecoverable(null);
     const success = results.filter((result) => result.status === "SUCCESS").length;
     setStep(4);
-    setNotice(success === lines.length
+    setNotice(success === activeLines.length
       ? `요청한 상품 ${success}종을 모두 검증해 담았습니다.`
-      : `성공 ${success}종 · 실패 ${lines.length - success}종입니다. 실패 상품을 확인해 주세요.`);
-    await chrome.runtime.sendMessage({ type: "DDAKDAMA_OPEN_CART" });
+      : `성공 ${success}종 · 실패 ${activeLines.length - success}종입니다. 실패 상품을 확인해 주세요.`);
+  };
+
+  const appendShoppingList = async () => {
+    const raw = appendInput.trim();
+    if (!raw) {
+      setNotice("추가할 상품을 한 줄에 하나씩 입력해 주세요.");
+      return;
+    }
+
+    const addedLines = parseShoppingList(raw).map((line, index) => ({
+      ...line,
+      // Existing request ids must remain stable because candidates and cart results use them.
+      id: `line-${lines.length + index + 1}`,
+    }));
+    if (!addedLines.length) {
+      setNotice("추가할 상품을 인식하지 못했습니다. 상품명과 수량을 다시 확인해 주세요.");
+      return;
+    }
+
+    clearPreparedCartState();
+    setLines((current) => [...current, ...addedLines]);
+    setInput((current) => [current.trim(), raw].filter(Boolean).join("\n"));
+    setAppendInput("");
+    setStep(2);
+    setExpanded(lines.length);
+    setSearching(true);
+    setNotice(null);
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "DDAKDAMA_SEARCH_ALL", items: addedLines });
+      if (!response?.ok || !Array.isArray(response.output)) throw new Error(response?.error ?? "SEARCH_FAILED");
+      const output = response.output as SearchGroup[];
+      const outputIds = new Set(output.map((group) => group.requestLineId));
+      if (output.length !== addedLines.length || addedLines.some((line) => !outputIds.has(line.id))) {
+        throw new Error("INCOMPLETE_SEARCH_RESPONSE");
+      }
+      setGroups((current) => [...current, ...output]);
+      const exact = addedLines.filter((line) => selectBestCandidate(line, output.find((group) => group.requestLineId === line.id)?.results ?? [])).length;
+      setNotice(exact === addedLines.length
+        ? `${addedLines.length}개 상품을 기존 목록에 추가하고 후보를 찾았습니다.`
+        : `${addedLines.length}개 상품을 추가했습니다. ${addedLines.length - exact}개는 후보를 직접 확인해 주세요.`);
+    } catch {
+      // Keep the newly appended request visible even when Coupang search is temporarily unavailable.
+      setGroups((current) => [...current, ...addedLines.map((line) => ({ requestLineId: line.id, results: [], error: "SEARCH_FAILED" }))]);
+      setNotice("상품은 목록에 추가됐지만 후보 검색을 완료하지 못했습니다. 해당 상품에서 다시 검색해 주세요.");
+    } finally {
+      setSearching(false);
+    }
   };
 
   const executeJobs = async (jobs: CartJob[], seed: CartResult[] = []) => {
@@ -466,7 +703,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
         jobs,
       });
       const completed = (response?.results ?? []) as CartResult[];
-      const combined = lines.map((line) =>
+      const combined = activeLines.map((line) =>
         completed.find((result) => result.id === line.id)
         ?? seed.find((result) => result.id === line.id)
         ?? { id: line.id, status: "UNKNOWN_ERROR" });
@@ -481,7 +718,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   const executeReady = async (partial: boolean) => {
     const readyIds = new Set(preflightResults.filter((result) => result.status === "READY").map((result) => result.id));
     const readyJobs = makeJobs().filter((job) => readyIds.has(job.id));
-    if (!partial && readyJobs.length !== lines.length) return;
+    if (!partial && readyJobs.length !== activeLines.length) return;
     await executeJobs(readyJobs, preflightResults.filter((result) => result.status !== "READY"));
   };
 
@@ -509,6 +746,17 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   const startPairing = async () => {
     setPairingBusy(true);
     try {
+      const stored = await chrome.storage.local.get(["ddakdama-device-token"]);
+      const previousToken = String(stored["ddakdama-device-token"] ?? "");
+      if (previousToken) {
+        await fetch(`${SERVER_ORIGIN}/api/device/revoke`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${previousToken}` },
+        }).catch(() => undefined);
+      }
+      await chrome.storage.local.remove(["ddakdama-device-id", "ddakdama-device-token", "ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
+      setPairingCode(null);
+      setPairingExpiresAt(null);
       const response = await fetch(`${SERVER_ORIGIN}/api/pairing/start`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -516,18 +764,21 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       });
       if (!response.ok) throw new Error("PAIRING_START_FAILED");
       const data = await response.json() as { code: string; deviceId: string; deviceToken: string; expiresAt?: number };
+      if (!/^\d{6}$/.test(data.code) || !data.deviceId || !data.deviceToken) throw new Error("INVALID_PAIRING_RESPONSE");
+      const expiresAt = data.expiresAt ?? Date.now() + 10 * 60_000;
       await chrome.storage.local.set({
         "ddakdama-device-id": data.deviceId,
         "ddakdama-device-token": data.deviceToken,
         "ddakdama-pairing-code": data.code,
-        "ddakdama-pairing-expires-at": data.expiresAt ?? Date.now() + 10 * 60_000,
+        "ddakdama-pairing-expires-at": expiresAt,
       });
       setPairingCode(data.code);
+      setPairingExpiresAt(expiresAt);
       setPairingState("code");
       setNotice("ChatGPT 딱담아 앱에 이 6자리 코드를 입력해 주세요.");
     } catch {
       setPairingState("unavailable");
-      setNotice("GPT 앱 연결을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      setNotice("연결 코드를 만들지 못했습니다. 인터넷 연결을 확인한 뒤 새 코드를 다시 만들어 주세요.");
     } finally {
       setPairingBusy(false);
     }
@@ -536,20 +787,38 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   const importFromGpt = async () => {
     setPairingBusy(true);
     try {
-      const stored = await chrome.storage.local.get(["ddakdama-device-token"]);
+      const stored = await chrome.storage.local.get([
+        "ddakdama-device-token",
+        "ddakdama-pairing-code",
+        "ddakdama-pairing-expires-at",
+      ]);
       const token = String(stored["ddakdama-device-token"] ?? "");
       if (!token) {
         setNotice("먼저 연결 코드를 만들어 ChatGPT 앱에 입력해 주세요.");
         return;
       }
+      const status = await fetchPairingStatus(token);
+      if (!status.connected) {
+        const code = String(stored["ddakdama-pairing-code"] ?? "");
+        const expiresAt = Number(stored["ddakdama-pairing-expires-at"] ?? 0);
+        if (/^\d{6}$/.test(code) && expiresAt > Date.now()) {
+          setPairingCode(code);
+          setPairingExpiresAt(expiresAt);
+          setPairingState("code");
+        }
+        setNotice("아직 연결되지 않았습니다. ChatGPT 딱담아 앱에 표시된 코드를 입력하고 ‘연결’을 완료해 주세요.");
+        return;
+      }
+      setPairingState("connected");
+      setPairingCode(null);
+      setPairingExpiresAt(null);
+      await chrome.storage.local.remove(["ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
       const response = await fetch(`${SERVER_ORIGIN}/api/handoffs/latest`, {
         headers: { authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("HANDOFF_FETCH_FAILED");
       const data = await response.json() as { handoff: null | { id: string; payload: { items?: Array<{ rawText?: string }> } } };
       if (!data.handoff) {
-        setPairingState("connected");
-        await chrome.storage.local.remove(["ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
         setNotice("연결됐습니다. ChatGPT 딱담아 앱에서 목록을 보낸 뒤 ‘목록 받기’를 눌러 주세요.");
         return;
       }
@@ -570,9 +839,17 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       setPairingState("connected");
       await chrome.storage.local.remove(["ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
       setNotice("ChatGPT 앱에서 보낸 쇼핑 목록을 불러왔습니다.");
-    } catch {
-      setPairingState("unavailable");
-      setNotice("GPT 앱 목록을 가져오지 못했습니다. 새 연결 코드를 만들어 다시 연결해 주세요.");
+    } catch (error) {
+      if (error instanceof Error && error.message === "PAIRING_UNAUTHORIZED") {
+        await chrome.storage.local.remove([...pairingStorageKeys]);
+        setPairingCode(null);
+        setPairingExpiresAt(null);
+        setPairingState("idle");
+        setNotice("연결 정보가 만료됐습니다. 새 6자리 코드를 만들어 다시 연결해 주세요.");
+      } else {
+        setPairingState("unavailable");
+        setNotice("GPT 앱 연결 상태를 확인하지 못했습니다. 잠시 후 ‘목록 받기’를 다시 눌러 주세요.");
+      }
     } finally {
       setPairingBusy(false);
     }
@@ -592,15 +869,25 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     } finally {
       await chrome.storage.local.remove(["ddakdama-device-id", "ddakdama-device-token", "ddakdama-pairing-code", "ddakdama-pairing-expires-at"]);
       setPairingCode(null);
+      setPairingExpiresAt(null);
       setPairingState("idle");
       setPairingBusy(false);
-      setNotice("GPT 앱 연결을 해제했습니다.");
+      setNotice("연결을 해제했습니다. 다시 연결하려면 새 6자리 코드를 만들어 주세요.");
     }
   };
 
-  const openCart = () => chrome?.runtime?.sendMessage
-    ? chrome.runtime.sendMessage({ type: "DDAKDAMA_OPEN_CART" })
-    : window.open("https://cart.coupang.com/cartView.pang");
+  const openCart = async () => {
+    try {
+      if (chrome?.runtime?.sendMessage) {
+        const response = await chrome.runtime.sendMessage({ type: "DDAKDAMA_OPEN_CART" });
+        if (response?.ok === false) throw new Error(String(response.error ?? "OPEN_CART_FAILED"));
+        return;
+      }
+      window.open("https://cart.coupang.com/cartView.pang", "_blank", "noopener,noreferrer");
+    } catch {
+      setNotice("쿠팡 장바구니를 열지 못했습니다. 상단 장바구니 버튼으로 다시 시도해 주세요.");
+    }
+  };
   const startNewList = async () => {
     setInput("");
     resetAfterInput([]);
@@ -609,6 +896,17 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     if (chrome?.runtime?.sendMessage) {
       await chrome.runtime.sendMessage({ type: "DDAKDAMA_CLEAR_CART_JOURNAL" }).catch(() => undefined);
     }
+  };
+  const openAppendList = () => {
+    clearPreparedCartState();
+    setStep(1);
+    setNotice("기존 목록은 유지됩니다. 아래에 추가할 상품만 입력해 주세요.");
+  };
+  const openChatGPTApp = () => {
+    window.open(CHATGPT_APP_URL, "_blank", "noopener,noreferrer");
+    setNotice(HAS_PUBLIC_CHATGPT_APP_LINK
+      ? "ChatGPT의 딱담아 앱을 새 탭에서 열었습니다."
+      : "ChatGPT 앱 목록을 열었습니다. 딱담아 앱을 설치한 뒤 다시 연결해 주세요.");
   };
   const openProduct = (lineId: string) => {
     const url = selected[lineId]?.productUrl;
@@ -633,7 +931,6 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       if (!result) throw new Error("EMPTY_RESULT");
       setCartResults((current) => [...current.filter((item) => item.id !== lineId), result]);
       setNotice(result.status === "SUCCESS" ? "해당 상품을 정확한 수량으로 담았습니다." : statusMessage(result.status, result.mismatchReasons));
-      await chrome.runtime.sendMessage({ type: "DDAKDAMA_OPEN_CART" });
     } catch {
       setNotice("재시도하지 못했습니다. 상품 페이지에서 상태를 확인해 주세요.");
     } finally {
@@ -655,6 +952,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   };
 
   const renderGptConnection = () => (
+    <>
     <section className={`gpt-bridge ${pairingState}`} aria-label="ChatGPT 목록 연결">
       <span className="gpt-bridge-icon"><Link2 size={19} /></span>
       <div className="gpt-bridge-copy" aria-live="polite">
@@ -664,9 +962,9 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
         ) : pairingState === "connected" ? (
           <small><CheckCircle2 size={13} /> 연결됨 · 보낸 목록을 바로 받을 수 있어요</small>
         ) : pairingState === "unavailable" ? (
-          <small>연결을 시작하지 못했어요. 다시 시도해 주세요.</small>
+          <small>코드를 만들지 못했어요. 새 코드를 다시 만들어 주세요.</small>
         ) : (
-          <small>6자리 코드 한 번이면 연결돼요</small>
+          <small>먼저 6자리 연결 코드를 만들어 주세요.</small>
         )}
       </div>
       {pairingState === "code" && pairingCode ? (
@@ -675,33 +973,44 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
           <button type="button" className="receive" onClick={importFromGpt} disabled={pairingBusy}>
             {pairingBusy ? <LoaderCircle className="spin" size={15} /> : null}목록 받기
           </button>
-          <button type="button" className="icon-button" onClick={disconnectGpt} aria-label="ChatGPT 목록 연결 해제"><Unlink size={16} /></button>
+          <button type="button" className="secondary-action" onClick={startPairing} disabled={pairingBusy}>새 코드</button>
         </div>
       ) : (
         <div className="gpt-bridge-actions">
           {pairingState === "idle" || pairingState === "unavailable" ? (
-            <button type="button" onClick={startPairing} disabled={pairingBusy}>연결하기</button>
+            <button type="button" onClick={startPairing} disabled={pairingBusy}>
+              {pairingBusy ? "코드 만드는 중…" : pairingState === "unavailable" ? "새 코드 다시 만들기" : "6자리 코드 만들기"}
+            </button>
           ) : (
             <button type="button" className="receive" onClick={importFromGpt} disabled={pairingBusy}>
               {pairingBusy ? <LoaderCircle className="spin" size={15} /> : null}목록 받기
             </button>
           )}
           {pairingState === "connected" && (
-            <button type="button" className="icon-button" onClick={disconnectGpt} aria-label="ChatGPT 목록 연결 해제"><Unlink size={16} /></button>
+            <button type="button" className="disconnect-action" onClick={disconnectGpt} disabled={pairingBusy}><Unlink size={15} /> 연결 해제</button>
           )}
         </div>
       )}
     </section>
+    <button className="gpt-app-shortcut" type="button" onClick={openChatGPTApp}>
+      <Link2 size={16} />
+      {HAS_PUBLIC_CHATGPT_APP_LINK ? "ChatGPT에서 딱담아 앱 열기" : "ChatGPT 앱 목록에서 딱담아 찾기"}
+      <ChevronRight size={16} aria-hidden="true" />
+    </button>
+    </>
   );
 
   const renderSelection = () => (
     <>
       <section className="screen-heading">
         <div><h1>상품을 확인해 주세요</h1><p>정확한 후보는 자동으로, 비슷한 후보는 직접 고를 수 있어요.</p></div>
-        <span className={selectedCount === lines.length ? "status success" : "status warning"}>
-          {selectedCount === lines.length ? <Check size={15} /> : <CircleHelp size={15} />}
-          {selectedCount}/{lines.length}종
-        </span>
+        <div className="selection-statuses">
+          <span className={activeLines.length > 0 && selectedCount === activeLines.length ? "status success" : "status warning"}>
+            {activeLines.length > 0 && selectedCount === activeLines.length ? <Check size={15} /> : <CircleHelp size={15} />}
+            {selectedCount}/{activeLines.length}종 선택
+          </span>
+          {excludedCount > 0 && <span className="status excluded">제외 {excludedCount}종</span>}
+        </div>
       </section>
       <section className="product-group" aria-label="선택된 상품">
         {lines.map((line, index) => {
@@ -711,9 +1020,22 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
           const selectionWarnings = item && manuallySelected ? manualSelectionWarnings(line, item) : [];
           const group = groups.find((candidate) => candidate.requestLineId === line.id);
           const results = group?.results ?? [];
+          const excluded = Boolean(excludedIds[line.id]);
+          if (excluded) {
+            return (
+              <article className="product-row excluded-product" data-testid={`product-${index}`} key={line.id}>
+                <div className="excluded-product-row">
+                  <span className="excluded-product-icon"><MinusCircle size={18} /></span>
+                  <div><strong>{line.productName}</strong><small>이번 장바구니에서 제외했어요.</small></div>
+                  <button type="button" onClick={() => includeLine(line)}>다시 포함</button>
+                </div>
+              </article>
+            );
+          }
           return (
             <article className={`product-row ${expanded === index ? "expanded" : ""} ${item ? "" : "needs-attention"} ${manuallySelected ? "manual-selection" : ""}`} data-testid={`product-${index}`} key={line.id}>
-              <button className="product-row-main" type="button" onClick={() => setExpanded(expanded === index ? -1 : index)} aria-expanded={expanded === index}>
+              <div className="product-row-top">
+                <button className="product-row-main" type="button" onClick={() => setExpanded(expanded === index ? -1 : index)} aria-expanded={expanded === index}>
                 <span className={item ? "selection-check" : "selection-check empty"}>{item ? <Check size={14} /> : index + 1}</span>
                 <ProductImage item={item} />
                 <span className="product-row-copy">
@@ -723,9 +1045,19 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
                 </span>
                 <span className="product-row-price">{item?.currentPrice ? <><b>{(item.currentPrice * purchaseQty).toLocaleString()}원</b>{purchaseQty > 1 && <small>{item.currentPrice.toLocaleString()}원 × {purchaseQty}</small>}</> : item ? "상세에서 가격 확인" : group?.error ? "검색 실패" : results.length ? `후보 ${results.length}개 보기` : "검색 결과 없음"}</span>
                 <ChevronDown className="row-chevron" size={18} />
-              </button>
+                </button>
+                <button className="line-exclude-button" type="button" onClick={() => excludeLine(line, index)} aria-label={`${line.productName} 이 품목 빼기`}><MinusCircle size={17} /><span>빼기</span></button>
+              </div>
               {expanded === index && (
                 <div className="candidate-panel">
+                  <div className="selection-tools">
+                    <span>담을 실물 수량</span>
+                    <div className="quantity-stepper" role="group" aria-label={`${line.productName} 담을 실물 수량`}>
+                      <button type="button" onClick={() => updateRequestedQuantity(line, -1)} disabled={line.requestedPhysicalUnits <= 1} aria-label={`${line.productName} 수량 1개 줄이기`}><Minus size={14} /></button>
+                      <output>{line.requestedPhysicalUnits}</output>
+                      <button type="button" onClick={() => updateRequestedQuantity(line, 1)} disabled={line.requestedPhysicalUnits >= 99} aria-label={`${line.productName} 수량 1개 늘리기`}><Plus size={14} /></button>
+                    </div>
+                  </div>
                   <p className={item && !selectionWarnings.length ? "match-copy" : "match-copy warning"}>
                     {manuallySelected ? "직접 선택한 상품입니다. 다음 단계에서 가격·재고·옵션을 다시 확인해요." : item ? (item.currentPrice ? "규격과 수량이 가장 잘 맞는 상품이에요." : "상품은 일치하며 현재 가격은 상세페이지에서 확인해요.") : group?.error ? searchErrorMessage(group.error) : "정확히 일치하는 상품이 없어 자동 선택하지 않았어요. 아래 후보를 직접 확인해 주세요."}
                   </p>
@@ -784,29 +1116,33 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   );
 
   const renderReview = () => {
-    const allReady = preflightReadyCount === lines.length && lines.length > 0;
-    const issues = preflightResults.filter((result) => result.status !== "READY");
+    const allReady = preflightReadyCount === activeLines.length && activeLines.length > 0;
+    const issues = preflightResults.filter((result) => activeLineIds.has(result.id) && result.status !== "READY");
     return (
       <>
         <section className="screen-heading review-heading">
           <div><h1>담기 전 확인</h1><p>실제 상품 페이지에서 가격·규격·재고를 확인했어요.</p></div>
+          <button className="secondary-action edit-selection" type="button" onClick={goBack}>후보·수량 다시 고르기</button>
         </section>
         <section className={allReady ? "review-summary success" : "review-summary error"} aria-live="polite">
           {allReady ? <CheckCircle2 size={22} /> : <AlertCircle size={22} />}
           <div>
-            <strong>{allReady ? `${lines.length}개 상품을 모두 확인했어요` : `${preflightIssueCount}개 상품을 다시 확인해야 해요`}</strong>
+            <strong>{allReady ? `${activeLines.length}개 상품을 모두 확인했어요` : `${preflightIssueCount}개 상품을 다시 확인해야 해요`}</strong>
             <p>{allReady ? "아래 버튼을 누를 때만 쿠팡 장바구니가 변경됩니다." : "문제가 있는 상품은 자동으로 담지 않았고 장바구니도 변경되지 않았습니다."}</p>
           </div>
         </section>
         <section className="verification-group" aria-label="상세 검증 결과">
-          {lines.map((line) => {
+          {activeLines.map((line) => {
             const result = preflightResults.find((candidate) => candidate.id === line.id);
             const ready = result?.status === "READY";
             const item = selected[line.id];
             return (
               <div className="verification-row" key={line.id}>
                 <span className={ready ? "verification-dot ready" : "verification-dot"} />
-                <span><strong>{line.productName}</strong><small>{ready && result.verifiedPrice && item ? `${priceBreakdown(result.verifiedPrice, line, item, selectedIds[line.id] === item.id)} · 상세 확인 완료` : ready ? "상세 확인 완료" : statusMessage(result?.status, result?.mismatchReasons)}</small></span>
+                <span>
+                  <strong>{displayProductTitle(line, result, item)}</strong>
+                  <small>요청: {line.productName} · {ready && result?.verifiedPrice && item ? `${priceBreakdown(result.verifiedPrice, line, item, selectedIds[line.id] === item.id)} · 상세 확인 완료` : ready ? "상세 확인 완료" : statusMessage(result?.status, result?.mismatchReasons)}</small>
+                </span>
                 {!ready && <button type="button" onClick={() => openProduct(line.id)}>상품 페이지</button>}
               </div>
             );
@@ -824,13 +1160,13 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
 
   const renderComplete = () => {
     const success = cartResults.filter((result) => result.status === "SUCCESS").length;
-    const allSuccess = success === lines.length && lines.length > 0;
+    const allSuccess = success === activeLines.length && activeLines.length > 0;
     return (
       <>
         <section className={`complete-hero ${allSuccess ? "success" : "partial"}`}>
           {allSuccess ? <CheckCircle2 size={30} /> : <AlertCircle size={30} />}
           <h1>{allSuccess ? "정확하게 모두 담았어요" : "일부 상품을 담지 못했어요"}</h1>
-          <p>요청 {lines.length}종 · 성공 {success}종 · 실패 {lines.length - success}종</p>
+          <p>담기 대상 {activeLines.length}종 · 성공 {success}종 · 실패 {activeLines.length - success}종{excludedCount ? ` · 제외 ${excludedCount}종` : ""}</p>
         </section>
         <section className="complete-price-summary" aria-label="담은 상품 가격 합계">
           <div><small>담은 상품 확인가</small><strong>{completedVerifiedTotal.toLocaleString()}원</strong></div>
@@ -839,7 +1175,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
             ? completedCartTotal === completedVerifiedTotal
               ? "상세페이지에서 확인한 금액과 장바구니 금액이 같아요."
               : `장바구니 금액이 확인가와 ${(completedCartTotal - completedVerifiedTotal).toLocaleString()}원 달라요.`
-            : "장바구니 금액을 읽지 못해 상세페이지에서 확인한 가격 합계를 먼저 보여드려요."}</p>
+            : "쿠팡 장바구니의 실제 줄별 금액을 아직 확인하지 못했습니다. 아래 금액은 담기 직전 상세페이지에서 확인한 상품 합계입니다."}</p>
         </section>
         <section className="result-group" aria-label="장바구니 처리 결과">
           {cartResults.map((result) => {
@@ -848,16 +1184,16 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
             return (
               <div className={`result-row ${ok ? "success" : "failure"}`} key={result.id}>
                 <span>{ok ? <Check size={14} /> : <AlertCircle size={15} />}</span>
-                <div><strong>{line?.productName ?? result.expectedProductName ?? result.id}</strong><small>{resultMessage(result, line, line ? selected[line.id] : null, Boolean(line && selectedIds[line.id]))}</small></div>
+                <div>
+                  <strong>{displayProductTitle(line, result, line ? selected[line.id] : null)}</strong>
+                  {line && <small className="requested-product-label">요청: {line.productName}</small>}
+                  <small>{resultMessage(result, line, line ? selected[line.id] : null, Boolean(line && selectedIds[line.id]))}</small>
+                </div>
                 {!ok && <div className="result-row-actions"><button type="button" onClick={() => openResultProduct(result)}>상품 페이지</button><button type="button" disabled={adding || !line} onClick={() => retryLine(result.id)}>다시 시도</button></div>}
               </div>
             );
           })}
         </section>
-        <div className="complete-actions">
-          <button type="button" onClick={() => void startNewList()}><RefreshCw size={16} />새 목록 담기</button>
-          <button type="button" onClick={openCart}><ShoppingBag size={16} />쿠팡 장바구니 보기</button>
-        </div>
       </>
     );
   };
@@ -871,13 +1207,14 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       return { label: "실제 상품 찾기", onClick: searchAll, disabled: searching, icon: <Search size={18} />, amountLabel: "인식 결과", amount: `${lines.length}종 · ${physicalUnits(lines)}개` };
     }
     if (step === 2) {
-      if (selectedCount !== lines.length) return { label: `${lines.length - selectedCount}종 다시 찾기`, onClick: searchAll, disabled: searching, icon: <RefreshCw size={17} />, amountLabel: "선택 필요", amount: `${lines.length - selectedCount}종` };
-      return { label: `${lines.length}종 상세 확인하기`, onClick: runPreflight, disabled: adding, icon: <ChevronRight size={19} />, amountLabel: pricedSelectedCount === lines.length ? "검색가 합계" : "가격 확인", amount: pricedSelectedCount === lines.length ? `${searchTotal.toLocaleString()}원` : `상세 확인 ${lines.length - pricedSelectedCount}종` };
+      if (!activeLines.length) return { label: "담을 상품을 1개 이상 선택해 주세요", onClick: () => undefined, disabled: true, icon: <CircleHelp size={18} />, amountLabel: "담기 대상", amount: "0종" };
+      if (selectedCount !== activeLines.length) return { label: `${activeLines.length - selectedCount}종 다시 찾기`, onClick: refreshActiveCandidates, disabled: searching, icon: <RefreshCw size={17} />, amountLabel: "선택 필요", amount: `${activeLines.length - selectedCount}종` };
+      return { label: `${activeLines.length}종 상세 확인하기`, onClick: runPreflight, disabled: adding, icon: <ChevronRight size={19} />, amountLabel: pricedSelectedCount === activeLines.length ? "검색가 합계" : "가격 확인", amount: pricedSelectedCount === activeLines.length ? `${searchTotal.toLocaleString()}원` : `상세 확인 ${activeLines.length - pricedSelectedCount}종` };
     }
     if (step === 3) {
-      const allReady = preflightReadyCount === lines.length && lines.length > 0;
+      const allReady = preflightReadyCount === activeLines.length && activeLines.length > 0;
       const canPartiallyAdd = !allReady && preflightReadyCount > 0;
-      return { label: allReady ? `${lines.length}종 장바구니에 담기` : canPartiallyAdd ? `확인된 ${preflightReadyCount}종 · 실물 ${preflightReadyPhysicalUnits}개 담기` : "다시 확인하기", onClick: allReady ? () => executeReady(false) : canPartiallyAdd ? () => executeReady(true) : runPreflight, disabled: adding, icon: allReady || canPartiallyAdd ? <ChevronRight size={19} /> : <RefreshCw size={17} />, amountLabel: allReady || canPartiallyAdd ? "검증 합계" : "확인 필요", amount: allReady || canPartiallyAdd ? `${verifiedTotal.toLocaleString()}원` : `${preflightIssueCount}개` };
+      return { label: allReady ? `${activeLines.length}종 장바구니에 담기` : canPartiallyAdd ? `확인된 ${preflightReadyCount}종 · 실물 ${preflightReadyPhysicalUnits}개 담기` : "다시 확인하기", onClick: allReady ? () => executeReady(false) : canPartiallyAdd ? () => executeReady(true) : runPreflight, disabled: adding, icon: allReady || canPartiallyAdd ? <ChevronRight size={19} /> : <RefreshCw size={17} />, amountLabel: allReady || canPartiallyAdd ? "검증 합계" : "확인 필요", amount: allReady || canPartiallyAdd ? `${verifiedTotal.toLocaleString()}원` : `${preflightIssueCount}개` };
     }
     const failed = cartResults.filter((result) => result.status !== "SUCCESS").length;
     return failed
@@ -885,17 +1222,25 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       : { label: "새 목록 담기", onClick: () => void startNewList(), disabled: false, icon: <RefreshCw size={18} />, amountLabel: completedCartTotalKnown ? "장바구니 확인가" : "담은 상품 확인가", amount: `${(completedCartTotalKnown ? completedCartTotal : completedVerifiedTotal).toLocaleString()}원` };
   };
   const action = actionBar();
+  const completionFailedCount = cartResults.filter((result) => result.status !== "SUCCESS").length;
+  const completionAmount = completedCartTotalKnown ? completedCartTotal : completedVerifiedTotal;
+  const nextTheme = theme === "system" ? "light" : theme === "light" ? "dark" : "system";
+  const themeLabel = theme === "system" ? "\uC2DC\uC2A4\uD15C \uC124\uC815" : theme === "light" ? "\uB77C\uC774\uD2B8 \uBAA8\uB4DC" : "\uB2E4\uD06C \uBAA8\uB4DC";
+  const themeIcon = theme === "system" ? <Monitor size={18} /> : theme === "light" ? <Sun size={18} /> : <Moon size={18} />;
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${step === 4 ? " is-complete" : ""}`}>
       <header className="topbar">
         <div className="brand"><img className="brand-mark" src={brandIcon} alt="" aria-hidden="true" /><strong>딱담아</strong></div>
-        <button className="cart-link" type="button" onClick={openCart}><ShoppingBag size={19} />장바구니<ChevronRight size={17} /></button>
+        <div className="topbar-actions">
+          <button className="theme-toggle" type="button" data-testid="theme-toggle" aria-label={"\uD654\uBA74 \uD14C\uB9C8 \uC804\uD658"} title={themeLabel} onClick={() => setTheme(nextTheme)}>{themeIcon}</button>
+        <button className="cart-link" type="button" onClick={() => void openCart()}><ShoppingBag size={19} />장바구니<ChevronRight size={17} /></button>
+        </div>
       </header>
       <StepProgress step={step} />
-      {step > 1 && step < 4 && <button className="back-button" type="button" onClick={goBack}><ArrowLeft size={17} />이전</button>}
+      {step > 1 && step < 4 && <div className="flow-navigation"><button className="back-button" type="button" onClick={goBack}><ArrowLeft size={17} />이전</button><button className="append-nav-button" type="button" onClick={openAppendList}><Plus size={16} />목록 더 추가</button></div>}
 
-      <div className="screen-content">
+      <div className={`screen-content${step === 4 ? " completion-content" : ""}`}>
         {step === 1 && (
           <>
             <section className="screen-heading list-heading">
@@ -915,8 +1260,15 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
             <section className="list-input">
               <label htmlFor="shopping-list">직접 붙여넣기</label>
               <textarea id="shopping-list" value={input} onChange={(event) => setInput(event.target.value)} placeholder={"상품을 한 줄에 하나씩 입력해 주세요.\n예: 생수 2L 6개"} spellCheck={false} />
-              <div className="input-actions"><button type="button" onClick={() => { setInput(SAMPLE); resetAfterInput(parseShoppingList(SAMPLE)); }}>예시 불러오기</button><button type="button" onClick={parseOnly}>{lines.length ? "다시 인식" : "목록 인식"}</button></div>
+              <div className="input-actions"><button type="button" onClick={() => { setInput(SAMPLE); resetAfterInput(parseShoppingList(SAMPLE)); }}>예시 불러오기</button><button type="button" onClick={parseOnly}>{lines.length ? "전체 목록 다시 인식" : "목록 인식"}</button></div>
             </section>
+            {lines.length > 0 && (
+              <section className="list-append" aria-label="기존 목록에 상품 추가">
+                <div><strong>목록 더 추가</strong><small>기존 GPT 목록과 이미 고른 후보는 유지됩니다.</small></div>
+                <textarea aria-label="추가할 쇼핑 목록" value={appendInput} onChange={(event) => setAppendInput(event.target.value)} placeholder={"추가할 상품만 한 줄에 하나씩 입력하세요.\n예: 물티슈 80매 2개"} spellCheck={false} />
+                <button type="button" onClick={() => void appendShoppingList()} disabled={searching || !appendInput.trim()}><Plus size={16} />목록에 추가하고 상품 찾기</button>
+              </section>
+            )}
             {lines.length > 0 && <div className="parsed-summary"><CheckCircle2 size={16} /><span>{lines.length}개 줄을 상품 {lines.length}종 · 실물 {physicalUnits(lines)}개로 인식했어요.</span></div>}
           </>
         )}
@@ -927,11 +1279,28 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
         {AFFILIATE_ENABLED && <p className="affiliate">쿠팡 파트너스 활동을 통해 일정액의 수수료를 받을 수 있습니다.</p>}
       </div>
 
-      <footer className="sticky-action">
-        <div className="action-summary"><small>{action.amountLabel}</small><strong data-testid="estimated-total">{action.amount}</strong></div>
-        <button className="primary-action" type="button" onClick={action.onClick} disabled={action.disabled}>
-          {adding || searching ? <LoaderCircle className="spin" size={18} /> : action.icon}{adding ? "확인 중…" : searching ? "상품 찾는 중…" : action.label}
-        </button>
+      <footer className={`sticky-action${step === 4 ? " completion-sticky" : ""}`}>
+        {step === 4 ? (
+          <>
+            <div className="action-summary completion-summary"><small>{completedCartTotalKnown ? "장바구니 확인가" : "담은 상품 확인가"}</small><strong data-testid="estimated-total">{completionAmount.toLocaleString()}원</strong></div>
+            <div className="completion-footer-actions">
+              {completionFailedCount > 0 && (
+                <button className="completion-retry" type="button" onClick={() => void retryFailed()} disabled={adding}>
+                  {adding ? <LoaderCircle className="spin" size={17} /> : <RefreshCw size={17} />}실패 {completionFailedCount}종 다시 시도
+                </button>
+              )}
+              <button className="completion-new-list" type="button" onClick={() => void startNewList()}><RefreshCw size={17} />새 목록 담기</button>
+              <button className="completion-open-cart" type="button" onClick={() => void openCart()}><ShoppingBag size={18} />쿠팡 장바구니 보기</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="action-summary"><small>{action.amountLabel}</small><strong data-testid="estimated-total">{action.amount}</strong></div>
+            <button className="primary-action" type="button" onClick={action.onClick} disabled={action.disabled}>
+              {adding || searching ? <LoaderCircle className="spin" size={18} /> : action.icon}{adding ? "확인 중…" : searching ? "상품 찾는 중…" : action.label}
+            </button>
+          </>
+        )}
       </footer>
     </main>
   );

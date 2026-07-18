@@ -4,7 +4,7 @@ import{readFileSync}from"node:fs";
 import{StreamableHTTPServerTransport}from"@modelcontextprotocol/sdk/server/streamableHttp.js";
 import{z}from"zod";
 import{createMcpServer}from"./mcp-node.js";
-import{ackHandoff,authenticateDevice,latestHandoff,revokeDeviceToken,startPairing}from"./store.js";
+import{ackHandoff,authenticateDevice,latestHandoff,pairingStatus,revokeDeviceToken,startPairing}from"./store.js";
 import{createDeepLinks,normalizeDeepLinkPayload,normalizeSearchPayload,partnersConfigured,searchProducts}from"./partners.js";
 
 const port=Number(process.env.PORT??8787);const limits=new Map<string,{count:number;resetAt:number}>();
@@ -22,6 +22,7 @@ createServer(async(req,res)=>{try{const url=new URL(req.url??"/",`http://${req.h
  if(req.method==="OPTIONS"&&url.pathname.startsWith("/api/")){res.writeHead(204,apiCors(req));return res.end()}
  if(req.method==="GET"&&url.pathname==="/health")return json(req,res,200,{ok:true,name:"ddakdama",version:"1.0.0",buildId,status:"available"});
  if(req.method==="POST"&&url.pathname==="/api/pairing/start"){if(rateLimited(req,"pairing",10))return json(req,res,429,{error:"rate_limited"});await read(req);return json(req,res,201,startPairing())}
+ if(req.method==="GET"&&url.pathname==="/api/pairing/status"){const deviceId=authenticateDevice(bearer(req));if(!deviceId)return json(req,res,401,{error:"unauthorized"});return json(req,res,200,pairingStatus(deviceId))}
  if(req.method==="GET"&&url.pathname==="/api/handoffs/latest"){const deviceId=authenticateDevice(bearer(req));if(!deviceId)return json(req,res,401,{error:"unauthorized"});return json(req,res,200,{handoff:latestHandoff(deviceId)})}
  const ack=url.pathname.match(/^\/api\/handoffs\/([^/]+)\/ack$/);if(req.method==="POST"&&ack){const deviceId=authenticateDevice(bearer(req));if(!deviceId)return json(req,res,401,{error:"unauthorized"});const acknowledged=ackHandoff(deviceId,ack[1]);return json(req,res,acknowledged?200:404,{ok:acknowledged})}
  if(req.method==="POST"&&url.pathname==="/api/device/revoke"){const token=bearer(req);if(!authenticateDevice(token))return json(req,res,401,{error:"unauthorized"});revokeDeviceToken(token);return json(req,res,200,{ok:true})}

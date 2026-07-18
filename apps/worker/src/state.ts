@@ -10,6 +10,9 @@ export {
 type Pairing = {
   deviceId: string;
   expiresAt: number;
+  retryNonceHash?: string;
+  connectionGrant?: string;
+  grantExpiresAt?: number;
 };
 
 type TimedDevice = {
@@ -140,6 +143,7 @@ export class DdakDamaState extends DurableObject<StateEnv> {
     code: string,
     clientKey: string,
     grantTtlMs: number,
+    pairingNonce?: string,
   ) {
     const normalized = normalizePairingCode(code);
     if (!normalized) return null;
@@ -160,14 +164,43 @@ export class DdakDamaState extends DurableObject<StateEnv> {
       return null;
     }
 
-    await this.ctx.storage.delete(pairingKey);
+    const retryNonceHash = pairingNonce ? await hash(pairingNonce) : undefined;
+    if (pairing.connectionGrant || pairing.grantExpiresAt) {
+      if (
+        retryNonceHash &&
+        pairing.retryNonceHash === retryNonceHash &&
+        pairing.connectionGrant &&
+        pairing.grantExpiresAt &&
+        pairing.grantExpiresAt > Date.now()
+      ) {
+        return {
+          connectionGrant: pairing.connectionGrant,
+          expiresAt: pairing.grantExpiresAt,
+        };
+      }
+      return null;
+    }
+
     const shard = normalized[0];
     const connectionGrant = `${shard}.${randomSecret()}`;
     const expiresAt = Date.now() + grantTtlMs;
-    await this.ctx.storage.put(`grant:${await hash(connectionGrant)}`, {
-      deviceId: pairing.deviceId,
-      expiresAt,
-    } satisfies TimedDevice);
+    await this.ctx.storage.put({
+      [`grant:${await hash(connectionGrant)}`]: {
+        deviceId: pairing.deviceId,
+        expiresAt,
+      } satisfies TimedDevice,
+      ...(retryNonceHash
+        ? {
+            [pairingKey]: {
+              ...pairing,
+              retryNonceHash,
+              connectionGrant,
+              grantExpiresAt: expiresAt,
+            } satisfies Pairing,
+          }
+        : {}),
+    });
+    if (!retryNonceHash) await this.ctx.storage.delete(pairingKey);
     return { connectionGrant, expiresAt };
   }
 
@@ -188,6 +221,25 @@ export class DdakDamaState extends DurableObject<StateEnv> {
 
   async authenticateGrant(grant: string) {
     return this.authenticate("grant", grant);
+  }
+
+  async pairingStatus(deviceId: string) {
+    const now = Date.now();
+    const grants = await this.ctx.storage.list<TimedDevice>({ prefix: "grant:" });
+    let grantExpiresAt: number | null = null;
+    for (const [key, grant] of grants) {
+      if (grant.expiresAt <= now) {
+        await this.ctx.storage.delete(key);
+        continue;
+      }
+      if (grant.deviceId === deviceId) {
+        grantExpiresAt = Math.max(grantExpiresAt ?? 0, grant.expiresAt);
+      }
+    }
+    return {
+      connected: grantExpiresAt !== null,
+      grantExpiresAt,
+    };
   }
 
   async createHandoff(
@@ -258,6 +310,7 @@ export class DdakDamaState extends DurableObject<StateEnv> {
     const collections = await Promise.all([
       this.ctx.storage.list<TimedDevice>({ prefix: "token:" }),
       this.ctx.storage.list<TimedDevice>({ prefix: "grant:" }),
+      this.ctx.storage.list<Pairing>({ prefix: "pair:" }),
       this.ctx.storage.list<Handoff>({ prefix: `handoff:${deviceId}:` }),
     ]);
     const keys: string[] = [];

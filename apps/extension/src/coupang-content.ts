@@ -1,6 +1,6 @@
 import{parseUnitsPerPackage}from"@ddakdama/core/product";
+import{parseWon}from"./coupang-price";
 type CartSnapshot={productId:string;vendorItemId:string|null;itemId:string|null;quantity:number;price:number|null;priceIsLineTotal:boolean;title:string};
-const won=(text:string)=>{const n=Number(text.replace(/[^0-9]/g,""));return Number.isFinite(n)&&n>0?n:null};
 const currentIdentity=()=>{const root=document.body?.dataset??{};return{productId:location.pathname.match(/products\/(\d+)/)?.[1]??root.productId??null,vendorItemId:new URL(location.href).searchParams.get("vendorItemId")??root.vendorItemId??null,itemId:new URL(location.href).searchParams.get("itemId")??root.itemId??null}};
 const securityRequired=()=>/captcha|access denied|로봇|보안 확인|접근이 제한/i.test(`${document.title} ${location.pathname} ${document.body?.innerText.slice(0,500)??""}`);
 const loginRequired=()=>/\/login|member\/login/i.test(location.pathname)||Boolean(document.querySelector("form[action*='login'],input[type='password']"));
@@ -18,15 +18,17 @@ function detail(){
   if(element instanceof HTMLSelectElement)return element.options.length>1&&!element.value;
   return /선택|골라주세요|옵션/iu.test((element as HTMLElement).innerText.trim())&&!element.getAttribute("data-value");
  });
- return{...currentIdentity(),title,price:won(priceText),unitsPerPackage:parseUnitsPerPackage(title),inStock:!!add,optionRequired,canAdd:!!add&&!optionRequired,securityRequired:securityRequired(),loginRequired:loginRequired()};
+ return{...currentIdentity(),title,price:parseWon(priceText),unitsPerPackage:parseUnitsPerPackage(title),inStock:!!add,optionRequired,canAdd:!!add&&!optionRequired,securityRequired:securityRequired(),loginRequired:loginRequired()};
 }
 function cart():CartSnapshot[]{
  const rows=[...document.querySelectorAll<HTMLElement>("[data-product-id],.cart-deal-item,[id^='item_'][data-vid]")];
  return rows.map(row=>{
   const links=[...row.querySelectorAll<HTMLAnchorElement>('a[href*="/vp/products/"]')];const link=links.find(candidate=>candidate.innerText.trim())??links[0];const url=link?new URL(link.href,location.origin):null;
-  const explicitLineTotal=row.dataset.lineTotal??row.querySelector<HTMLElement>("[data-line-total]")?.dataset.lineTotal??row.querySelector<HTMLElement>(".cart-deal-item__total-price,.cart-product-price,[class*='total-price']")?.innerText??"";
-  const priceText=(row.querySelector<HTMLElement>(".price-value,.unit-price-area")?.innerText??row.innerText).replace(/\([^)]*(?:당|개당|ml당|mL당|g당|정당)[^)]*\)/giu,"");const priceMatches=priceText.match(/\d[\d,]*\s*원/g)||[];
-  return{productId:row.dataset.productId??url?.pathname.match(/products\/(\d+)/)?.[1]??"",vendorItemId:row.dataset.vid??url?.searchParams.get("vendorItemId")??null,itemId:url?.searchParams.get("itemId")??null,title:link?.innerText.trim()??"",quantity:Number(row.querySelector<HTMLInputElement>("input.cart-quantity-input,input[type='number'],[data-quantity]")?.value??row.querySelector<HTMLElement>("[data-quantity]")?.dataset.quantity??1),price:won(explicitLineTotal||priceMatches.at(-1)||""),priceIsLineTotal:Boolean(explicitLineTotal)};
+  const datasetLineTotal=row.dataset.lineTotal??row.querySelector<HTMLElement>("[data-line-total]")?.dataset.lineTotal??"";
+  const lineTotalElement=row.querySelector<HTMLElement>("[data-testid='line-total-price'],.cart-deal-item__total-price strong,.cart-product-price strong,.cart-deal-item__total-price,.cart-product-price");
+  const lineTotal=parseWon(datasetLineTotal,true)??parseWon(lineTotalElement?.innerText??"");
+  const priceText=(row.querySelector<HTMLElement>(".price-value,.unit-price-area")?.innerText??row.innerText).replace(/\([^)]*(?:당|개당|ml당|mL당|g당|정당)[^)]*\)/giu,"");const priceMatches=priceText.split(/\r?\n/u).filter(line=>!/적립|캐시|쿠폰|배송비|할인/iu.test(line)).flatMap(line=>line.match(/\d[\d,]*\s*원/g)??[]);
+  return{productId:row.dataset.productId??url?.pathname.match(/products\/(\d+)/)?.[1]??"",vendorItemId:row.dataset.vid??url?.searchParams.get("vendorItemId")??null,itemId:url?.searchParams.get("itemId")??null,title:link?.innerText.trim()??"",quantity:Number(row.querySelector<HTMLInputElement>("input.cart-quantity-input,input[type='number'],[data-quantity]")?.value??row.querySelector<HTMLElement>("[data-quantity]")?.dataset.quantity??1),price:lineTotal??parseWon(priceMatches[0]??""),priceIsLineTotal:lineTotal!==null};
  }).filter(item=>item.productId&&Number.isInteger(item.quantity)&&item.quantity>0);
 }
 function searchResults(){
@@ -49,7 +51,7 @@ function searchResults(){
    .filter(line=>!/배송비|적립|캐시|쿠폰|혜택/iu.test(line))
    .join("\n")
    .replace(/\([^)]*(?:당|개당|ml당|mL당|g당|정당)[^)]*\)/giu,"");
-  const priceMatches=salePriceText.match(/\d[\d,]*\s*원/g)||[];const price=won(priceMatches.at(-1)||"");
+  const priceMatches=salePriceText.match(/\d[\d,]*\s*원/g)||[];const price=parseWon(priceMatches.at(-1)||"");
   const ratingText=row.querySelector<HTMLElement>('[class*="ProductRating_productRating"]')?.getAttribute("aria-label")||"";const reviewText=row.querySelector<HTMLElement>('[class*="ProductRating_productRating"]')?.innerText||"";
   const image=row.querySelector<HTMLImageElement>("img");
   results.push({id:id+"-"+(vendor||url.searchParams.get("itemId")||""),productId:id,vendorItemId:vendor,itemId:url.searchParams.get("itemId"),title,currentPrice:price,unitsPerPackage:parseUnitsPerPackage(title),productUrl:url.href,imageUrl:image?.currentSrc||image?.src||image?.dataset.src||image?.dataset.imgSrc||null,rocketDelivery:/로켓|오늘|내일/.test(row.innerText),rating:Number(ratingText.replace(/[^0-9.]/g,""))||null,reviewCount:Number(reviewText.replace(/[^0-9]/g,""))||null,advertised:/광고|Ad information/.test(row.innerText),source:"BROWSER"});if(results.length>=8)break;

@@ -1,14 +1,26 @@
 import {Client} from "@modelcontextprotocol/sdk/client/index.js";
 import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-const origin = process.env.DDAKDAMA_TEST_ORIGIN ?? "http://localhost:8787";
-const expectedWidgetUri = "ui://widget/ddakdama-cart-v6.html";
-const legacyWidgetUris = ["ui://widget/ddakdama-cart-v5.html"];
+const origin = (
+  process.argv[2] ??
+  process.env.DDAKDAMA_TEST_ORIGIN ??
+  "http://localhost:8787"
+)
+  .replace(/\/mcp\/?$/, "")
+  .replace(/\/$/, "");
+const expectedWidgetUri = "ui://widget/ddakdama-cart-v12.html";
+const legacyWidgetUris = ["ui://widget/ddakdama-cart-v11.html", "ui://widget/ddakdama-cart-v10.html", "ui://widget/ddakdama-cart-v9.html", "ui://widget/ddakdama-cart-v8.html", "ui://widget/ddakdama-cart-v7.html", "ui://widget/ddakdama-cart-v6.html", "ui://widget/ddakdama-cart-v5.html"];
 const pairing = await fetch(`${origin}/api/pairing/start`, {
   method: "POST",
   headers: {"content-type": "application/json"},
   body: JSON.stringify({}),
 }).then((response) => response.json());
+const pendingPairingStatus = await fetch(`${origin}/api/pairing/status`, {
+  headers: {authorization: `Bearer ${pairing.deviceToken}`},
+}).then((response) => response.json());
+if (pendingPairingStatus.connected !== false) {
+  throw new Error("UNPAIRED_DEVICE_REPORTED_CONNECTED");
+}
 
 const client = new Client({name: "ddakdama-smoke", version: "1.0.0"});
 await client.connect(new StreamableHTTPClientTransport(new URL(`${origin}/mcp`)));
@@ -50,10 +62,28 @@ if (JSON.stringify(appOnlyTools) !== JSON.stringify(expectedAppOnlyTools)) {
   throw new Error(`APP_ONLY_TOOL_CONTRACT_VIOLATION:${appOnlyTools.join(",")}`);
 }
 
+const pairingNonce = crypto.randomUUID();
+const pairingArguments = {
+  pairing_code: `${pairing.code.slice(0, 3)} ${pairing.code.slice(3)}`,
+  pairing_nonce: pairingNonce,
+};
 const paired = await client.callTool({
   name: "pair_extension_device",
-  arguments: {pairing_code: `${pairing.code.slice(0, 3)} ${pairing.code.slice(3)}`},
+  arguments: pairingArguments,
 });
+const pairedRetry = await client.callTool({
+  name: "pair_extension_device",
+  arguments: pairingArguments,
+});
+if (!paired._meta?.connectionGrant || pairedRetry._meta?.connectionGrant !== paired._meta.connectionGrant) {
+  throw new Error("PAIRING_RETRY_NOT_IDEMPOTENT");
+}
+const connectedPairingStatus = await fetch(`${origin}/api/pairing/status`, {
+  headers: {authorization: `Bearer ${pairing.deviceToken}`},
+}).then((response) => response.json());
+if (connectedPairingStatus.connected !== true || !Number.isFinite(connectedPairingStatus.grantExpiresAt)) {
+  throw new Error("PAIRED_DEVICE_NOT_REPORTED_CONNECTED");
+}
 const shoppingList = [
   "닥터지 레드 블레미쉬 포 맨 진정 올인원 150ml",
   "스킨1004 히알루 시카 워터핏 선 세럼 50ml 2개",
@@ -127,6 +157,10 @@ const revokedDeviceResponse = await fetch(`${origin}/api/handoffs/latest`, {
   headers: {authorization: `Bearer ${pairing.deviceToken}`},
 });
 if (revokedDeviceResponse.status !== 401) throw new Error("DEVICE_TOKEN_NOT_REVOKED");
+const revokedStatusResponse = await fetch(`${origin}/api/pairing/status`, {
+  headers: {authorization: `Bearer ${pairing.deviceToken}`},
+});
+if (revokedStatusResponse.status !== 401) throw new Error("REVOKED_PAIRING_STATUS_AUTHORIZED");
 
 console.log(JSON.stringify({
   paired: paired.structuredContent,
@@ -141,5 +175,10 @@ console.log(JSON.stringify({
   status: status.structuredContent,
   disconnected: disconnected.structuredContent,
   revokedDeviceStatus: revokedDeviceResponse.status,
+  pairingStatus: {
+    before: pendingPairingStatus,
+    after: connectedPairingStatus,
+    revoked: revokedStatusResponse.status,
+  },
 }));
 await client.close();

@@ -6,6 +6,9 @@ type Pairing = {
   deviceId: string;
   expiresAt: number;
   used: boolean;
+  retryNonceHash?: string;
+  connectionGrant?: string;
+  grantExpiresAt?: number;
 };
 type TimedDevice = { deviceId: string; expiresAt: number };
 type Handoff = {
@@ -58,7 +61,7 @@ function purge() {
   const now = Date.now();
   let changed = false;
   for (const [code, item] of pairings) {
-    if (item.expiresAt < now || item.used) { pairings.delete(code); changed = true; }
+    if (item.expiresAt < now) { pairings.delete(code); changed = true; }
   }
   for (const [key, item] of tokens) {
     if (item.expiresAt < now) { tokens.delete(key); changed = true; }
@@ -112,6 +115,7 @@ export function startPairing(ttlMs = configuredTtl("PAIRING_TTL_SECONDS", 600_00
 export function completePairing(
   code: string,
   clientKey = "unknown",
+  pairingNonce?: string,
   grantTtlMs = configuredTtl("CONNECTION_GRANT_TTL_SECONDS", 24 * 60 * 60_000),
 ) {
   purge();
@@ -122,10 +126,28 @@ export function completePairing(
   }
   if (!recordPairingAttempt(normalizedCode, clientKey)) return null;
   const pairing = pairings.get(hash(normalizedCode));
-  if (!pairing || pairing.used || pairing.expiresAt < Date.now()) return null;
+  if (!pairing || pairing.expiresAt < Date.now()) return null;
+  const retryNonceHash = pairingNonce ? hash(pairingNonce) : undefined;
+  if (pairing.used) {
+    return retryNonceHash &&
+      pairing.retryNonceHash === retryNonceHash &&
+      pairing.connectionGrant &&
+      pairing.grantExpiresAt &&
+      pairing.grantExpiresAt > Date.now()
+      ? {
+          connectionGrant: pairing.connectionGrant,
+          expiresAt: pairing.grantExpiresAt,
+        }
+      : null;
+  }
   pairing.used = true;
   const connectionGrant = secret();
   const expiresAt = Date.now() + grantTtlMs;
+  if (retryNonceHash) {
+    pairing.retryNonceHash = retryNonceHash;
+    pairing.connectionGrant = connectionGrant;
+    pairing.grantExpiresAt = expiresAt;
+  }
   grants.set(hash(connectionGrant), { deviceId: pairing.deviceId, expiresAt });
   persist();
   return { connectionGrant, expiresAt };
@@ -139,6 +161,20 @@ export function authenticateDevice(token: string) {
 export function authenticateGrant(grant: string) {
   purge();
   return grants.get(hash(grant))?.deviceId ?? null;
+}
+
+export function pairingStatus(deviceId: string) {
+  purge();
+  const grantExpiresAt = [...grants.values()]
+    .filter((grant) => grant.deviceId === deviceId && grant.expiresAt > Date.now())
+    .reduce<number | null>(
+      (latest, grant) => Math.max(latest ?? 0, grant.expiresAt),
+      null,
+    );
+  return {
+    connected: grantExpiresAt !== null,
+    grantExpiresAt,
+  };
 }
 
 export function revokeDeviceToken(token: string) {

@@ -16,6 +16,7 @@ export type McpStore = {
   completePairing: (
     code: string,
     clientKey?: string,
+    pairingNonce?: string,
   ) => MaybePromise<{ connectionGrant: string; expiresAt: number } | null>;
   authenticateGrant: (grant: string) => MaybePromise<string | null>;
   createHandoff: (
@@ -38,6 +39,7 @@ export type McpServerOptions = {
   legacyWidgetUris?: readonly string[];
   widgetConnectDomains?: string[];
   widgetResourceDomains?: string[];
+  widgetDomain?: string;
 };
 
 const normalizePairingCode = (value: string) => {
@@ -71,6 +73,7 @@ export function createMcpServer({
   legacyWidgetUris = [],
   widgetConnectDomains = [],
   widgetResourceDomains = [],
+  widgetDomain,
 }: McpServerOptions) {
   const server = new McpServer(
     { name: "ddakdama", version: "1.0.0" },
@@ -96,6 +99,7 @@ export function createMcpServer({
             _meta: {
               ui: {
                 prefersBorder: true,
+                ...(widgetDomain ? { domain: widgetDomain } : {}),
                 csp: {
                   connectDomains: widgetConnectDomains,
                   resourceDomains: widgetResourceDomains,
@@ -103,6 +107,7 @@ export function createMcpServer({
               },
               "openai/widgetDescription":
                 "쇼핑 목록의 규격과 수량을 확인하고 딱담아 확장 프로그램으로 보내는 화면입니다.",
+              ...(widgetDomain ? { "openai/widgetDomain": widgetDomain } : {}),
               "openai/widgetPrefersBorder": true,
             },
           },
@@ -201,21 +206,26 @@ export function createMcpServer({
           .min(6)
           .max(9)
           .refine((value) => normalizePairingCode(value) !== null),
+        pairing_nonce: z.string().uuid().optional(),
       },
       outputSchema: { connected: z.boolean() },
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
         openWorldHint: true,
-        idempotentHint: false,
+        idempotentHint: true,
       },
       _meta: {
         ui: { visibility: ["app"] },
         ...invocationMeta("확장 프로그램과 연결하는 중…", "연결 확인 완료"),
       },
     },
-    async ({ pairing_code }) => {
-      const paired = await store.completePairing(pairing_code, pairingClientKey);
+    async ({ pairing_code, pairing_nonce }) => {
+      const paired = await store.completePairing(
+        pairing_code,
+        pairingClientKey,
+        pairing_nonce,
+      );
       if (!paired) {
         return {
           isError: true,
