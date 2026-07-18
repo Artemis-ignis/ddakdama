@@ -12,6 +12,19 @@ const base = {
 };
 
 describe("상품 후보 자동선택", () => {
+  it("범위 용량 요청은 범위 안의 후보만 자동 선택한다", () => {
+    const [iceBar] = parseShoppingList("\uC81C\uB85C \uC544\uC774\uC2A4\uD06C\uB9BC \uBC14 80~100ml \u00d7 10\uAC1C, 1\uC138\uD2B8");
+    const insideRange = {
+      title: "\uC81C\uB85C \uC544\uC774\uC2A4\uD06C\uB9BC \uBC14 90mL 10\uAC1C\uc785",
+      currentPrice: 12_000,
+      unitsPerPackage: 10,
+      rocketDelivery: false,
+      advertised: false,
+    };
+    expect(candidateMatchesRequest(iceBar!, insideRange)).toBe(true);
+    expect(candidateMatchesRequest(iceBar!, { ...insideRange, title: "\uC81C\uB85C \uC544\uC774\uC2A4\uD06C\uB9BC \uBC14 120mL 10\uAC1C\uc785" })).toBe(false);
+  });
+
   it("브랜드·제품명·용량·수량이 정확한 후보만 허용한다", () => {
     expect(candidateMatchesRequest(sun!, base)).toBe(true);
     expect(candidateMatchesRequest(sun!, { ...base, title: "스킨1004 마다가스카르 센텔라 선크림 50mL 2개입" })).toBe(false);

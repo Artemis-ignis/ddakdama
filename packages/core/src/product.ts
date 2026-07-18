@@ -1,36 +1,32 @@
-const normalize = (value: string) => value.toLowerCase().replace(/[^0-9a-z가-힣]/gu, "");
+const normalize = (value: string) => value.toLowerCase().replace(/[^0-9a-z\uac00-\ud7a3]/gu, "");
+
+const physicalPackageUnit = "\\uac1c|\\ubcd1|\\uce94|\\ubd09|\\ud1b5|\\ud329";
+const explicitCountPatterns = [
+  new RegExp(`(?:^|[\\s,(/])(?:x|\\u00d7)\\s*(\\d{1,3})(?=\\s|[),/]|$)`, "iu"),
+  new RegExp(`(?:^|[\\s,(/])(\\d{1,3})\\s*(?:\\uac1c\\uc785|${physicalPackageUnit}|\\ubb36\\uc74c|\\uc138\\ud2b8|\\ubc15\\uc2a4)(?=\\s|[),/]|$)`, "iu"),
+];
 
 /**
- * 쿠팡 제목에서 판매 묶음에 포함된 실물 개수를 읽습니다.
- * 정·캡슐 같은 제품 내부 규격은 묶음 수량으로 취급하지 않습니다.
+ * Reads the number of separately purchasable physical units represented by a
+ * Coupang listing. Tablet counts are intentionally excluded: "240\uC815" is
+ * the content of one supplement bottle, not 240 cart items.
  */
 export function parseExplicitUnitsPerPackage(title: string): number | null {
-  const normalized = title
-    .replace(/[（]/gu, "(")
-    .replace(/[）]/gu, ")")
-    .replace(/\s+/gu, " ")
+  const normalized = title.replace(/[\uff08]/gu, "(").replace(/[\uff09]/gu, ")").replace(/\s+/gu, " ").trim();
+  const withoutGiftText = normalized
+    .replace(/\([^)]*(?:\uc99d\uc815|\uc0ac\uc740\ud488|\ud504\ub9ac\ubbf8\uc5c4)[^)]*\)/gu, " ")
+    .replace(/\+\s*[^,]*(?:\uc99d\uc815|\uc0ac\uc740\ud488|\ud504\ub9ac\ubbf8\uc5c4)[^,]*(?:,|$)/gu, " ")
     .trim();
-  const withoutGiftParentheses = normalized.replace(/\([^)]*(?:증정|사은품|샘플|여행용|미니)[^)]*\)/gu, " ").trim();
-  const withoutGiftSegments = withoutGiftParentheses.replace(/\+\s*[^,]*(?:증정|사은품|샘플|여행용|미니)[^,]*(?:,|$)/gu, " ").trim();
-  const patterns = [
-    /(?:^|[\s,(/])(?:x|×)\s*(\d{1,2})(?=\s|[),/]|$)/iu,
-    /(?:^|[\s,(/])(\d{1,2})\s*(?:개입|개|병|통|세트|입)(?=\s|[),/]|$)/u,
-    /(?:^|[\s,(/])(\d{1,2})\s*팩(?=\s|[),/]|$)/u,
-  ];
-  for (const pattern of patterns) {
-    const matches = [...withoutGiftSegments.matchAll(new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`))];
+
+  for (const pattern of explicitCountPatterns) {
+    const matches = [...withoutGiftText.matchAll(new RegExp(pattern.source, `${pattern.flags}g`))];
     const value = Number(matches.at(-1)?.[1] ?? 0);
-    if (Number.isInteger(value) && value >= 1 && value <= 20) return value;
+    if (Number.isInteger(value) && value >= 1 && value <= 500) return value;
   }
-  const onePlusOne = withoutGiftSegments.match(/(?:^|\s)1\s*\+\s*1(?:\s|$)/u);
-  return onePlusOne ? 2 : null;
+
+  return /(?:^|\s)1\s*\+\s*1(?:\s|$)/u.test(withoutGiftText) ? 2 : null;
 }
 
-/**
- * 검색 결과에서는 묶음 표기가 없으면 단품으로 계산합니다. 상세페이지
- * 검증에서는 `parseExplicitUnitsPerPackage`를 사용해 "표기 없음"과 실제
- * 단품 표기를 구분해야 합니다.
- */
 export function parseUnitsPerPackage(title: string): number {
   return parseExplicitUnitsPerPackage(title) ?? 1;
 }

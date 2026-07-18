@@ -13,6 +13,25 @@ const normalize = (value: string) => value.toLowerCase().replace(/[^0-9a-zê°€-íž
 const containsSpec = (title: string, value: number | null, unit: string | null) =>
   !value || !unit || normalize(title).includes(normalize(`${value}${unit}`));
 
+const rangeFor = (line: ShoppingRequestLine) => {
+  const token = line.variantTokens.find((value) => value.startsWith("size-range:"));
+  const match = token?.match(/^size-range:(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?):(mL|L|g|kg)$/u);
+  return match ? { minimum: Number(match[1]), maximum: Number(match[2]), unit: match[3] } : null;
+};
+
+const candidateSizeInsideRange = (title: string, range: NonNullable<ReturnType<typeof rangeFor>>) => {
+  const pattern = /(\d+(?:\.\d+)?)\s*(mL|ml|L|l|g|kg)/gu;
+  for (const match of title.matchAll(pattern)) {
+    let value = Number(match[1]);
+    let unit = match[2].toLowerCase();
+    if (range.unit === "mL" && unit === "l") { value *= 1000; unit = "ml"; }
+    if (range.unit === "g" && unit === "kg") { value *= 1000; unit = "g"; }
+    const comparableUnit = range.unit.toLowerCase();
+    if ((unit === comparableUnit || (unit === "ml" && comparableUnit === "ml")) && value >= range.minimum && value <= range.maximum) return true;
+  }
+  return false;
+};
+
 export function candidateMatchesRequest(
   line: ShoppingRequestLine,
   candidate: CandidateForSelection,
@@ -20,7 +39,8 @@ export function candidateMatchesRequest(
   if (!Number.isInteger(candidate.unitsPerPackage) || candidate.unitsPerPackage <= 0) return false;
   if (line.requestedPhysicalUnits % candidate.unitsPerPackage !== 0) return false;
   if (!titleContainsProductIdentity(candidate.title, line.brand, line.productName)) return false;
-  if (!containsSpec(candidate.title, line.unitSizeValue, line.unitSizeUnit)) return false;
+  const range = rangeFor(line);
+  if (range ? !candidateSizeInsideRange(candidate.title, range) : !containsSpec(candidate.title, line.unitSizeValue, line.unitSizeUnit)) return false;
   if (!containsSpec(candidate.title, line.strengthValue, line.strengthUnit)) return false;
   if (!containsSpec(candidate.title, line.packageContentCount, line.packageContentUnit)) return false;
   return true;

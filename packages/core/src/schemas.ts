@@ -5,7 +5,7 @@ export const shoppingRequestLineSchema = z.object({
   unitSizeValue:z.number().positive().max(100_000).nullable(), unitSizeUnit:z.enum(["mL","L","g","kg"]).nullable(),
   strengthValue:z.number().positive().max(100_000).nullable(), strengthUnit:z.enum(["mg","mcg","IU","%"]).nullable(),
   packageContentCount:z.number().int().positive().max(10_000).nullable(), packageContentUnit:z.enum(["정","캡슐","포","매","개입","스틱","패치"]).nullable(),
-  requestedPhysicalUnits:z.number().int().positive().max(20), requestedPurchaseUnits:z.number().int().positive().max(20),
+  requestedPhysicalUnits:z.number().int().positive().max(10_000), requestedPurchaseUnits:z.number().int().positive().max(10_000),
   parserConfidence:z.number().min(0).max(1), parseWarnings:z.array(z.string().max(200)).max(20)
 });
 export type ShoppingRequestLine=z.infer<typeof shoppingRequestLineSchema>;
