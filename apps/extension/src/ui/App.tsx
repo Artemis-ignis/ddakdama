@@ -1043,7 +1043,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
                   {manuallySelected && <em>직접 선택</em>}
                   <small>{stateLabel(line)}{item?.unitsPerPackage && item.unitsPerPackage > 1 ? ` · ${item.unitsPerPackage}개 묶음 × ${purchaseQty}` : ""}</small>
                 </span>
-                <span className="product-row-price">{item?.currentPrice ? <><b>{(item.currentPrice * purchaseQty).toLocaleString()}원</b>{purchaseQty > 1 && <small>{item.currentPrice.toLocaleString()}원 × {purchaseQty}</small>}</> : item ? "상세에서 가격 확인" : group?.error ? "검색 실패" : results.length ? `후보 ${results.length}개 보기` : "검색 결과 없음"}</span>
+                <span className="product-row-price">{item?.currentPrice ? <><b>{(item.currentPrice * purchaseQty).toLocaleString()}원</b>{purchaseQty > 1 && <small>{item.currentPrice.toLocaleString()}원 × {purchaseQty}</small>}</> : item ? "상세에서 가격 확인" : group?.error ? searchErrorMessage(group.error) : results.length ? `후보 ${results.length}개 보기` : "검색 결과 없음"}</span>
                 <ChevronDown className="row-chevron" size={18} />
                 </button>
                 <button className="line-exclude-button" type="button" onClick={() => excludeLine(line, index)} aria-label={`${line.productName} 이 품목 빼기`}><MinusCircle size={17} /><span>빼기</span></button>

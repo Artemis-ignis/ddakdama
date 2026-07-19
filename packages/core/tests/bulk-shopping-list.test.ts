@@ -113,3 +113,43 @@ describe("real-world summer grocery list regression", () => {
     expect(lines[4]).toMatchObject({ packageContentCount: 2, packageContentUnit: "인분" });
   });
 });
+
+describe("retail-ready exact grocery list regression", () => {
+  const lines = parseShoppingList([
+    "몽베스트 위드어스 무라벨 생수 1L 12개입 1팩",
+    "스프라이트 제로 355ml 12개입 1박스",
+    "토레타 제로 500ml 6개입 1팩",
+    "풀무원 평양 물냉면 2인분 2팩",
+    "풀무원 가쓰오 메밀소바 2인분 2팩",
+    "팔도 비빔면 130g 5개입 1팩",
+    "하림 용가리치킨 텐더스틱 1kg 1봉",
+    "비비고 군만두 950g 1봉",
+    "라라스윗 저당 초콜릿 아이스크림바 90ml 10개입 1세트",
+    "쁘띠첼 과일젤리 20~30g 개별포장 10개입 1봉",
+    "당도선별 통수박 5kg 내외 1통",
+  ].join("\n"));
+
+  it("keeps all eleven exact shopping intents searchable", () => {
+    expect(lines).toHaveLength(11);
+    expect(lines.map((line) => line.productName)).toEqual([
+      "몽베스트 위드어스 무라벨 생수",
+      "스프라이트 제로",
+      "토레타 제로",
+      "풀무원 평양 물냉면 2인분",
+      "풀무원 가쓰오 메밀소바 2인분",
+      "팔도 비빔면",
+      "하림 용가리치킨 텐더스틱",
+      "비비고 군만두",
+      "라라스윗 저당 초콜릿 아이스크림바",
+      "쁘띠첼 과일젤리 개별포장",
+      "당도선별 통수박",
+    ]);
+  });
+
+  it("expands 개입 packages into physical contents without multiplying cart packs", () => {
+    expect(lines.map((line) => line.requestedPhysicalUnits)).toEqual([12, 12, 6, 2, 2, 5, 1, 1, 10, 10, 1]);
+    expect(lines.map((line) => line.requestedPurchaseUnits)).toEqual([1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1]);
+    expect(lines[0]).toMatchObject({ packageContentCount: 12, packageContentUnit: "개입", requestedPhysicalUnits: 12, requestedPurchaseUnits: 1 });
+    expect(lines[8]).toMatchObject({ packageContentCount: 10, packageContentUnit: "개입", requestedPhysicalUnits: 10, requestedPurchaseUnits: 1 });
+  });
+});

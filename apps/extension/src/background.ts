@@ -14,10 +14,17 @@ const searchBaseUrl=import.meta.env.VITE_DDAKDAMA_SEARCH_BASE_URL||"https://www.
 const validJob=(job:unknown):job is Job=>{const value=job as Partial<Job>;return Boolean(value&&typeof value.id==="string"&&value.id.length<=100&&typeof value.productUrl==="string"&&value.productUrl.length<=2000&&typeof value.productId==="string"&&/^\d+$/.test(value.productId)&&typeof value.expectedProductName==="string"&&value.expectedProductName.length>0&&value.expectedProductName.length<=300&&(value.expectedBrand===null||typeof value.expectedBrand==="string")&&Number.isInteger(value.cartPurchaseQuantity)&&Number(value.cartPurchaseQuantity)>=1&&Number(value.cartPurchaseQuantity)<=20&&Number.isInteger(value.expectedUnitsPerPackage)&&Number(value.expectedUnitsPerPackage)>=1&&Number(value.expectedUnitsPerPackage)<=20)};
 const validJobs=(jobs:unknown):jobs is Job[]=>Array.isArray(jobs)&&jobs.length>0&&jobs.length<=50&&jobs.every(validJob);
 
-async function sendToTab(tabId:number,message:unknown){let lastError:unknown;for(let attempt=0;attempt<3;attempt+=1){try{return await chrome.tabs.sendMessage(tabId,message)}catch(error){lastError=error;if(attempt<2)await new Promise(resolve=>setTimeout(resolve,200*(attempt+1)))}}throw lastError instanceof Error?lastError:new Error("CONTENT_SCRIPT_UNAVAILABLE")}
+async function pingContentScript(tabId:number){try{const response=await chrome.tabs.sendMessage(tabId,{type:"DDAKDAMA_PING_CONTENT"});return response?.ok===true}catch{return false}}
+async function ensureContentScript(tabId:number){
+ if(await pingContentScript(tabId))return;
+ try{await chrome.scripting.executeScript({target:{tabId},files:["dist/content.js"]})}catch{throw new Error("CONTENT_SCRIPT_UNAVAILABLE")}
+ for(let attempt=0;attempt<5;attempt+=1){if(await pingContentScript(tabId))return;await new Promise(resolve=>setTimeout(resolve,150*(attempt+1)))}
+ throw new Error("CONTENT_SCRIPT_UNAVAILABLE");
+}
+async function sendToTab(tabId:number,message:unknown){let lastError:unknown;for(let attempt=0;attempt<3;attempt+=1){try{return await chrome.tabs.sendMessage(tabId,message)}catch(error){lastError=error;if(attempt===0)await ensureContentScript(tabId).catch(()=>{});if(attempt<2)await new Promise(resolve=>setTimeout(resolve,200*(attempt+1)))}}void lastError;throw new Error("CONTENT_SCRIPT_UNAVAILABLE")}
 async function waitComplete(tabId:number){for(let attempt=0;attempt<150;attempt+=1){const current=await chrome.tabs.get(tabId);if(current.status==="complete")return;await new Promise(resolve=>setTimeout(resolve,100))}throw new Error("NETWORK_ERROR")}
 async function createWorkerTab(){const tab=await chrome.tabs.create({url:"about:blank",active:false});if(!tab.id)throw new Error("WORKER_TAB_FAILED");return tab.id}
-async function navigateWorkerTab(tabId:number,url:string){await chrome.tabs.update(tabId,{url,active:false});await waitComplete(tabId)}
+async function navigateWorkerTab(tabId:number,url:string){await chrome.tabs.update(tabId,{url,active:false});await waitComplete(tabId);await ensureContentScript(tabId)}
 async function closeWorkerTab(tabId:number|undefined){if(tabId!==undefined)await chrome.tabs.remove(tabId).catch(()=>{})}
 async function inspectProductDetail(tabId:number){let detail:ProductDetail|null=null;for(let attempt=0;attempt<10;attempt+=1){detail=await sendToTab(tabId,{type:"DDAKDAMA_INSPECT_PRODUCT"}) as ProductDetail;if(detail.securityRequired||detail.loginRequired||(detail.price!==null&&(detail.inStock||detail.optionRequired)))return detail;if(attempt<9)await new Promise(resolve=>setTimeout(resolve,200))}if(!detail)throw new Error("PRODUCT_DETAIL_UNAVAILABLE");return detail}
 async function cartSnapshot(tabId:number){const current=await chrome.tabs.get(tabId);if(current.url?.startsWith(cartUrl)){await chrome.tabs.reload(tabId);await waitComplete(tabId)}else await navigateWorkerTab(tabId,cartUrl);return await sendToTab(tabId,{type:"DDAKDAMA_CART_SNAPSHOT"})}

@@ -28,6 +28,7 @@ const multiplicativeQuantity = /[x\u00d7]\s*(\d+)\s*(\uAC1C|\uBCD1|\uCE94|\uBD09
 const servingPlanPattern = /(\d+)\s*\uC778\uBD84\s*\uAD6C\uC131\s*,?\s*\uCD1D\s*(\d+)\s*\uC778\uBD84/iu;
 const approximateSizePattern = /(\d+(?:\.\d+)?)\s*(mL|ml|L|l|kg|g|\uBC00\uB9AC\uB9AC\uD130|\uB9AC\uD130|\uD0AC\uB85C\uADF8\uB7A8|\uADF8\uB7A8)\s*\uB0B4\uC678/iu;
 const trailingPurchasePattern = /,\s*(\d+)\s*(\uBC15\uC2A4|\uBB36\uC74C|\uC138\uD2B8|\uD329|\uBD09|\uD1B5)(?:\s|$)/iu;
+const packagedPurchasePattern = /(\d+)\s*\uAC1C\uC785\s*(?:,\s*)?(?:(?:x|\u00d7)\s*)?(\d+)\s*(\uAC1C|\uBC15\uC2A4|\uBB36\uC74C|\uC138\uD2B8|\uD329|\uBD09|\uD1B5)(?:\s|$)/iu;
 
 const lowerUnit = (value: string) => value.toLowerCase();
 const tokenize = (text: string): NumericToken[] =>
@@ -153,6 +154,12 @@ export function parseShoppingLine(rawText: string, index = 0): ShoppingRequestLi
   const trailingPurchase = normalizedText.match(trailingPurchasePattern);
   if (trailingPurchase) {
     requestedPurchaseUnits = Number(trailingPurchase[1]);
+    hasExplicitContainer = true;
+  }
+  const packagedPurchase = normalizedText.match(packagedPurchasePattern);
+  if (packageContentUnit === "\uAC1C\uC785" && packageContentCount !== null) {
+    requestedPurchaseUnits = packagedPurchase ? Number(packagedPurchase[2]) : requestedPurchaseUnits;
+    requestedPhysicalUnits = packageContentCount * requestedPurchaseUnits;
     hasExplicitContainer = true;
   }
   if (!hasExplicitContainer && requestedPhysicalUnits !== null) requestedPurchaseUnits = requestedPhysicalUnits;

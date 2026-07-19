@@ -58,13 +58,18 @@ function searchResults(){
  }
  return results;
 }
-chrome.runtime.onMessage.addListener((message,_sender,respond)=>{
- if(message?.type==="DDAKDAMA_SEARCH_RESULTS"){const results=searchResults();respond({results,securityRequired:securityRequired(),loginRequired:loginRequired(),pageReady:document.readyState==="complete",productLinkCount:document.querySelectorAll('a[href*="/vp/products/"]').length});}
- if(message?.type==="DDAKDAMA_INSPECT_PRODUCT")respond(detail());
- if(message?.type==="DDAKDAMA_CART_SNAPSHOT")respond({items:cart()});
- if(message?.type==="DDAKDAMA_ADD_TO_CART"){
-  const info=detail();if(info.securityRequired){respond({ok:false,reason:"SECURITY_CHECK_REQUIRED"});return}if(info.loginRequired){respond({ok:false,reason:"LOGIN_REQUIRED"});return}if(!info.canAdd){respond({ok:false,reason:info.optionRequired?"OPTION_REQUIRED":"ADD_BUTTON_NOT_FOUND"});return}
-  const purchaseArea=document.querySelector<HTMLElement>(".prod-buy,.prod-atf,[data-testid='product-purchase'],.product-main")??document.body;const button=[...purchaseArea.querySelectorAll<HTMLButtonElement>("button")].find(candidate=>/장바구니/.test(candidate.innerText)&&!candidate.disabled);button?.click();respond({ok:true,productId:info.productId,vendorItemId:info.vendorItemId});
- }
- return true;
-});
+const contentMarker="ddakdamaContentReady";
+if(document.documentElement.dataset[contentMarker]!=="1"){
+ document.documentElement.dataset[contentMarker]="1";
+ chrome.runtime.onMessage.addListener((message,_sender,respond)=>{
+  if(message?.type==="DDAKDAMA_PING_CONTENT")respond({ok:true});
+  if(message?.type==="DDAKDAMA_SEARCH_RESULTS"){const results=searchResults();respond({results,securityRequired:securityRequired(),loginRequired:loginRequired(),pageReady:document.readyState==="complete",productLinkCount:document.querySelectorAll('a[href*="/vp/products/"]').length});}
+  if(message?.type==="DDAKDAMA_INSPECT_PRODUCT")respond(detail());
+  if(message?.type==="DDAKDAMA_CART_SNAPSHOT")respond({items:cart()});
+  if(message?.type==="DDAKDAMA_ADD_TO_CART"){
+   const info=detail();if(info.securityRequired){respond({ok:false,reason:"SECURITY_CHECK_REQUIRED"});return}if(info.loginRequired){respond({ok:false,reason:"LOGIN_REQUIRED"});return}if(!info.canAdd){respond({ok:false,reason:info.optionRequired?"OPTION_REQUIRED":"ADD_BUTTON_NOT_FOUND"});return}
+   const purchaseArea=document.querySelector<HTMLElement>(".prod-buy,.prod-atf,[data-testid='product-purchase'],.product-main")??document.body;const button=[...purchaseArea.querySelectorAll<HTMLButtonElement>("button")].find(candidate=>/장바구니/.test(candidate.innerText)&&!candidate.disabled);button?.click();respond({ok:true,productId:info.productId,vendorItemId:info.vendorItemId});
+  }
+  return true;
+ });
+}
