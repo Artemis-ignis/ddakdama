@@ -14,6 +14,7 @@
   - Cloudflare Worker 4개
 - 관련 MV3 확장 프로그램 Playwright E2E: 기본 환경 13개 통과·공개 라이브 페어링 2개 의도적 skip
 - `DDAKDAMA_LIVE_PAIRING=1`을 명시한 새 clone 검증: 공개 MCP·실제 확장 프로그램 페어링을 포함한 15/15 통과
+- 새 clone preview 회귀 검증: 실제 Side Panel UI·후보 선택·검색어 재시도·테마를 포함한 24/24 통과
 - fixture 기반 브라우저 검증과 로그인된 실제 쿠팡·실제 장바구니 검증은 같은 상태로 취급하지 않음
 - 새 빌드를 격리된 로컬 포트에서 실행한 MCP HTTP 스모크 테스트: 통과
   - 페어링
