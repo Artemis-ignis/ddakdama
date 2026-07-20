@@ -1,4 +1,4 @@
-# 딱담아 Production Beta v1.0.0 아키텍처
+# 딱담아 Production Beta v1.0.2 아키텍처
 
 ## 구성
 

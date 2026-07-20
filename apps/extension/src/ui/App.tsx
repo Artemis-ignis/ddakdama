@@ -25,6 +25,7 @@ import brandIcon from "../../assets/icon-48.png";
 import manifest from "../../manifest.json";
 import {
   candidateMatchesRequest,
+  classifySearchCandidates,
   selectBestCandidate,
 } from "../candidate-selection.js";
 import { SERVER_ORIGIN } from "../config.js";
@@ -173,6 +174,14 @@ const searchErrorMessage = (error?: string) =>
     NO_RESULTS: "일치하는 검색 결과를 찾지 못했습니다.",
     CONTENT_SCRIPT_UNAVAILABLE: "쿠팡 검색 연결이 늦어지고 있습니다.",
   })[error ?? ""] ?? "상품 검색을 완료하지 못했습니다.";
+
+const candidateState = (line: ShoppingRequestLine, results: SearchCandidate[]) => {
+  const level = classifySearchCandidates(line, results);
+  if (level === "NONE") return "검색 결과 없음";
+  const exact = selectBestCandidate(line, results);
+  if (exact?.currentPrice === null) return "가격 확인 필요";
+  return level === "EXACT" ? "정확한 후보 확인" : `후보 ${results.length}개 보기 · 규격 확인 필요`;
+};
 
 const purchaseQuantity = (line: ShoppingRequestLine, item: SearchCandidate, manuallySelected = false) =>
   manuallySelected
@@ -913,6 +922,11 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     const url = selected[lineId]?.productUrl;
     if (url && chrome?.tabs?.create) void chrome.tabs.create({ url });
   };
+  const openCoupangSearch = (line: ShoppingRequestLine) => {
+    if (chrome?.tabs?.create) {
+      void chrome.tabs.create({ url: `https://www.coupang.com/np/search?q=${encodeURIComponent(line.productName)}` });
+    }
+  };
   const openResultProduct = (result: CartResult) => {
     const url = result.productUrl ?? selected[result.id]?.productUrl;
     if (url && chrome?.tabs?.create) void chrome.tabs.create({ url });
@@ -1021,6 +1035,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
           const selectionWarnings = item && manuallySelected ? manualSelectionWarnings(line, item) : [];
           const group = groups.find((candidate) => candidate.requestLineId === line.id);
           const results = group?.results ?? [];
+          const resultState = candidateState(line, results);
           const excluded = Boolean(excludedIds[line.id]);
           if (excluded) {
             return (
@@ -1045,6 +1060,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
                   <small>{stateLabel(line)}{item?.unitsPerPackage && item.unitsPerPackage > 1 ? ` · ${item.unitsPerPackage}개 묶음 × ${purchaseQty}` : ""}</small>
                 </span>
                 <span className="product-row-price">{item?.currentPrice ? <><b>{(item.currentPrice * purchaseQty).toLocaleString()}원</b>{purchaseQty > 1 && <small>{item.currentPrice.toLocaleString()}원 × {purchaseQty}</small>}</> : item ? "상세에서 가격 확인" : group?.error ? searchErrorMessage(group.error) : results.length ? `후보 ${results.length}개 보기` : "검색 결과 없음"}</span>
+                {!item && !group?.error && <span className="product-row-state">{resultState}</span>}
                 <ChevronDown className="row-chevron" size={18} />
                 </button>
                 <button className="line-exclude-button" type="button" onClick={() => excludeLine(line, index)} aria-label={`${line.productName} 이 품목 빼기`}><MinusCircle size={17} /><span>빼기</span></button>
@@ -1062,6 +1078,10 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
                   <p className={item && !selectionWarnings.length ? "match-copy" : "match-copy warning"}>
                     {manuallySelected ? "직접 선택한 상품입니다. 다음 단계에서 가격·재고·옵션을 다시 확인해요." : item ? (item.currentPrice ? "규격과 수량이 가장 잘 맞는 상품이에요." : "상품은 일치하며 현재 가격은 상세페이지에서 확인해요.") : group?.error ? searchErrorMessage(group.error) : "정확히 일치하는 상품이 없어 자동 선택하지 않았어요. 아래 후보를 직접 확인해 주세요."}
                   </p>
+                  <div className="candidate-actions">
+                    {results.length > 0 && <button type="button" onClick={() => setExpanded(index)}>후보 {results.length}개 보기</button>}
+                    <button type="button" onClick={() => openCoupangSearch(line)}>직접 쿠팡에서 검색</button>
+                  </div>
                   {selectionWarnings.length > 0 && (
                     <div className="manual-warning" role="alert">
                       <AlertCircle size={16} />

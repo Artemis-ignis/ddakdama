@@ -68,7 +68,7 @@ async function call(
       accept: "application/json",
       "content-type": "application/json; charset=utf-8",
       authorization: authorization(init.method ?? "GET", pathWithQuery, config),
-      "user-agent": "ddakdama/1.0.0",
+      "user-agent": "ddakdama/1.0.2",
       ...(init.headers ?? {}),
     },
     signal: AbortSignal.timeout(8_000),

@@ -32,17 +32,23 @@ function cart():CartSnapshot[]{
  }).filter(item=>item.productId&&Number.isInteger(item.quantity)&&item.quantity>0);
 }
 function searchResults(){
- const links=[...document.querySelectorAll<HTMLAnchorElement>('a[href*="/vp/products/"]')];
- const rows=links.flatMap(link=>{
-  const url=new URL(link.href,location.origin);
-  if(url.searchParams.get("sourceType")==="recently_viewed_widget")return[];
-  const row=link.closest<HTMLElement>('li,[data-product-id],[class*="ProductUnit_productUnit"],[class*="search-product"]');
-  if(!row||row.closest('.recently-viewed-item,[class*="RecentlyViewed"],[data-testid*="recently-viewed"]'))return[];
-  return[row];
- });
+ // Current Coupang search pages use ProductUnit_productUnit__* cards.  Keep
+ // legacy cards as fallbacks, but never treat sidebar history as a result.
+ const rowSelector='[class*="ProductUnit_productUnit"],li.search-product,li[class*="search-product"],[data-testid*="product-card"]';
+ const isSearchRow=(row:HTMLElement)=>Boolean(row.querySelector('a[href*="/vp/products/"]'))&&!row.closest('.recently-viewed-item,[class*="RecentlyViewed"],[data-testid*="recently-viewed"]');
+ let rows=[...document.querySelectorAll<HTMLElement>(rowSelector)].filter(isSearchRow);
+ if(!rows.length){
+  const links=[...document.querySelectorAll<HTMLAnchorElement>('a[href*="/vp/products/"]')];
+  rows=links.flatMap(link=>{
+   const url=new URL(link.href,location.origin);
+   if(url.searchParams.get("sourceType")==="recently_viewed_widget")return[];
+   const row=link.closest<HTMLElement>('li,[data-product-id],[class*="ProductUnit_productUnit"],[class*="search-product"]');
+   return row&&isSearchRow(row)?[row]:[];
+  });
+ }
  const seen=new Set<string>();const results=[];
  for(const row of rows){
-  const link=row.querySelector<HTMLAnchorElement>('a[href*="/vp/products/"]');if(!link)continue;
+  const link=[...row.querySelectorAll<HTMLAnchorElement>('a[href*="/vp/products/"]')].find(candidate=>new URL(candidate.href,location.origin).searchParams.get("sourceType")!=="recently_viewed_widget");if(!link)continue;
   const url=new URL(link.href,location.origin);const id=url.pathname.match(/products\/(\d+)/)?.[1];const vendor=url.searchParams.get("vendorItemId");if(!id||seen.has(id+"-"+vendor))continue;seen.add(id+"-"+vendor);
   const title=(row.querySelector<HTMLElement>('[class*="ProductUnit_productName"],[class*="product-name"],[data-testid="product-name"]')?.innerText||row.querySelector<HTMLImageElement>("img[alt]")?.alt||link.innerText.split("\n")[0]||"").trim();
   const priceArea=row.querySelector<HTMLElement>('[class*="PriceArea_priceArea"],[class*="price-area"],[data-testid="price-area"]')?.innerText||row.innerText||"";
@@ -56,14 +62,14 @@ function searchResults(){
   const image=row.querySelector<HTMLImageElement>("img");
   results.push({id:id+"-"+(vendor||url.searchParams.get("itemId")||""),productId:id,vendorItemId:vendor,itemId:url.searchParams.get("itemId"),title,currentPrice:price,unitsPerPackage:parseUnitsPerPackage(title),productUrl:url.href,imageUrl:image?.currentSrc||image?.src||image?.dataset.src||image?.dataset.imgSrc||null,rocketDelivery:/로켓|오늘|내일/.test(row.innerText),rating:Number(ratingText.replace(/[^0-9.]/g,""))||null,reviewCount:Number(reviewText.replace(/[^0-9]/g,""))||null,advertised:/광고|Ad information/.test(row.innerText),source:"BROWSER"});if(results.length>=8)break;
  }
- return results;
+ return{results,productCardCount:rows.length};
 }
 const contentMarker="ddakdamaContentReady";
 if(document.documentElement.dataset[contentMarker]!=="1"){
  document.documentElement.dataset[contentMarker]="1";
  chrome.runtime.onMessage.addListener((message,_sender,respond)=>{
   if(message?.type==="DDAKDAMA_PING_CONTENT")respond({ok:true});
-  if(message?.type==="DDAKDAMA_SEARCH_RESULTS"){const results=searchResults();respond({results,securityRequired:securityRequired(),loginRequired:loginRequired(),pageReady:document.readyState==="complete",productLinkCount:document.querySelectorAll('a[href*="/vp/products/"]').length});}
+  if(message?.type==="DDAKDAMA_SEARCH_RESULTS"){const parsed=searchResults();respond({...parsed,securityRequired:securityRequired(),loginRequired:loginRequired(),pageReady:document.readyState==="complete",productLinkCount:document.querySelectorAll('a[href*="/vp/products/"]').length});}
   if(message?.type==="DDAKDAMA_INSPECT_PRODUCT")respond(detail());
   if(message?.type==="DDAKDAMA_CART_SNAPSHOT")respond({items:cart()});
   if(message?.type==="DDAKDAMA_ADD_TO_CART"){

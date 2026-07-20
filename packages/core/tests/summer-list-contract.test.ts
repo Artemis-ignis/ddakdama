@@ -39,4 +39,24 @@ describe("summer grocery handoff contract", () => {
     expect(lines[0].variantTokens).toContain("size-range:70-100:mL");
     expect(lines[1].variantTokens).toContain("size-range:5-7:kg");
   });
+
+  it("preserves the ten fixed summer product names apart from size and purchase quantities", () => {
+    const fixed = parseShoppingList([
+      "\uB86F\uB370\uC6F0\uD478\uB4DC \uC124\uB808\uC784 \uBC00\uD06C\uC258\uC774\uD06C 160ml \u00D7 5\uAC1C, 1\uC138\uD2B8",
+      "\uBE59\uADF8\uB808 \uB354\uC704\uC0AC\uB0E5 \uCEE4\uD53C 140ml \u00D7 5\uAC1C, 1\uC138\uD2B8",
+      "\uBE59\uADF8\uB808 \uBA54\uB85C\uB098 \uBA5C\uB860 75ml \u00D7 10\uAC1C, 1\uC138\uD2B8",
+      "\uB86F\uB370\uC6F0\uD478\uB4DC \uC81C\uB85C \uC218\uBC15\uBC14 75ml \u00D7 10\uAC1C, 1\uC138\uD2B8",
+      "\uB3CC \uD6C4\uB8AF\uCEF5 \uBCF5\uC22D\uC544 198g \u00D7 4\uAC1C, 1\uC138\uD2B8",
+      "\uD558\uB9AC\uBCF4 \uACE8\uB4DC\uBCA0\uB80C \uBBF8\uB2C8 10g \u00D7 25\uAC1C\uC785, 1\uBD09",
+      "\uC624\uB9AC\uC628 \uCD08\uCF54\uC1A1\uC774 50g \u00D7 8\uAC1C, 1\uBC15\uC2A4",
+      "\uB18D\uC2EC \uC0C8\uC6B0\uAE61 90g \u00D7 5\uBD09, 1\uC138\uD2B8",
+      "\uB3D9\uC6D0 \uB9AC\uCC54 \uAE40\uCE58\uBCF6\uC74C\uBC25 210g \u00D7 5\uAC1C, 1\uC138\uD2B8",
+      "\uD314\uB3C4 \uBE44\uBE54\uBA74 130g \u00D7 5\uBD09, 1\uD329",
+    ].join("\n"));
+    expect(fixed.map((line) => line.productName)).toEqual([
+      "\uB86F\uB370\uC6F0\uD478\uB4DC \uC124\uB808\uC784 \uBC00\uD06C\uC258\uC774\uD06C", "\uBE59\uADF8\uB808 \uB354\uC704\uC0AC\uB0E5 \uCEE4\uD53C", "\uBE59\uADF8\uB808 \uBA54\uB85C\uB098 \uBA5C\uB860", "\uB86F\uB370\uC6F0\uD478\uB4DC \uC81C\uB85C \uC218\uBC15\uBC14", "\uB3CC \uD6C4\uB8AF\uCEF5 \uBCF5\uC22D\uC544", "\uD558\uB9AC\uBCF4 \uACE8\uB4DC\uBCA0\uB80C \uBBF8\uB2C8", "\uC624\uB9AC\uC628 \uCD08\uCF54\uC1A1\uC774", "\uB18D\uC2EC \uC0C8\uC6B0\uAE61", "\uB3D9\uC6D0 \uB9AC\uCC54 \uAE40\uCE58\uBCF6\uC74C\uBC25", "\uD314\uB3C4 \uBE44\uBE54\uBA74",
+    ]);
+    expect(fixed.map((line) => line.requestedPhysicalUnits)).toEqual([5, 5, 10, 10, 4, 25, 8, 5, 5, 5]);
+    expect(fixed.map((line) => line.requestedPurchaseUnits)).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+  });
 });

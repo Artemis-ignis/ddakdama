@@ -6,11 +6,14 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const outputDir = resolve(root, "dist", "demo");
 const rawDir = resolve(outputDir, "raw");
-const mp4Path = resolve(outputDir, "ddakdama-causal-demo-v1.0.0.mp4");
-const legacyMp4Path = resolve(outputDir, "ddakdama-demo-v1.0.0.mp4");
+const mp4Path = resolve(outputDir, "ddakdama-causal-demo-v1.0.2.mp4");
+const legacyMp4Path = resolve(outputDir, "ddakdama-demo-v1.0.2.mp4");
 const thumbnailPath = resolve(outputDir, "ddakdama-causal-demo-thumbnail.png");
 const legacyThumbnailPath = resolve(outputDir, "ddakdama-demo-thumbnail.png");
 const contactSheetPath = resolve(outputDir, "ddakdama-causal-demo-contact-sheet.png");
+const voiceoverPath = resolve(outputDir, "ddakdama-causal-demo-v1.0.2.wav");
+const subtitlePath = resolve(outputDir, "ddakdama-causal-demo-v1.0.2.en.srt");
+const narrationScriptPath = resolve(root, "scripts", "generate-demo-narration.ps1");
 const previewUrl = "http://127.0.0.1:4273";
 const pnpmCommand = process.platform === "win32" ? (process.env.ComSpec || "cmd.exe") : "pnpm";
 const pnpmArgs = (args) => process.platform === "win32" ? ["/d", "/s", "/c", "pnpm.cmd", ...args] : args;
@@ -315,8 +318,16 @@ try {
 }
 
 const rawPath = await video.path();
-const ffmpeg = spawnSync("ffmpeg", ["-y", "-i", rawPath, "-vf", "fps=30,format=yuv420p", "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-movflags", "+faststart", mp4Path], { cwd: root, encoding: "utf8" });
+const silentMp4Path = resolve(outputDir, "ddakdama-causal-demo-v1.0.2-silent.mp4");
+const ffmpeg = spawnSync("ffmpeg", ["-y", "-i", rawPath, "-vf", "fps=30,format=yuv420p", "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-movflags", "+faststart", silentMp4Path], { cwd: root, encoding: "utf8" });
 if (ffmpeg.status !== 0) throw new Error(ffmpeg.stderr || "FFMPEG_CONVERSION_FAILED");
+
+const narration = spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", narrationScriptPath, "-OutputWavePath", voiceoverPath, "-SubtitlePath", subtitlePath], { cwd: root, encoding: "utf8" });
+if (narration.status !== 0) throw new Error(narration.stderr || "VOICEOVER_GENERATION_FAILED");
+
+const subtitleFilterPath = subtitlePath.replaceAll("\\", "/").replace(/^([A-Za-z]):/, "$1\\:").replaceAll("'", "\\'");
+const narrated = spawnSync("ffmpeg", ["-y", "-i", silentMp4Path, "-i", voiceoverPath, "-filter_complex", `[0:v]subtitles='${subtitleFilterPath}'[video];[1:a]apad=pad_dur=10[audio]`, "-map", "[video]", "-map", "[audio]", "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", mp4Path], { cwd: root, encoding: "utf8" });
+if (narrated.status !== 0) throw new Error(narrated.stderr || "NARRATED_VIDEO_FAILED");
 copyFileSync(mp4Path, legacyMp4Path);
 
 const thumbnail = spawnSync("ffmpeg", ["-y", "-ss", "8", "-i", mp4Path, "-frames:v", "1", "-vf", "scale=1280:720", thumbnailPath], { cwd: root, encoding: "utf8" });

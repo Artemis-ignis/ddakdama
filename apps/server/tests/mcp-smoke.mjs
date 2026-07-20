@@ -22,7 +22,7 @@ if (pendingPairingStatus.connected !== false) {
   throw new Error("UNPAIRED_DEVICE_REPORTED_CONNECTED");
 }
 
-const client = new Client({name: "ddakdama-smoke", version: "1.0.0"});
+const client = new Client({name: "ddakdama-smoke", version: "1.0.2"});
 await client.connect(new StreamableHTTPClientTransport(new URL(`${origin}/mcp`)));
 
 const tools = await client.listTools();

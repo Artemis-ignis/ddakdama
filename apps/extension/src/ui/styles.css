@@ -170,6 +170,7 @@ button:focus-visible, textarea:focus-visible { outline: 3px solid rgba(49, 130, 
 .product-row-price { color: var(--text); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
 .product-row-price b { display: block; }
 .product-row-price small { display: block; margin-top: 2px; color: var(--subtext); font-size: 10px; font-weight: 600; }
+.product-row-state { grid-column: 3 / -1; margin-top: -5px; color: #35649d; font-size: 11px; font-weight: 700; }
 .needs-attention .product-row-price { color: var(--danger); font-size: 12px; }
 .row-chevron { color: #8b95a1; transition: transform .18s ease; }
 .expanded .row-chevron { transform: rotate(180deg); }
@@ -182,6 +183,9 @@ button:focus-visible, textarea:focus-visible { outline: 3px solid rgba(49, 130, 
 .quantity-stepper output { color: var(--text); font-size: 13px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
 .match-copy { margin: 0 0 10px; color: #35649d; font-size: 12px; line-height: 18px; }
 .match-copy.warning { color: var(--danger); }
+.candidate-actions { margin: 0 0 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.candidate-actions button { min-height: 34px; padding: 0 10px; border: 1px solid #cbd6e3; border-radius: 9px; background: #fff; color: #35649d; font-size: 11px; font-weight: 700; cursor: pointer; }
+.candidate-actions button:hover { border-color: var(--primary); color: var(--primary); }
 .manual-warning { margin-bottom: 10px; padding: 11px; border: 1px solid #ffd6a0; border-radius: 12px; background: #fff8eb; color: #8a5700; display: flex; align-items: flex-start; gap: 8px; }
 .manual-warning > svg { flex: 0 0 auto; margin-top: 1px; }
 .manual-warning strong { display: block; font-size: 12px; line-height: 18px; }

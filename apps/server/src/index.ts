@@ -20,7 +20,7 @@ const deepLinkInput=z.object({urls:z.array(z.string().url().refine(value=>new UR
 
 createServer(async(req,res)=>{try{const url=new URL(req.url??"/",`http://${req.headers.host??"localhost"}`);
  if(req.method==="OPTIONS"&&url.pathname.startsWith("/api/")){res.writeHead(204,apiCors(req));return res.end()}
- if(req.method==="GET"&&url.pathname==="/health")return json(req,res,200,{ok:true,name:"ddakdama",version:"1.0.0",buildId,status:"available"});
+ if(req.method==="GET"&&url.pathname==="/health")return json(req,res,200,{ok:true,name:"ddakdama",version:"1.0.2",buildId,status:"available"});
  if(req.method==="POST"&&url.pathname==="/api/pairing/start"){if(rateLimited(req,"pairing",10))return json(req,res,429,{error:"rate_limited"});await read(req);return json(req,res,201,startPairing())}
  if(req.method==="GET"&&url.pathname==="/api/pairing/status"){const deviceId=authenticateDevice(bearer(req));if(!deviceId)return json(req,res,401,{error:"unauthorized"});return json(req,res,200,pairingStatus(deviceId))}
  if(req.method==="GET"&&url.pathname==="/api/handoffs/latest"){const deviceId=authenticateDevice(bearer(req));if(!deviceId)return json(req,res,401,{error:"unauthorized"});return json(req,res,200,{handoff:latestHandoff(deviceId)})}

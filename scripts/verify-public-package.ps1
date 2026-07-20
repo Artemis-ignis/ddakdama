@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$zipPath = Join-Path $root "dist\ddakdama-extension-v1.0.0.zip"
+$zipPath = Join-Path $root "dist\ddakdama-extension-v1.0.2.zip"
 
 $uri = $null
 if (-not [Uri]::TryCreate($PublicOrigin, [UriKind]::Absolute, [ref]$uri) -or $uri.Scheme -ne "https" -or $uri.IsLoopback) {

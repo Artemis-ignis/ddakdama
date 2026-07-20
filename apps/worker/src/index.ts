@@ -419,7 +419,7 @@ export default {
           JSON.stringify({
             ok: true,
             name: "ddakdama",
-            version: "1.0.0",
+            version: "1.0.2",
             runtime: "cloudflare-workers",
             status: "available",
           }),

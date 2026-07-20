@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseShoppingList } from "@ddakdama/core";
-import { candidateMatchesRequest, selectBestCandidate } from "../src/candidate-selection.js";
+import { candidateMatchesRequest, classifyCandidate, classifySearchCandidates, selectBestCandidate } from "../src/candidate-selection.js";
 
 const [sun] = parseShoppingList("스킨1004 히알루 시카 워터핏 선 세럼 50ml 2개");
 const base = {
@@ -68,5 +68,14 @@ describe("상품 후보 자동선택", () => {
     };
     expect(candidateMatchesRequest(iceBar!, lowSugar)).toBe(true);
     expect(candidateMatchesRequest(iceBar!, { ...lowSugar, title: "일반 아이스크림 바 90mL 10개입" })).toBe(false);
+  });
+  it("keeps a mismatched package as REVIEW instead of reporting no result", () => {
+    const [melon] = parseShoppingList("\uBE59\uADF8\uB808 \uBA54\uB85C\uB098 \uBA5C\uB860 75ml \u00D7 5\uAC1C, 1\uC138\uD2B8");
+    const sixPack = { title: "\uBE59\uADF8\uB808 \uBA54\uB85C\uB098 \uBA5C\uB860 75mL 6\uAC1C\uC785", currentPrice: 8_000, unitsPerPackage: 6, rocketDelivery: true, advertised: false };
+    expect(candidateMatchesRequest(melon!, sixPack)).toBe(false);
+    expect(classifyCandidate(melon!, sixPack)).toMatchObject({ level: "REVIEW", reasons: ["PACKAGE_QUANTITY"] });
+    expect(classifySearchCandidates(melon!, [sixPack])).toBe("REVIEW");
+    expect(classifySearchCandidates(melon!, [])).toBe("NONE");
+    expect(selectBestCandidate(melon!, [sixPack])).toBeNull();
   });
 });

@@ -17,6 +17,7 @@ DdakDama makes that transition explicit and verifiable.
 - Parses product names, sizes, strengths, package contents, and requested physical quantities.
 - Handles quantity plans safely: two single products and one two-pack can both satisfy a request for two items; an oversized three-pack is flagged instead of silently selected.
 - Shows product candidates with delivery, seller, package, and price information.
+- Separates search availability from automatic selection: any real search result remains available for review, while only an exact identity-and-package match can be selected automatically.
 - Uses detail-page price confirmation before automatic cart actions.
 - Checks the cart quantity delta after each add attempt instead of treating a button click as success.
 - Keeps partial failures visible and provides direct recovery paths.
@@ -92,6 +93,12 @@ The public Worker is designed so normal users do not need to run a laptop-hosted
 ## OpenAI Build Week
 
 DdakDama is being built for the **Apps for Your Life** track. During Build Week, the project expanded from a prototype into a public-service architecture with device pairing, handoffs, editable candidate recovery, strict quantity planning, detail-price checks, cart-delta validation, restart-safe job handling, and light/dark UI support.
+
+The submitted demo is [available on YouTube](https://youtu.be/Lpdt90FKWVA). It is a 2:52 narrated walkthrough of the actual ChatGPT and Chrome-extension flow; store interaction is fixture-backed and checkout is never automated.
+
+### v1.0.2 search recovery
+
+The current extension release uses the full request, product identity, and core-product fallback queries without ever searching for a size or quantity alone. Modern Coupang `ProductUnit` cards are parsed directly. A found candidate is classified as **EXACT** (safe to auto-select) or **REVIEW** (show it and ask the user to confirm); only a real zero-result search is **NONE**.
 
 See [docs/BUILD_WEEK_SUBMISSION.md](docs/BUILD_WEEK_SUBMISSION.md) for submission material and [docs/GPT_APP_SETUP_KO.md](docs/GPT_APP_SETUP_KO.md) for the ChatGPT app setup flow.
 

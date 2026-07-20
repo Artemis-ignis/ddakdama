@@ -61,7 +61,7 @@ test("Manifest V3 서비스 워커와 Side Panel이 실제 Chromium에서 동작
  await expect(page.getByText("ChatGPT에서 목록 받기")).toBeVisible();
  await expect(page.getByText("MCP URL")).toHaveCount(0);
  const ping=await page.evaluate(()=>chrome.runtime.sendMessage({type:"DDAKDAMA_PING"}));
- expect(ping).toEqual({ok:true,name:"ddakdama",version:"1.0.0",affiliateEnabled:false});
+ expect(ping).toEqual({ok:true,name:"ddakdama",version:"1.0.2",affiliateEnabled:false});
  await page.evaluate(async()=>{await chrome.storage.local.set({"playwright-storage-check":"ok"})});
  expect(await page.evaluate(async()=>(await chrome.storage.local.get("playwright-storage-check"))["playwright-storage-check"])).toBe("ok");
 });
@@ -98,7 +98,7 @@ test("공개 MCP와 실제 확장 프로그램이 페어링하고 5종·실물 7
  const deviceToken=await page.evaluate(async()=>String((await chrome.storage.local.get("ddakdama-device-token"))["ddakdama-device-token"]??""));
  expect(deviceToken.length).toBeGreaterThan(32);
 
- const client=new Client({name:"ddakdama-extension-e2e",version:"1.0.0"});
+ const client=new Client({name:"ddakdama-extension-e2e",version:"1.0.2"});
  await client.connect(new StreamableHTTPClientTransport(new URL(`${LIVE_ORIGIN}/mcp`)));
  try{
   const parsed=await client.callTool({name:"parse_shopping_list",arguments:{shopping_list:GOLDEN_LIST}});
