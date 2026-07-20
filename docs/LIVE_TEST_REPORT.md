@@ -105,6 +105,7 @@
 - ESLint, TypeScript, 프로덕션 빌드 통과
 - Vitest 94/94 통과: core 25, extension 37, server 28, worker 4
 - 관련 MV3 확장 프로그램 Playwright E2E 기본 환경 13개 통과·2개 의도적 skip; `DDAKDAMA_LIVE_PAIRING=1` 새 clone 검증에서는 공개 MCP 페어링 포함 15/15 통과
+- 새 clone preview UI 회귀 24/24 통과: 후보 검색 실패 후 검색어 수정·재시도와 테마/시각 회귀 포함
 - `pnpm audit --prod`: 알려진 취약점 0개
 
 ### FIXTURE_VERIFIED
