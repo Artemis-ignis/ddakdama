@@ -1,22 +1,18 @@
 # 테스트 보고서
 
-검증일: 2026-07-17
+검증일: 2026-07-20
 
 ## 자동 검증
 
 - ESLint: 통과
 - TypeScript strict 검사: 통과
-- Vitest: 72/72 통과
-  - core 11개
-  - extension 30개
-  - server 27개
+- Vitest: 94/94 통과
+  - core 25개
+  - extension 37개
+  - server 28개
   - Cloudflare Worker 4개
-- Playwright 실제 Chromium: 38/38 통과
-  - 실제 Side Panel 컴포넌트·시각 회귀 22개
-  - MV3 확장 프로그램·장바구니 fixture 및 공개 서버 실연결 15개
-  - ChatGPT 위젯 1개
-  - 기본 실행은 외부 상태에 의존하는 공개 서버 테스트 2개를 제외하고 36/36 통과
-  - `DDAKDAMA_LIVE_PAIRING=1` 명시 실행에서 공개 서버 테스트를 포함한 확장 프로젝트 15/15 통과
+- 관련 MV3 확장 프로그램 Playwright E2E: 13개 통과, 공개 라이브 페어링 설정이 없는 환경의 2개는 의도적으로 skip
+- fixture 기반 브라우저 검증과 로그인된 실제 쿠팡·실제 장바구니 검증은 같은 상태로 취급하지 않음
 - 새 빌드를 격리된 로컬 포트에서 실행한 MCP HTTP 스모크 테스트: 통과
   - 페어링
   - 장바구니 계획 전송

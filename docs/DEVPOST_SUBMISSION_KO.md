@@ -5,11 +5,11 @@
 | Devpost field | Value |
 | --- | --- |
 | Name | `DdakDama` |
-| Elevator pitch | `Turn any shopping list into a verified Coupang cart.` |
+| Elevator pitch | `Turn a shopping list into a verified, reviewable Coupang cart.` |
 | Category | `Apps for Your Life` |
 | Website | `https://ddakdama.ddakdama.workers.dev` |
 | Code repository | `https://github.com/Artemis-ignis/ddakdama` |
-| Demo video | `https://youtu.be/Lpdt90FKWVA` |
+| Demo video | `https://youtu.be/hpRkAGgw03c` (51초, 공개 접근 확인) |
 
 ## About the project
 
@@ -22,7 +22,9 @@ AI can recommend a complete shopping routine in seconds, but acting on that reco
 
 ## What it does
 
-DdakDama turns a free-form, multi-line shopping list into an editable plan with product names, unit sizes, strengths, package contents, and requested physical quantities. Its ChatGPT app lets the user review the interpretation, while the paired Chrome extension searches Coupang, shows matching candidates with prices and delivery information, and calculates an estimated total.
+DdakDama turns a free-form, multi-line shopping list into an editable plan with product names, unit sizes, strengths, package contents, and requested physical quantities. Its ChatGPT app lets the user review the interpretation, while the paired Chrome extension searches Coupang and keeps every real candidate visible for comparison.
+
+The v1.0.2 flow separates search from automatic selection: full request → product identity → core-product fallback, never a size-only query. Exact product, size, and package matches are `EXACT`; non-exact real results are `REVIEW` and remain available for user confirmation; only a genuine zero-result search is `NONE`.
 
 Before adding anything, DdakDama performs a preflight check for product identity, exact size, package count, live detail-page price, stock, required options, and the quantity that must be added to the cart. It never treats a button click as success: after each add, it checks the cart by product or vendor identifier and verifies the quantity delta. Partial failures remain visible, and payment is always completed manually by the user on Coupang.
 
@@ -45,7 +47,7 @@ We addressed this with typed unit classification, exact and explainable quantity
 
 ## Accomplishments that we're proud of
 
-- Correctly parses the five-line reference list as five product types and seven physical units.
+- Preserves product identity from ChatGPT through the paired extension and covers the fixed 10-item summer-snack regression list.
 - Separates 100 mg strength from a 240-tablet package and treats it as one bottle.
 - Supports exact single-unit and multi-pack plans without hiding over-purchase.
 - Preserves partial failures instead of showing a false success state.
@@ -103,7 +105,7 @@ Supported platform: Google Chrome on Windows 11 (Manifest V3 Side Panel extensio
 - **Submitter Type:** `Individual`
 - **Country of Residence:** `Korea Republic of`
 - **Category:** `Apps for Your Life`
-- **/feedback Session ID:** 핵심 개발 작업을 수행한 Codex 세션에서 `/feedback`으로 발급받아 입력합니다. 이 값은 추측해서 넣으면 안 됩니다.
+- **/feedback Session ID:** Devpost 제출 양식에 반영 완료. 공개 저장소에는 세션 ID 원문을 기록하지 않습니다.
 
 ## 이미지 갤러리
 
@@ -115,6 +117,6 @@ Upload folder: `artifacts/devpost-gallery/upload/`
 
 ## 제출 전 확인
 
-- YouTube Studio에서 데모 영상이 **Public**이고 3분 미만인지 확인합니다.
-- private repo의 Collaborators에 `testing@devpost.com`, `build-week-event@openai.com`을 Read 권한으로 초대합니다.
-- 최신 코드를 GitHub에 push한 뒤 Devpost의 repository URL이 같은 저장소인지 확인합니다.
+- YouTube 데모 `https://youtu.be/hpRkAGgw03c` 공개 접근 및 51초 길이 확인: 완료.
+- 저장소는 공개 `main` 브랜치이므로 심사자 별도 초대 불필요.
+- GitHub `main`과 Devpost repository URL 일치 확인: 완료.
