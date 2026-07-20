@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 
-export const WIDGET_URI = "ui://widget/ddakdama-cart-v12.html";
+export const WIDGET_URI = "ui://widget/ddakdama-cart-v13.html";
 export const LEGACY_WIDGET_URIS = [
+  "ui://widget/ddakdama-cart-v12.html",
   "ui://widget/ddakdama-cart-v11.html",
   "ui://widget/ddakdama-cart-v10.html",
   "ui://widget/ddakdama-cart-v9.html",

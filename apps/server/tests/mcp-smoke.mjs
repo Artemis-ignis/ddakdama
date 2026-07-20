@@ -8,8 +8,8 @@ const origin = (
 )
   .replace(/\/mcp\/?$/, "")
   .replace(/\/$/, "");
-const expectedWidgetUri = "ui://widget/ddakdama-cart-v12.html";
-const legacyWidgetUris = ["ui://widget/ddakdama-cart-v11.html", "ui://widget/ddakdama-cart-v10.html", "ui://widget/ddakdama-cart-v9.html", "ui://widget/ddakdama-cart-v8.html", "ui://widget/ddakdama-cart-v7.html", "ui://widget/ddakdama-cart-v6.html", "ui://widget/ddakdama-cart-v5.html"];
+const expectedWidgetUri = "ui://widget/ddakdama-cart-v13.html";
+const legacyWidgetUris = ["ui://widget/ddakdama-cart-v12.html", "ui://widget/ddakdama-cart-v11.html", "ui://widget/ddakdama-cart-v10.html", "ui://widget/ddakdama-cart-v9.html", "ui://widget/ddakdama-cart-v8.html", "ui://widget/ddakdama-cart-v7.html", "ui://widget/ddakdama-cart-v6.html", "ui://widget/ddakdama-cart-v5.html"];
 const pairing = await fetch(`${origin}/api/pairing/start`, {
   method: "POST",
   headers: {"content-type": "application/json"},
@@ -149,6 +149,36 @@ const status = await client.callTool({
   name: "get_cart_plan_status",
   arguments: {handoff_id: sent._meta.handoffId, connection_grant: paired._meta.connectionGrant},
 });
+
+// A widget projection can contain a display fragment (for example, "70mL")
+// in productName. The server must rebuild the real search identity from the
+// original line before the extension receives it.
+const rawOnly = await client.callTool({
+  name: "send_cart_plan",
+  arguments: {
+    items: [
+      {
+        rawText: "제로 아이스크림 바 70~100ml × 10개, 1세트",
+        productName: "70mL",
+      },
+    ],
+    connection_grant: paired._meta.connectionGrant,
+    idempotency_key: `raw-only-${Date.now()}`,
+  },
+});
+const rawOnlyLatest = await fetch(`${origin}/api/handoffs/latest`, {
+  headers: {authorization: `Bearer ${pairing.deviceToken}`},
+}).then(async (response) => {
+  if (!response.ok) throw new Error(`RAW_ONLY_LATEST_FAILED:${response.status}`);
+  return response.json();
+});
+const rawOnlyItem = rawOnlyLatest.handoff?.payload?.items?.[0];
+if (
+  rawOnlyItem?.productName !== "제로 아이스크림 바" ||
+  rawOnlyItem?.requestedPhysicalUnits !== 10
+) {
+  throw new Error(`RAW_ONLY_NORMALIZATION_FAILED:${JSON.stringify(rawOnlyItem)}`);
+}
 const disconnected = await client.callTool({
   name: "disconnect_extension_device",
   arguments: {connection_grant: paired._meta.connectionGrant},
@@ -173,6 +203,11 @@ console.log(JSON.stringify({
   ack: ack.status,
   missingAck: {status: missingAck.status, body: missingAckBody},
   status: status.structuredContent,
+  rawOnly: {
+    sent: rawOnly.structuredContent?.sent,
+    productName: rawOnlyItem.productName,
+    requestedPhysicalUnits: rawOnlyItem.requestedPhysicalUnits,
+  },
   disconnected: disconnected.structuredContent,
   revokedDeviceStatus: revokedDeviceResponse.status,
   pairingStatus: {
