@@ -2,11 +2,12 @@
 
 ## 제출 상태
 
-- Devpost 프로젝트: `DdakDama` (`submission_draft`)
+- Devpost 프로젝트: `DdakDama` (`published`, OpenAI Build Week 제출 연결 완료)
 - 참가 등록: 완료
 - 권장 트랙: **Apps for Your Life**
 - 제출 마감: 2026-07-22 09:00 KST (2026-07-21 17:00 PT)
-- 필수 미완료: 3분 미만 공개 YouTube 데모 영상, `/feedback` Codex Session ID, 비공개 저장소 심사자 공유
+- 데모 영상: [YouTube 공개 링크](https://youtu.be/Lpdt90FKWVA) 연결 완료 — 2분 52초, 음성·영문 자막 포함
+- 제출 전 최종 확인: `/feedback` Codex Session ID 값과 저장소 접근 권한(비공개일 경우 심사자 2인 공유)
 
 ## App info
 
@@ -93,7 +94,7 @@ Next, we plan to publish the extension through the Chrome Web Store, expand the 
 ## 심사자 설치·테스트 안내
 
 1. ChatGPT 개발자 모드에서 `https://ddakdama.ddakdama.workers.dev/mcp`를 앱 서버로 연결합니다.
-2. 저장소의 `dist/ddakdama-extension-v1.0.0.zip`을 풀고 Chrome의 `chrome://extensions`에서 개발자 모드를 켠 뒤 `apps/extension` 또는 압축 해제한 패키지를 불러옵니다.
+2. `pnpm install`, `pnpm test:e2e`, `pnpm build`를 실행한 뒤 Chrome의 `chrome://extensions`에서 개발자 모드를 켜고 `apps/extension`을 압축 해제된 확장 프로그램으로 불러옵니다.
 3. 확장 프로그램의 `GPT 앱 연결`에서 일회용 6자리 코드를 발급합니다.
 4. ChatGPT의 DdakDama 위젯에 코드를 입력해 한 번 연결합니다.
 5. 아래 고정 목록을 ChatGPT에 입력합니다.
@@ -159,7 +160,7 @@ Voiceover: “Codex helped us redesign the architecture, implement the parser an
 - Code repository: `https://github.com/Artemis-ignis/ddakdama`
 - Test URL: `https://ddakdama.ddakdama.workers.dev/mcp`
 - `/feedback` Session ID: **마스터 입력 필요**
-- Demo video URL: **3분 미만 공개 YouTube URL 필요**
+- Demo video URL: `https://youtu.be/Lpdt90FKWVA` (2분 52초, 공개 링크 접근 확인)
 - Plugin installation/testing instructions: 위 “심사자 설치·테스트 안내” 사용
 
 ## 제출 전 체크리스트
@@ -170,10 +171,10 @@ Voiceover: “Codex helped us redesign the architecture, implement the parser an
 - [x] 공개 MCP 5종·7개 페어링/전송/ACK/연결 해제 검증
 - [x] 서로 다른 두 사용자 데이터 격리 검증
 - [x] lint, typecheck, unit/integration, E2E, build 통과
-- [ ] 최신 코드 GitHub push
+- [ ] 최신 코드 GitHub push 및 기본 브랜치 반영 확인
 - [ ] 비공개 저장소를 `testing@devpost.com`, `build-week-event@openai.com`에 공유
 - [ ] `/feedback` Codex Session ID 입력
-- [ ] 공개 YouTube 데모 영상 업로드
+- [x] 공개 YouTube 데모 영상 연결 및 링크 접근 확인
 - [ ] Devpost 썸네일 업로드
 - [ ] 최종 제출 전 마스터 승인
 

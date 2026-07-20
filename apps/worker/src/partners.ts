@@ -80,7 +80,7 @@ async function call(
           pathWithQuery,
           config,
         ),
-        "user-agent": "ddakdama/1.0.0",
+        "user-agent": "ddakdama/1.0.2",
         ...(init.headers ?? {}),
       },
       signal: controller.signal,

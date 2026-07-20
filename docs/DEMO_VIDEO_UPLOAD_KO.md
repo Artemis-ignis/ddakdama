@@ -10,7 +10,8 @@ pnpm.cmd demo:record
 
 생성 결과:
 
-- `dist/demo/ddakdama-causal-demo-v1.0.0.mp4` — 1920×1080, 30fps, H.264 데모 영상
+- `dist/demo/ddakdama-causal-demo-v1.0.2.mp4` — 1920×1080, 30fps, H.264/AAC 데모 영상(영문 음성·내장 자막)
+- `dist/demo/ddakdama-causal-demo-v1.0.2.en.srt` — YouTube 접근성 자막 업로드용 영문 SRT
 - `dist/demo/ddakdama-causal-demo-thumbnail.png` — YouTube 썸네일
 - `dist/demo/ddakdama-causal-demo-contact-sheet.png` — 전체 구간 시각 검수용 접촉시트
 

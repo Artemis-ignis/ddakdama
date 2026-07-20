@@ -467,7 +467,7 @@ export const widgetHtml = `<!doctype html>
     }, {passive:true});
     const initializeBridgeOnce = async () => {
       if (window.parent === window) return false;
-      const response = await rpcRequest("ui/initialize", {protocolVersion:"2026-01-26", appInfo:{name:"ddakdama", version:"1.0.0"}, appCapabilities:{}}, 10000);
+      const response = await rpcRequest("ui/initialize", {protocolVersion:"2026-01-26", appInfo:{name:"ddakdama", version:"1.0.2"}, appCapabilities:{}}, 10000);
       applyHostContext(response?.hostContext || response?.result?.hostContext || {});
       rpcNotify("ui/notifications/initialized");
       return true;

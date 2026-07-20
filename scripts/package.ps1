@@ -21,7 +21,7 @@ $env:VITE_DDAKDAMA_AFFILIATE_ENABLED = "false"
 pnpm build
 $out = Join-Path $root "dist"
 New-Item -ItemType Directory -Force -Path $out | Out-Null
-$version = "1.0.0"
+$version = "1.0.2"
 $extensionZip = Join-Path $out "ddakdama-extension-v$version.zip"
 $serverZip = Join-Path $out "ddakdama-server-v$version.zip"
 $workerZip = Join-Path $out "ddakdama-cloudflare-worker-v$version.zip"

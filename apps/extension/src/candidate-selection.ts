@@ -8,6 +8,9 @@ export type CandidateForSelection = {
   advertised: boolean;
 };
 
+export type CandidateMatchLevel = "EXACT" | "REVIEW" | "NONE";
+export type CandidateMatch = { level: CandidateMatchLevel; reasons: string[] };
+
 const normalize = (value: string) => value.toLowerCase().replace(/[^0-9a-z가-힣]/gu, "");
 
 /**
@@ -73,6 +76,30 @@ export function candidateMatchesRequest(
   if (!containsSpec(candidate.title, line.strengthValue, line.strengthUnit)) return false;
   if (!containsSpec(candidate.title, line.packageContentCount, line.packageContentUnit)) return false;
   return true;
+}
+
+/** A result can be useful to a person even when it is not safe to auto-pick. */
+export function classifyCandidate(
+  line: ShoppingRequestLine,
+  candidate: CandidateForSelection,
+): CandidateMatch {
+  if (candidateMatchesRequest(line, candidate)) return { level: "EXACT", reasons: [] };
+  const reasons: string[] = [];
+  if (!matchesProductIdentity(candidate.title, line)) reasons.push("PRODUCT_NAME");
+  const range = rangeFor(line);
+  if (range ? !candidateSizeInsideRange(candidate.title, range) : !containsSpec(candidate.title, line.unitSizeValue, line.unitSizeUnit)) reasons.push("UNIT_SIZE");
+  if (!containsSpec(candidate.title, line.strengthValue, line.strengthUnit)) reasons.push("STRENGTH");
+  if (!containsSpec(candidate.title, line.packageContentCount, line.packageContentUnit)) reasons.push("PACKAGE_CONTENT");
+  if (!Number.isInteger(candidate.unitsPerPackage) || candidate.unitsPerPackage <= 0 || line.requestedPhysicalUnits % candidate.unitsPerPackage !== 0) reasons.push("PACKAGE_QUANTITY");
+  return { level: "REVIEW", reasons };
+}
+
+export function classifySearchCandidates<T extends CandidateForSelection>(
+  line: ShoppingRequestLine,
+  candidates: T[],
+): CandidateMatchLevel {
+  if (!candidates.length) return "NONE";
+  return candidates.some((candidate) => classifyCandidate(line, candidate).level === "EXACT") ? "EXACT" : "REVIEW";
 }
 
 export function candidateScore(

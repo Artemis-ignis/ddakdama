@@ -61,7 +61,7 @@ test("Manifest V3 서비스 워커와 Side Panel이 실제 Chromium에서 동작
  await expect(page.getByText("ChatGPT에서 목록 받기")).toBeVisible();
  await expect(page.getByText("MCP URL")).toHaveCount(0);
  const ping=await page.evaluate(()=>chrome.runtime.sendMessage({type:"DDAKDAMA_PING"}));
- expect(ping).toEqual({ok:true,name:"ddakdama",version:"1.0.0",affiliateEnabled:false});
+ expect(ping).toEqual({ok:true,name:"ddakdama",version:"1.0.2",affiliateEnabled:false});
  await page.evaluate(async()=>{await chrome.storage.local.set({"playwright-storage-check":"ok"})});
  expect(await page.evaluate(async()=>(await chrome.storage.local.get("playwright-storage-check"))["playwright-storage-check"])).toBe("ok");
 });

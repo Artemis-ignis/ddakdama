@@ -40,7 +40,7 @@ pnpm --filter @ddakdama/extension build
 pnpm package
 ```
 
-운영 확장 프로그램 번들에는 공개 서버 origin만 들어가며 비밀키는 포함하지 않습니다. `pnpm package`는 공개 HTTPS 주소가 없으면 실패하고, 단일 `ddakdama-extension-v1.0.0.zip`에서 localhost 권한과 제휴 기능을 제거합니다. 비공개 베타와 Web Store 제출 모두 이 한 패키지를 사용합니다.
+운영 확장 프로그램 번들에는 공개 서버 origin만 들어가며 비밀키는 포함하지 않습니다. `pnpm package`는 공개 HTTPS 주소가 없으면 실패하고, 단일 `ddakdama-extension-v1.0.2.zip`에서 localhost 권한과 제휴 기능을 제거합니다. 비공개 베타와 Web Store 제출 모두 이 한 패키지를 사용합니다.
 
 ## 3. ChatGPT 앱
 

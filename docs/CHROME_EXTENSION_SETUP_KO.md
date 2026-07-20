@@ -1,6 +1,6 @@
 # Chrome 확장 프로그램 설정
 
-소스에서 로드할 폴더는 `apps\extension` 하나입니다. 이 폴더에는 `manifest.json`과 빌드된 `dist`가 함께 있어야 합니다. `dist` 자체를 선택하면 매니페스트 오류가 발생합니다. 배포본은 `dist/ddakdama-extension-v1.0.0.zip` 하나만 사용하고, 압축 해제 후 `manifest.json`이 바로 보이는 최상위 폴더를 선택합니다.
+소스에서 로드할 폴더는 `apps\extension` 하나입니다. 이 폴더에는 `manifest.json`과 빌드된 `dist`가 함께 있어야 합니다. `dist` 자체를 선택하면 매니페스트 오류가 발생합니다. 배포본은 `dist/ddakdama-extension-v1.0.2.zip` 하나만 사용하고, 압축 해제 후 `manifest.json`이 바로 보이는 최상위 폴더를 선택합니다.
 
 정상 화면에는 딱담아 로고, 4단계 진행 표시, `상품 5종 · 실물 7개`, GPT 앱 연결, 목록 입력과 상품 검색 버튼이 보입니다. 흰 화면이면 `pnpm build` 후 Chrome 확장 프로그램 카드에서 업데이트하고 사이드 패널을 닫았다 다시 여십시오.
 
