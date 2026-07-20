@@ -6,6 +6,7 @@
 
 - ESLint: 통과
 - TypeScript strict 검사: 통과
+- 공개 GitHub `main`의 새 clone에서 `pnpm install --frozen-lockfile` 뒤 `pnpm typecheck`·`pnpm test`가 core 패키지를 자동 준비하도록 검증
 - Vitest: 94/94 통과
   - core 25개
   - extension 37개
