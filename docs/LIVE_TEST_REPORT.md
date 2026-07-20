@@ -104,7 +104,7 @@
 - 프로덕션 `apps/extension/dist`와 테스트 `output/extension-test-dist` 빌드 분리 및 설치 스크립트의 항상 최신 빌드 동작
 - ESLint, TypeScript, 프로덕션 빌드 통과
 - Vitest 94/94 통과: core 25, extension 37, server 28, worker 4
-- 관련 MV3 확장 프로그램 Playwright E2E 13개 통과; 공개 라이브 페어링 설정이 없는 환경의 2개는 의도적으로 skip
+- 관련 MV3 확장 프로그램 Playwright E2E 기본 환경 13개 통과·2개 의도적 skip; `DDAKDAMA_LIVE_PAIRING=1` 새 clone 검증에서는 공개 MCP 페어링 포함 15/15 통과
 - `pnpm audit --prod`: 알려진 취약점 0개
 
 ### FIXTURE_VERIFIED
