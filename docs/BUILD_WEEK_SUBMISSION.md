@@ -144,7 +144,7 @@ Next, we plan to publish the extension through the Chrome Web Store, expand the 
 - [x] 공개 GitHub 저장소 접근 확인 — 심사자 별도 초대 불필요
 - [x] `/feedback` Codex Session ID 입력
 - [x] 공개 YouTube 데모 영상 연결 및 링크 접근 확인
-- [ ] Devpost 썸네일 업로드
+- [x] Devpost 썸네일 업로드 및 공개 프로젝트 페이지 반영 확인
 - [x] Devpost 최종 제출 완료 (`Submitted`)
 
 ## 해커톤 기간에 새로 확장한 부분
