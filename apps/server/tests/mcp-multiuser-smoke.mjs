@@ -21,7 +21,7 @@ const startPairing = () =>
   });
 
 const createClient = async (name) => {
-  const client = new Client({ name, version: "1.0.0" });
+  const client = new Client({ name, version: "1.0.2" });
   await client.connect(
     new StreamableHTTPClientTransport(new URL(`${origin}/mcp`)),
   );

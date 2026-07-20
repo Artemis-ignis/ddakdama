@@ -171,7 +171,7 @@ Voiceover: “Codex helped us redesign the architecture, implement the parser an
 - [x] 공개 MCP 5종·7개 페어링/전송/ACK/연결 해제 검증
 - [x] 서로 다른 두 사용자 데이터 격리 검증
 - [x] lint, typecheck, unit/integration, E2E, build 통과
-- [ ] 최신 코드 GitHub push 및 기본 브랜치 반영 확인
+- [x] 최신 코드 GitHub `main` 반영 확인 — v1.0.2 검색 복구·데모 제작 파이프라인 포함
 - [ ] 비공개 저장소를 `testing@devpost.com`, `build-week-event@openai.com`에 공유
 - [ ] `/feedback` Codex Session ID 입력
 - [x] 공개 YouTube 데모 영상 연결 및 링크 접근 확인

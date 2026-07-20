@@ -98,7 +98,7 @@ test("공개 MCP와 실제 확장 프로그램이 페어링하고 5종·실물 7
  const deviceToken=await page.evaluate(async()=>String((await chrome.storage.local.get("ddakdama-device-token"))["ddakdama-device-token"]??""));
  expect(deviceToken.length).toBeGreaterThan(32);
 
- const client=new Client({name:"ddakdama-extension-e2e",version:"1.0.0"});
+ const client=new Client({name:"ddakdama-extension-e2e",version:"1.0.2"});
  await client.connect(new StreamableHTTPClientTransport(new URL(`${LIVE_ORIGIN}/mcp`)));
  try{
   const parsed=await client.callTool({name:"parse_shopping_list",arguments:{shopping_list:GOLDEN_LIST}});
