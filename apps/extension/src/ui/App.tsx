@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { parseShoppingList, type ShoppingRequestLine } from "@ddakdama/core";
 import brandIcon from "../../assets/icon-48.png";
+import manifest from "../../manifest.json";
 import {
   candidateMatchesRequest,
   selectBestCandidate,
@@ -1231,7 +1232,10 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   return (
     <main className={`app-shell${step === 4 ? " is-complete" : ""}`}>
       <header className="topbar">
-        <div className="brand"><img className="brand-mark" src={brandIcon} alt="" aria-hidden="true" /><strong>딱담아</strong></div>
+        <div className="brand">
+          <img className="brand-mark" src={brandIcon} alt="" aria-hidden="true" />
+          <span className="brand-copy"><strong>딱담아</strong><small>확장 프로그램 v{manifest.version}</small></span>
+        </div>
         <div className="topbar-actions">
           <button className="theme-toggle" type="button" data-testid="theme-toggle" aria-label={"\uD654\uBA74 \uD14C\uB9C8 \uC804\uD658"} title={themeLabel} onClick={() => setTheme(nextTheme)}>{themeIcon}</button>
         <button className="cart-link" type="button" onClick={() => void openCart()}><ShoppingBag size={19} />장바구니<ChevronRight size={17} /></button>

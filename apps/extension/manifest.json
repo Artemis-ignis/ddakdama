@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "딱담아 — 쇼핑 목록을 한 번에",
   "short_name": "딱담아",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "자연어 쇼핑 목록을 정확한 쿠팡 상품과 수량으로 확인하고 장바구니에 담습니다.",
   "permissions": ["storage", "tabs", "scripting", "sidePanel"],
   "host_permissions": ["https://www.coupang.com/*", "https://m.coupang.com/*", "https://cart.coupang.com/*", "https://ddakdama.ddakdama.workers.dev/*", "http://localhost:8787/*"],

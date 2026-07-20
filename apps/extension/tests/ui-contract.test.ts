@@ -7,4 +7,5 @@ it("기기 토큰 발급과 실제 GPT 앱 연결 완료를 상태 API로 구분
 it("제휴 고지는 제휴 빌드에서만 표시한다",()=>{expect(source).toContain("AFFILIATE_ENABLED &&");expect(source).toContain("쿠팡 파트너스 활동")});
 it("상품 확인 단계에서 품목을 제외하고 다시 포함할 수 있다",()=>{expect(source).toContain("이 품목 빼기");expect(source).toContain("다시 포함")});
 it("supports system, light, and dark themes without developer settings",()=>{expect(source).toContain("ddakdama-theme");expect(source).toContain('data-testid="theme-toggle"');expect(source).toContain('type ThemeMode = "system" | "light" | "dark"')});
+it("현재 확장 프로그램 버전을 사용자 화면에 표시한다",()=>{expect(source).toContain('확장 프로그램 v{manifest.version}')});
 });

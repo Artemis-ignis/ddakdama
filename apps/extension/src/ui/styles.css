@@ -69,6 +69,9 @@ button:focus-visible, textarea:focus-visible { outline: 3px solid rgba(49, 130, 
 .app-shell { position: relative; width: 100%; max-width: 460px; min-height: 100vh; margin: 0 auto; background: var(--surface); box-shadow: var(--shadow); }
 .topbar { position: sticky; z-index: 5; top: 0; height: 64px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(18px) saturate(150%); }
 .brand { display: flex; align-items: center; gap: 10px; font-size: 20px; letter-spacing: -.45px; }
+.brand-copy { display: grid; gap: 1px; }
+.brand-copy strong { line-height: 22px; }
+.brand-copy small { color: var(--subtext); font-size: 10px; font-weight: 600; letter-spacing: 0; line-height: 13px; }
 .brand-mark { display: block; width: 32px; height: 32px; border-radius: 10px; object-fit: cover; box-shadow: 0 2px 8px rgba(49, 130, 246, .18); }
 .topbar-actions { display: flex; align-items: center; gap: 2px; }
 .theme-toggle { width: 44px; height: 44px; padding: 0; border: 0; border-radius: 13px; background: transparent; color: var(--subtext); display: grid; place-items: center; cursor: pointer; }
