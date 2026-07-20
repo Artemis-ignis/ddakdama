@@ -57,8 +57,8 @@
 ## 검증
 
 - ESLint 및 TypeScript 통과
-- Vitest 72/72 통과(core 11, extension 30, server 27, Worker 4)
-- 실제 Chromium Playwright 38/38 통과(preview 22, extension fixture·공개 서버 실연결 15, ChatGPT 위젯 1)
+- Vitest 94/94 통과(core 25, extension 37, server 28, Worker 4)
+- 관련 MV3 확장 프로그램 Playwright E2E 13개 통과; 공개 라이브 페어링 설정이 없는 환경의 2개는 의도적으로 skip
 - MCP 실연결 스모크 테스트 통과
 - 프로덕션 빌드 통과
 - 알려진 고위험 의존성 취약점 0개

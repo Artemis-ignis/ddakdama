@@ -1,6 +1,6 @@
 # 라이브 테스트 보고서
 
-검증일: 2026-07-16
+검증일: 2026-07-20 (이전 라이브 관찰과 현재 v1.0.2 회귀 검증을 구분해 기록)
 
 ## VERIFIED
 
@@ -103,8 +103,8 @@
 - 실제 Side Panel UI에서 후보 검색, 첫 품목 제외·재포함, 상세검증 5/5, 5종 담기, 92,250원 완료 합계, 장바구니 열기, 새 목록 시작 흐름
 - 프로덕션 `apps/extension/dist`와 테스트 `output/extension-test-dist` 빌드 분리 및 설치 스크립트의 항상 최신 빌드 동작
 - ESLint, TypeScript, 프로덕션 빌드 통과
-- Vitest 72/72 통과: core 11, extension 30, server 27, worker 4
-- Playwright 실제 Chromium 38/38 통과: preview 22, extension fixture·공개 서버 15, ChatGPT 위젯 1
+- Vitest 94/94 통과: core 25, extension 37, server 28, worker 4
+- 관련 MV3 확장 프로그램 Playwright E2E 13개 통과; 공개 라이브 페어링 설정이 없는 환경의 2개는 의도적으로 skip
 - `pnpm audit --prod`: 알려진 취약점 0개
 
 ### FIXTURE_VERIFIED

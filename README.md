@@ -94,7 +94,7 @@ The public Worker is designed so normal users do not need to run a laptop-hosted
 
 DdakDama is being built for the **Apps for Your Life** track. During Build Week, the project expanded from a prototype into a public-service architecture with device pairing, handoffs, editable candidate recovery, strict quantity planning, detail-price checks, cart-delta validation, restart-safe job handling, and light/dark UI support.
 
-The submitted demo is [available on YouTube](https://youtu.be/Lpdt90FKWVA). It is a 2:52 narrated walkthrough of the actual ChatGPT and Chrome-extension flow; store interaction is fixture-backed and checkout is never automated.
+The submitted demo is [available on YouTube](https://youtu.be/hpRkAGgw03c). It is a 51-second narrated, subtitle-burned walkthrough of the current v1.0.2 ChatGPT-to-extension flow. The recording uses fixture-backed store data for repeatability; checkout is never automated.
 
 ### v1.0.2 search recovery
 

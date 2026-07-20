@@ -6,8 +6,8 @@
 - 참가 등록: 완료
 - 권장 트랙: **Apps for Your Life**
 - 제출 마감: 2026-07-22 09:00 KST (2026-07-21 17:00 PT)
-- 데모 영상: [YouTube 공개 링크](https://youtu.be/Lpdt90FKWVA) 연결 완료 — 2분 52초, 음성·영문 자막 포함
-- 제출 전 최종 확인: `/feedback` Codex Session ID 값과 저장소 접근 권한(비공개일 경우 심사자 2인 공유)
+- 데모 영상: [YouTube 공개 링크](https://youtu.be/hpRkAGgw03c) 연결 완료 — 51초, 음성·내장 영문 자막 포함
+- 제출 상태: Devpost `Submitted`; 공개 저장소·현재 영상·`/feedback` Session ID 반영 완료. 세션 ID 원문은 공개 저장소에 기록하지 않음.
 
 ## App info
 
@@ -17,7 +17,7 @@ DdakDama
 
 **Elevator pitch**
 
-Turn any shopping list into a verified cart in one click.
+Turn a shopping list into a verified, reviewable Coupang cart.
 
 **Category**
 
@@ -25,7 +25,7 @@ Apps for Your Life
 
 **Short category description**
 
-DdakDama is an AI commerce and consumer productivity app that turns natural-language shopping lists into structured product plans, accurately identifying product names, sizes, specifications, and quantities. Through its ChatGPT app and Chrome extension, it matches live Coupang listings, compares prices and delivery options, and lets users review and add verified products to their cart in one streamlined flow.
+DdakDama is an AI commerce and consumer productivity app that turns natural-language shopping lists into structured product plans, accurately identifying product names, sizes, specifications, and quantities. Through its ChatGPT app and Chrome extension, it searches Coupang, preserves real candidates for review, and lets users add only approved, verified products to their cart.
 
 ## Full Devpost description
 
@@ -35,7 +35,9 @@ AI can recommend a complete shopping routine in seconds, but acting on that reco
 
 ### What it does
 
-DdakDama turns a free-form, multi-line shopping list into an editable plan with product names, unit sizes, strengths, package contents, and requested physical quantities. Its ChatGPT app lets the user review the interpretation, while the paired Chrome extension searches Coupang, shows matching candidates with prices and delivery information, and calculates an estimated total.
+DdakDama turns a free-form, multi-line shopping list into an editable plan with product names, unit sizes, strengths, package contents, and requested physical quantities. Its ChatGPT app lets the user review the interpretation, while the paired Chrome extension searches Coupang and keeps every real candidate visible for comparison.
+
+The v1.0.2 flow separates search from automatic selection: it searches the full request, then product identity, then a core-product fallback without ever reducing a query to only a size or quantity. Exact product, size, and package matches are `EXACT` and may be selected automatically; non-exact but real results are `REVIEW` and remain available for user confirmation. Only a genuine zero-result search is `NONE`.
 
 Before adding anything, DdakDama performs a preflight check for product identity, exact size, package count, live detail-page price, stock, required options, and the quantity that must be added to the cart. It never treats a button click as success: after each add, it checks the cart by product or vendor identifier and verifies the quantity delta. Partial failures remain visible, and payment is always completed manually by the user on Coupang.
 
@@ -58,7 +60,7 @@ We addressed this with typed unit classification, exact and explainable quantity
 
 ### Accomplishments that we're proud of
 
-- Correctly parses the fixed five-line test list as five product types and seven physical units.
+- Preserves product identity from ChatGPT through the paired extension and covers the fixed 10-item summer-snack regression list.
 - Separates 100 mg strength from a 240-tablet package and treats it as one bottle.
 - Supports exact single-unit and multi-pack plans without hiding over-purchase.
 - Preserves partial failures instead of showing a false success state.
@@ -109,48 +111,15 @@ Next, we plan to publish the extension through the Chrome Web Store, expand the 
 7. 확장 프로그램에서 후보, 상세 확인가, 예상 합계와 preflight 결과를 확인합니다.
 8. 실제 장바구니 변경은 심사자가 명시적으로 승인했을 때만 실행합니다. 결제는 자동화되지 않습니다.
 
-## 3분 데모 영상 구성
+## 현재 데모 영상 구성 (51초)
 
-### 0:00–0:20 — Problem
+현재 제출 영상은 [YouTube](https://youtu.be/hpRkAGgw03c)의 51초 v1.0.2 데모입니다. 실제 빌드된 위젯·확장 UI를 fixture 기반 상점 데이터와 함께 재현하며, 실제 결제·주문 자동화는 포함하지 않습니다.
 
-“AI can recommend a complete shopping routine, but users still have to search every item, decode package sizes, compare similar listings, and rebuild the cart manually. DdakDama turns that recommendation into a verified, reviewable cart flow.”
-
-### 0:20–0:55 — GPT-5.6 parsing
-
-- ChatGPT에 고정 5종 목록 입력
-- 5종·실물 7개 표시
-- `100mg`은 함량, `240정`은 포장 규격, 요청 수량은 1병임을 강조
-
-Voiceover: “GPT-5.6 interprets the user's intent and calls DdakDama's structured MCP tools. The shared parser keeps quantities deterministic across ChatGPT and the browser extension.”
-
-### 0:55–1:25 — Pairing and handoff
-
-- 확장 프로그램에서 6자리 코드 발급
-- ChatGPT 위젯에서 연결
-- 목록 전송 및 확장 프로그램 수신 확인
-
-Voiceover: “The app uses a short-lived pairing code and a device-scoped grant. Plans are idempotent, expire automatically, and are isolated per user.”
-
-### 1:25–2:15 — Product comparison and preflight
-
-- 후보 가격·배송·묶음 비교
-- 단품 2개와 2개 묶음 1세트의 실물 수량 설명
-- 일치하지 않는 후보는 직접 선택하거나 검색어 수정
-- 상세가격·재고·옵션·수량 사전검사
-
-Voiceover: “The extension does not trust the first search result. It checks identity, size, strength, package count, live price, stock, options, and exact physical quantity before enabling an add.”
-
-### 2:15–2:40 — Cart verification and safe failure
-
-- fixture 또는 승인된 라이브 테스트로 수량 delta 성공 표시
-- 일부 실패 시 성공으로 위장하지 않는 화면
-- 실제 담긴 금액 합계와 새 목록 시작 버튼
-
-Voiceover: “A click is not success. DdakDama verifies the cart delta using stable product identifiers, resumes safely after service-worker restarts, and shows partial failures explicitly.”
-
-### 2:40–3:00 — Codex and closing
-
-Voiceover: “Codex helped us redesign the architecture, implement the parser and cart state machine, harden the public MCP service, and build 58 unit and integration tests plus 28 browser tests. DdakDama closes the gap between an AI recommendation and a cart users can trust.”
+- **0:00–0:08** — 자연어 쇼핑 목록을 검토 가능한 카트 계획으로 변환
+- **0:08–0:18** — GPT-5.6이 제품명·규격·포장·실물 수량을 해석하고 `100mg`과 `240정`을 구분
+- **0:18–0:30** — ChatGPT 앱에서 페어링된 Chrome 확장 프로그램으로 계획 전달 및 쿠팡 후보 검색
+- **0:30–0:42** — `EXACT` 자동 선택과 `REVIEW` 후보 보존, 재검색·제외·직접 선택 경로
+- **0:42–0:51** — 가격·재고·옵션·수량과 장바구니 수량 delta 검증, Codex가 가속한 구현·회귀 테스트, 결제는 사용자에게 유지
 
 ## 제출 필수 필드
 
@@ -159,8 +128,8 @@ Voiceover: “Codex helped us redesign the architecture, implement the parser an
 - Category: `Apps for Your Life`
 - Code repository: `https://github.com/Artemis-ignis/ddakdama`
 - Test URL: `https://ddakdama.ddakdama.workers.dev/mcp`
-- `/feedback` Session ID: **마스터 입력 필요**
-- Demo video URL: `https://youtu.be/Lpdt90FKWVA` (2분 52초, 공개 링크 접근 확인)
+- `/feedback` Session ID: Devpost 제출 양식에만 기록됨(공개 저장소에는 원문을 보관하지 않음)
+- Demo video URL: `https://youtu.be/hpRkAGgw03c` (51초, 공개 링크 접근 확인)
 - Plugin installation/testing instructions: 위 “심사자 설치·테스트 안내” 사용
 
 ## 제출 전 체크리스트
@@ -172,11 +141,11 @@ Voiceover: “Codex helped us redesign the architecture, implement the parser an
 - [x] 서로 다른 두 사용자 데이터 격리 검증
 - [x] lint, typecheck, unit/integration, E2E, build 통과
 - [x] 최신 코드 GitHub `main` 반영 확인 — v1.0.2 검색 복구·데모 제작 파이프라인 포함
-- [ ] 비공개 저장소를 `testing@devpost.com`, `build-week-event@openai.com`에 공유
-- [ ] `/feedback` Codex Session ID 입력
+- [x] 공개 GitHub 저장소 접근 확인 — 심사자 별도 초대 불필요
+- [x] `/feedback` Codex Session ID 입력
 - [x] 공개 YouTube 데모 영상 연결 및 링크 접근 확인
 - [ ] Devpost 썸네일 업로드
-- [ ] 최종 제출 전 마스터 승인
+- [x] Devpost 최종 제출 완료 (`Submitted`)
 
 ## 해커톤 기간에 새로 확장한 부분
 
