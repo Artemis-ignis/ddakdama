@@ -110,6 +110,9 @@ Get-ChildItem -Path $stage -Recurse -Directory -Filter .generated | Remove-Item 
 Get-ChildItem -Path $stage -Recurse -Directory -Filter .wrangler | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -Directory -Filter .wrangler-dist | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -Directory -Filter .data | Remove-Item -Recurse -Force
+Get-ChildItem -Path $stage -Recurse -Directory -Filter .gradle | Remove-Item -Recurse -Force
+Get-ChildItem -Path $stage -Recurse -Directory -Filter .kotlin | Remove-Item -Recurse -Force
+Get-ChildItem -Path $stage -Recurse -Directory -Filter build | Remove-Item -Recurse -Force
 Get-ChildItem -Path $stage -Recurse -File | Where-Object { $_.Name -like ".env*" -or $_.Extension -eq ".log" } | Remove-Item -Force
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $fullZip
 Remove-Item -LiteralPath $stage -Recurse -Force
