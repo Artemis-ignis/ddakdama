@@ -164,6 +164,11 @@ window.addEventListener("message", (event) => {
         for (const key of keys) storage.delete(key);
       },
     },
+    onChanged: {
+      addListener: () => {},
+      removeListener: () => {},
+      hasListener: () => false,
+    },
   },
   tabs: { create: async () => ({}) },
 };

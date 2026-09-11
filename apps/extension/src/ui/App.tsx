@@ -656,7 +656,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   };
 
   useEffect(() => {
-    if (!restored || typeof chrome === "undefined" || !chrome.storage?.local) return;
+    if (!restored || preview || typeof chrome === "undefined" || !chrome.storage?.local || !chrome.storage?.onChanged) return;
     let cancelled = false;
     const receive = (value: unknown) => {
       if (cancelled || !isTrustedPlanLink(value)) return;
@@ -682,7 +682,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       .then((stored) => receive(stored["ddakdama-pending-plan-link"]))
       .catch(() => undefined);
     return () => { cancelled = true; chrome.storage.onChanged.removeListener(onChanged); };
-  }, [restored, adding, searching, planLinkBusy, lines.length]);
+  }, [restored, preview, adding, searching, planLinkBusy, lines.length]);
 
   const searchPreparedLines = async (next: ShoppingRequestLine[]) => {
     resetAfterInput(next);
