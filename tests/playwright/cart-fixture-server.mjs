@@ -2,6 +2,11 @@ import{createServer}from"node:http";
 
 const products=new Map();
 const quantities=new Map();
+let searchOptions={};
+let searchRequests=[];
+const escapeHtml=value=>String(value).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+const searchForm=query=>`<form action="/search" style="display:none"><input name="q" value="hidden decoy"></form><form action="/search" onsubmit="event.preventDefault();this.elements.channel.value='SHOP_FORM';setTimeout(()=>HTMLFormElement.prototype.submit.call(this),${Number(searchOptions.navigationDelayMs??0)})"><input name="q" title="쿠팡 상품 검색" value="${escapeHtml(query)}"><input type="hidden" name="channel"><button type="submit" title="검색">검색</button></form>`;
+const searchPage=(query,body)=>`<!doctype html><html><head><meta charset="utf-8"><title>쿠팡</title></head><body>${searchForm(query)}${body}<script>document.documentElement.dataset.ddakdamaContentReady='1'</script></body></html>`;
 const json=(res,status,value)=>{res.writeHead(status,{"content-type":"application/json; charset=utf-8","cache-control":"no-store"});res.end(JSON.stringify(value))};
 const html=(res,value)=>{res.writeHead(200,{"content-type":"text/html; charset=utf-8","cache-control":"no-store"});res.end(value)};
 const read=async req=>{const chunks=[];for await(const chunk of req)chunks.push(chunk);return JSON.parse(Buffer.concat(chunks).toString("utf8")||"{}")};
@@ -10,12 +15,22 @@ const key=product=>`${product.productId}:${product.vendorItemId}:${product.itemI
 createServer(async(req,res)=>{
  const url=new URL(req.url??"/","http://127.0.0.1:4174");
  if(req.method==="POST"&&url.pathname==="/fixture/configure"){
-  const body=await read(req);products.clear();quantities.clear();
+  const body=await read(req);products.clear();quantities.clear();searchOptions=body.searchOptions??{};searchRequests=[];
   for(const product of body.products??[]){products.set(String(product.productId),product);quantities.set(key(product),Number(body.quantities?.[key(product)]??0))}
   return json(res,200,{ok:true});
  }
- if(req.method==="GET"&&url.pathname==="/fixture/state")return json(res,200,{quantities:Object.fromEntries(quantities)});
- if(req.method==="GET"&&url.pathname==="/search"){const query=url.searchParams.get("q")??"";const product=[...products.values()].find(item=>query.includes(item.query??String(item.title).split(/\s+/u)[0]));if(!product)return html(res,"<!doctype html><html><body><p>검색 결과 없음</p></body></html>");return html(res,`<!doctype html><html><head><meta charset="utf-8"></head><body><ul><li class="ProductUnit_productUnit__live"><a href="https://www.coupang.com/vp/products/${product.productId}?itemId=${product.itemId}&vendorItemId=${product.vendorItemId}"><img alt="상품 이미지" data-src="https://example.test/${product.productId}.jpg"></a><div class="ProductUnit_productName__live">${product.title}</div><div>로켓배송</div></li></ul></body></html>`)}
+ if(req.method==="GET"&&url.pathname==="/fixture/state")return json(res,200,{quantities:Object.fromEntries(quantities),searchRequests});
+ if(req.method==="GET"&&url.pathname==="/")return html(res,searchPage("","<h1>쇼핑 홈</h1>"));
+ if(req.method==="GET"&&url.pathname==="/search"){
+  const query=url.searchParams.get("q")??"";const channel=url.searchParams.get("channel");searchRequests.push({query,channel});
+  if(searchOptions.blocked||(searchOptions.requireForm&&channel!=="SHOP_FORM"))return html(res,'<!doctype html><html><head><meta charset="utf-8"><title>쿠팡</title></head><body><img alt="요청하신 페이지의 사용권한이 없습니다."><p>쿠팡 홈에서 확인해 주세요.</p></body></html>');
+  const product=[...products.values()].find(item=>query.includes(item.query??String(item.title).split(/\s+/u)[0]));
+  if(!product)return html(res,searchPage(query,"<p>검색 결과 없음</p>"));
+  const price=searchOptions.includeSearchPrices?`<div class="PriceArea_priceArea__NntJz"><del>99,999원</del><div>${Number(product.price).toLocaleString()}원</div><span>(10ml당 1,234원)</span></div>`:"";
+  const card=`<ul><li class="ProductUnit_productUnit__Qd6sv"><a href="https://www.coupang.com/vp/products/${product.productId}?itemId=${product.itemId}&vendorItemId=${product.vendorItemId}"><img alt="${escapeHtml(product.title)}" data-src="https://example.test/${product.productId}.jpg"><div class="ProductUnit_productNameV2__cV9cw">${escapeHtml(product.title)}</div>${price}<div>로켓배송</div></a></li></ul>`;
+  const content=searchOptions.cardsDelayMs?`<div id="results"></div><script>setTimeout(()=>{document.querySelector('#results').innerHTML=${JSON.stringify(card)}},${Number(searchOptions.cardsDelayMs)})</script>`:card;
+  return html(res,searchPage(query,content));
+ }
  const add=url.pathname.match(/^\/fixture\/add\/(\d+)$/);
  if(req.method==="POST"&&add){const product=products.get(add[1]);if(!product)return json(res,404,{error:"not_found"});const productKey=key(product);quantities.set(productKey,(quantities.get(productKey)??0)+1);return json(res,200,{quantity:quantities.get(productKey)})}
  const productMatch=url.pathname.match(/^\/product\/(\d+)$/);

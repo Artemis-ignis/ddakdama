@@ -20,8 +20,12 @@ describe("ChatGPT 위젯 계약", () => {
   });
 
   it("공식 component bridge로 연결·전송·상태 확인·연결 해제를 수행한다", () => {
-    expect(WIDGET_URI).toBe("ui://widget/ddakdama-cart-v13.html");
+    expect(WIDGET_URI).toBe("ui://widget/ddakdama-cart-v14.html");
+    expect(widgetHtml).toContain("쿠팡 로그인 상태: 확인 불가");
+    expect(widgetHtml).toContain("쿠팡 로그인하기");
+    expect(widgetHtml).toContain("확장 연결됨");
     expect(LEGACY_WIDGET_URIS).toEqual([
+      "ui://widget/ddakdama-cart-v13.html",
       "ui://widget/ddakdama-cart-v12.html",
       "ui://widget/ddakdama-cart-v11.html",
       "ui://widget/ddakdama-cart-v10.html",

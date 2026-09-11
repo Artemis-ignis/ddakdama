@@ -1,0 +1,47 @@
+1
+00:00:03,000 --> 00:00:13,000
+Welcome to DdakDama, a shopping assistant that turns a natural-language list into a clear and verifiable cart plan.
+
+2
+00:00:14,000 --> 00:00:25,000
+The user starts with a simple request. DdakDama separates product name, size, strength, package contents, and requested quantity.
+
+3
+00:00:26,000 --> 00:00:38,000
+100 mg describes a strength, while 240 tablets describes the package. They are not purchase quantities.
+
+4
+00:00:39,000 --> 00:00:50,000
+The ChatGPT app gives the user a readable plan first. After review, the plan can be sent to the paired Chrome extension.
+
+5
+00:00:51,000 --> 00:01:01,000
+The extension searches Coupang and presents candidates with price, delivery, package configuration, and quantity plan.
+
+6
+00:01:02,000 --> 00:01:14,000
+It does not silently substitute similar products. The user can select a candidate, change quantity, remove an item, or search again.
+
+7
+00:01:15,000 --> 00:01:29,000
+Before changing the cart, DdakDama confirms product identity, requested size, package count, live price, stock, and options.
+
+8
+00:01:30,000 --> 00:01:44,000
+Only after user approval does it add products. After every add, it verifies the actual cart quantity change by stable product identity.
+
+9
+00:01:45,000 --> 00:01:58,000
+If an item cannot be verified, it remains visible as a partial failure. Payment and order confirmation always remain with the user.
+
+10
+00:01:59,000 --> 00:02:12,000
+Codex helped build the typed quantity parser, cart-verification state machine, MCP handoff flow, Worker service, UI, and regression tests.
+
+11
+00:02:13,000 --> 00:02:23,000
+GPT-5.6 helps understand shopping intent and calls structured tools to create an editable, transparent plan.
+
+12
+00:02:24,000 --> 00:02:27,000
+DdakDama makes an AI recommendation actionable, transparent, and safe.

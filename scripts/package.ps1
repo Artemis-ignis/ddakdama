@@ -11,22 +11,27 @@ function Assert-StagingPath([string]$Path) {
 # The production extension has the same public Worker as its runtime fallback.
 # Keeping this default here prevents a locally-set development value from being
 # required just to create a reviewable public package.
-$productionServerOrigin = if ($env:VITE_DDAKDAMA_SERVER_ORIGIN) { $env:VITE_DDAKDAMA_SERVER_ORIGIN } else { "https://ddakdama.ddakdama.workers.dev" }
+$productionServerOrigin = if ($env:VITE_DDAKDAMA_SERVER_ORIGIN) { $env:VITE_DDAKDAMA_SERVER_ORIGIN } else { "https://ddakdama.artemis-clunk.workers.dev" }
 $parsedServerOrigin = $null
 if (-not $productionServerOrigin -or -not [Uri]::TryCreate($productionServerOrigin, [UriKind]::Absolute, [ref]$parsedServerOrigin) -or $parsedServerOrigin.Scheme -ne "https") {
   throw "Public packaging requires a stable HTTPS VITE_DDAKDAMA_SERVER_ORIGIN, for example https://ddakdama.example.workers.dev"
 }
 $env:VITE_DDAKDAMA_SERVER_ORIGIN = $parsedServerOrigin.GetLeftPart([UriPartial]::Authority).TrimEnd('/')
 $env:VITE_DDAKDAMA_AFFILIATE_ENABLED = "false"
+$env:VITE_DDAKDAMA_REAL_COUPANG_AUTOMATION_ENABLED = "false"
 pnpm build
 $out = Join-Path $root "dist"
 New-Item -ItemType Directory -Force -Path $out | Out-Null
-$version = "1.0.2"
-$extensionZip = Join-Path $out "ddakdama-extension-v$version.zip"
-$serverZip = Join-Path $out "ddakdama-server-v$version.zip"
-$workerZip = Join-Path $out "ddakdama-cloudflare-worker-v$version.zip"
-$chatgptZip = Join-Path $out "ddakdama-chatgpt-app-v$version.zip"
-$fullZip = Join-Path $out "ddakdama-full-v$version.zip"
+$releaseVersion = (Get-Content -LiteralPath (Join-Path $root "VERSION") -Raw -Encoding utf8).Trim()
+$extensionVersion = [string](Get-Content -LiteralPath (Join-Path $root "apps\extension\package.json") -Raw -Encoding utf8 | ConvertFrom-Json).version
+if ($releaseVersion -notmatch '^\d+\.\d+\.\d+$' -or $extensionVersion -notmatch '^\d+\.\d+\.\d+$') {
+  throw "Release and extension versions must use semantic versioning."
+}
+$extensionZip = Join-Path $out "ddakdama-extension-v$extensionVersion.zip"
+$serverZip = Join-Path $out "ddakdama-server-v$releaseVersion.zip"
+$workerZip = Join-Path $out "ddakdama-cloudflare-worker-v$releaseVersion.zip"
+$chatgptZip = Join-Path $out "ddakdama-chatgpt-app-v$releaseVersion.zip"
+$fullZip = Join-Path $out "ddakdama-full-v$releaseVersion.zip"
 Get-ChildItem -LiteralPath $out -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "ddakdama-extension-dev-v*.zip" -or $_.Name -like "ddakdama-extension-webstore-v*.zip" } | Remove-Item -Force
 $legacyInternal = Join-Path $out "internal"
 Assert-StagingPath $legacyInternal
@@ -41,11 +46,14 @@ Copy-Item -Recurse -Force (Join-Path $root "apps\extension\assets") -Destination
 Copy-Item -Force (Join-Path $root "apps\extension\manifest.json") -Destination $extensionStage
 $webstoreManifest = Get-Content (Join-Path $extensionStage "manifest.json") -Raw -Encoding utf8 | ConvertFrom-Json
 $webstoreManifest.host_permissions = @($webstoreManifest.host_permissions | Where-Object { $_ -notmatch '^http://localhost:' })
+foreach ($contentScript in @($webstoreManifest.content_scripts)) {
+  $contentScript.matches = @($contentScript.matches | Where-Object { $_ -notmatch '^http://localhost:' })
+}
 $serverPermission = $parsedServerOrigin.GetLeftPart([UriPartial]::Authority).TrimEnd('/') + "/*"
 $webstoreManifest.host_permissions = @($webstoreManifest.host_permissions + $serverPermission | Select-Object -Unique)
 $webstoreManifest | ConvertTo-Json -Depth 20 | Set-Content -Encoding utf8 (Join-Path $extensionStage "manifest.json")
 $releaseMetadata = [ordered]@{
-  version = $version
+  version = $extensionVersion
   distributionMode = "webstore"
   serverOrigin = $env:VITE_DDAKDAMA_SERVER_ORIGIN
   affiliateEnabled = $false
@@ -54,6 +62,11 @@ $releaseMetadata = [ordered]@{
 $releaseMetadata | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 (Join-Path $extensionStage "release-metadata.json")
 Compress-Archive -Path (Join-Path $extensionStage "*") -DestinationPath $extensionZip
 Remove-Item -LiteralPath $extensionStage -Recurse -Force
+$extensionReleaseDir = Join-Path $root "apps\extension\release"
+$webDownloadDir = Join-Path $root "apps\web\public\download"
+New-Item -ItemType Directory -Force -Path $extensionReleaseDir,$webDownloadDir | Out-Null
+Copy-Item -LiteralPath $extensionZip -Destination (Join-Path $extensionReleaseDir (Split-Path -Leaf $extensionZip)) -Force
+Copy-Item -LiteralPath $extensionZip -Destination (Join-Path $webDownloadDir (Split-Path -Leaf $extensionZip)) -Force
 $serverStage = Join-Path $out "_server"
 Assert-StagingPath $serverStage
 Remove-Item -LiteralPath $serverStage -Recurse -Force -ErrorAction SilentlyContinue
@@ -103,9 +116,24 @@ Remove-Item -LiteralPath $stage -Recurse -Force
 Copy-Item -Force (Join-Path $root "RELEASE_NOTES.md") -Destination (Join-Path $out "RELEASE_NOTES.md")
 Copy-Item -Force (Join-Path $root "TEST_REPORT.md") -Destination (Join-Path $out "TEST_REPORT.md")
 Copy-Item -Force (Join-Path $root "docs\LIVE_TEST_REPORT.md") -Destination (Join-Path $out "LIVE_TEST_REPORT.md")
-$hashes = Get-FileHash -Algorithm SHA256 $extensionZip,$serverZip,$workerZip,$chatgptZip,$fullZip
-$hashes | ForEach-Object {
-  $relativePath = $_.Path.Substring($out.Length).TrimStart([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar).Replace('\','/')
-  "$($_.Hash)  $relativePath"
-} | Set-Content -Encoding utf8 (Join-Path $out "SHA256SUMS.txt")
+$sha256 = [Security.Cryptography.SHA256]::Create()
+try {
+  $hashes = foreach ($path in @($extensionZip,$serverZip,$workerZip,$chatgptZip,$fullZip)) {
+    $stream = [IO.File]::OpenRead($path)
+    try {
+      [pscustomobject]@{
+        Path = $path
+        Hash = ([BitConverter]::ToString($sha256.ComputeHash($stream)) -replace '-', '')
+      }
+    } finally {
+      $stream.Dispose()
+    }
+  }
+  $hashes | ForEach-Object {
+    $relativePath = $_.Path.Substring($out.Length).TrimStart([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar).Replace('\','/')
+    "$($_.Hash)  $relativePath"
+  } | Set-Content -Encoding utf8 (Join-Path $out "SHA256SUMS.txt")
+} finally {
+  $sha256.Dispose()
+}
 Write-Host "DdakDama packages ready: $out"

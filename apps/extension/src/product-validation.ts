@@ -21,6 +21,8 @@ export type ProductDetail = {
   price: number | null;
   unitsPerPackage: number;
   inStock: boolean;
+  stockStatus?: "IN_STOCK" | "OUT_OF_STOCK" | "UNKNOWN";
+  membershipRequired?: boolean;
   optionRequired: boolean;
   securityRequired: boolean;
   loginRequired: boolean;
@@ -163,9 +165,10 @@ export function validateProductUrl(job: ProductExpectation) {
 export function detailStatus(job: ProductExpectation, detail: ProductDetail) {
   if (detail.securityRequired) return "SECURITY_CHECK_REQUIRED";
   if (detail.loginRequired) return "LOGIN_REQUIRED";
+  if (detail.membershipRequired) return "MEMBERSHIP_REQUIRED";
   if (!productMatches(job, detail)) return "PRODUCT_MISMATCH";
   if (!detail.price) return "PRICE_UNVERIFIED";
   if (detail.optionRequired) return "OPTION_REQUIRED";
-  if (!detail.inStock) return "OUT_OF_STOCK";
+  if (!detail.inStock) return detail.stockStatus === "UNKNOWN" ? "PURCHASE_UNAVAILABLE" : "OUT_OF_STOCK";
   return "READY";
 }

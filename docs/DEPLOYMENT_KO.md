@@ -17,7 +17,7 @@ Cloudflare 계정 이메일 인증이 완료되어 있어야 합니다. 배포�
 현재 운영 주소:
 
 ```text
-https://ddakdama.ddakdama.workers.dev
+https://ddakdama.artemis-clunk.workers.dev
 ```
 
 이메일 인증과 최초 `workers.dev` 서브도메인이 준비된 뒤에는 루트의 `resume-public-release-windows.bat`으로 배포, 공개 MCP 검사, 전체 테스트, 단일 패키징과 배포물 검증을 한 번에 실행할 수 있습니다.
@@ -25,7 +25,7 @@ https://ddakdama.ddakdama.workers.dev
 검증:
 
 ```powershell
-$env:DDAKDAMA_TEST_ORIGIN = "https://ddakdama.ddakdama.workers.dev"
+$env:DDAKDAMA_TEST_ORIGIN = "https://ddakdama.artemis-clunk.workers.dev"
 node apps/server/tests/mcp-smoke.mjs
 node apps/server/tests/mcp-multiuser-smoke.mjs
 ```
@@ -35,19 +35,19 @@ node apps/server/tests/mcp-multiuser-smoke.mjs
 ## 2. Chrome 확장 프로그램
 
 ```powershell
-$env:VITE_DDAKDAMA_SERVER_ORIGIN = "https://ddakdama.ddakdama.workers.dev"
+$env:VITE_DDAKDAMA_SERVER_ORIGIN = "https://ddakdama.artemis-clunk.workers.dev"
 pnpm --filter @ddakdama/extension build
 pnpm package
 ```
 
-운영 확장 프로그램 번들에는 공개 서버 origin만 들어가며 비밀키는 포함하지 않습니다. `pnpm package`는 공개 HTTPS 주소가 없으면 실패하고, 단일 `ddakdama-extension-v1.0.2.zip`에서 localhost 권한과 제휴 기능을 제거합니다. 비공개 베타와 Web Store 제출 모두 이 한 패키지를 사용합니다.
+운영 확장 프로그램 번들에는 공개 서버 origin만 들어가며 비밀키는 포함하지 않습니다. `pnpm package`는 공개 HTTPS 주소가 없으면 실패하고, 단일 `ddakdama-extension-v1.0.3.zip`에서 localhost 권한과 제휴 기능을 제거합니다. 비공개 베타와 Web Store 제출 모두 이 한 패키지를 사용합니다.
 
 ## 3. ChatGPT 앱
 
 ChatGPT 앱의 Server URL은 다음으로 설정합니다.
 
 ```text
-https://ddakdama.ddakdama.workers.dev/mcp
+https://ddakdama.artemis-clunk.workers.dev/mcp
 ```
 
 공개 베타는 앱 자체 계정을 만들지 않으므로 인증 없음으로 연결합니다. 사용자별 장바구니 계획은 6자리 일회용 코드와 무작위 연결 권한으로 분리합니다.

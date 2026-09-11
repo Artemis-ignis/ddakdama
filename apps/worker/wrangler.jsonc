@@ -2,6 +2,11 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "ddakdama",
   "main": "src/index.ts",
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
   "compatibility_date": "2026-07-08",
   "compatibility_flags": ["nodejs_compat"],
   "durable_objects": {
@@ -24,7 +29,13 @@
     "CONNECTION_GRANT_TTL_SECONDS": "2592000",
     "HANDOFF_TTL_SECONDS": "900",
     "SUPPORT_TICKET_TTL_SECONDS": "2592000",
-    "COUPANG_PARTNERS_SUB_ID": "ddakdama-extension"
+    "COUPANG_PARTNERS_SUB_ID": "ddakdama-extension",
+    "AFFILIATE_API_ENABLED": "false",
+    "MOBILE_CART_RUNNER_ENABLED": "false",
+    "REAL_COUPANG_AUTOMATION_ENABLED": "false",
+    "FIXTURE_CATALOG_ENABLED": "false",
+    "GPT_PLAN_GRANT_TTL_SECONDS": "900",
+    "PLAN_TTL_SECONDS": "86400"
   },
   "observability": {
     "enabled": true,

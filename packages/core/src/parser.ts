@@ -13,12 +13,12 @@ const sizeAliases: Record<string, SizeUnit> = {
 const strengthAliases: Record<string, StrengthUnit> = {
   mg: "mg", mcg: "mcg", ug: "mcg", "\u03BCg": "mcg", iu: "IU", "%": "%",
 };
-const packageUnits = new Set(["\uC815", "\uCEA1\uC290", "\uD3EC", "\uB9E4", "\uAC1C\uC785", "\uC2A4\uD2F1", "\uD328\uCE58", "\uC778\uBD84"]);
-const physicalUnits = new Set(["\uAC1C", "\uBCD1", "\uCE94", "\uBD09", "\uD1B5", "\uD329"]);
+const packageUnits = new Set(["\uC815", "\uCEA1\uC290", "\uD3EC", "\uB9E4", "\uAC1C\uC785", "\uC2A4\uD2F1", "\uD328\uCE58", "\uC778\uBD84", "\uAD6C"]);
+const physicalUnits = new Set(["\uAC1C", "\uBCD1", "\uCE94", "\uBD09", "\uD1B5", "\uD329", "\uBAA8", "\uB2E8"]);
 const containerUnits = new Set(["\uBC15\uC2A4", "\uBB36\uC74C", "\uC138\uD2B8"]);
 
 const sizeUnitPattern = "mL|ml|L|l|kg|g|\\uBC00\\uB9AC\\uB9AC\\uD130|\\uB9AC\\uD130|\\uD0AC\\uB85C\\uADF8\\uB7A8|\\uADF8\\uB7A8";
-const tokenUnitPattern = `${sizeUnitPattern}|mg|mcg|ug|\\u03BCg|IU|iu|%|\\uC815|\\uCEA1\\uC290|\\uD3EC|\\uB9E4|\\uAC1C\\uC785|\\uC2A4\\uD2F1|\\uD328\\uCE58|\\uC778\\uBD84|\\uAC1C|\\uBCD1|\\uCE94|\\uBD09|\\uD1B5|\\uD329|\\uBC15\\uC2A4|\\uBB36\\uC74C|\\uC138\\uD2B8`;
+const tokenUnitPattern = `${sizeUnitPattern}|mg|mcg|ug|\\u03BCg|IU|iu|%|\\uC815|\\uCEA1\\uC290|\\uD3EC|\\uB9E4|\\uAC1C\\uC785|\\uC2A4\\uD2F1|\\uD328\\uCE58|\\uC778\\uBD84|\\uAD6C|\\uAC1C|\\uBCD1|\\uCE94|\\uBD09|\\uD1B5|\\uD329|\\uBAA8|\\uB2E8|\\uBC15\\uC2A4|\\uBB36\\uC74C|\\uC138\\uD2B8`;
 const tokenPattern = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${tokenUnitPattern})`, "giu");
 // Keep this explicit instead of composing it from the broad token pattern:
 // optional single-letter units (L/g) otherwise made `6~8kg` ambiguous.
@@ -202,8 +202,48 @@ export function parseShoppingLine(rawText: string, index = 0): ShoppingRequestLi
   });
 }
 
+/**
+ * People naturally separate a quick shopping list with either newlines or
+ * commas.  A comma before a quantity ("콜라 355mL, 12캔") belongs to the same
+ * request, while a comma before a new product ("생수 2L 6병, 비빔면 5개입")
+ * starts another request.  Keep that distinction here so every surface
+ * (Android, web, ChatGPT, and the extension) gets the same cart rows.
+ */
+const splitShoppingLine = (line: string): string[] => {
+  const pieces = line.split(/([,，;；])/u);
+  const result: string[] = [];
+  let current = "";
+
+  for (let index = 0; index < pieces.length; index += 1) {
+    const piece = pieces[index] ?? "";
+    if (!/^[,，;；]$/u.test(piece)) {
+      current += piece;
+      continue;
+    }
+
+    const remainder = (pieces[index + 1] ?? "").trim();
+    // A following number, multiplier, or unit is part of the preceding
+    // product's packaging/quantity description, not another product.
+    const startsQuantity = /^(?:\d|[x×*]|개|병|봉|팩|캔|매|입|g\b|kg\b|ml\b|mL\b|L\b)/iu.test(remainder);
+    // "구성, 총 4인분" and similar phrases refine the same product.
+    const startsContinuation = /^(?:총|합계|구성|내외|약|옵션|색상|맛|향|종류)(?:\s|\d|$)/u.test(remainder);
+    if (remainder && !startsQuantity && !startsContinuation) {
+      if (current.trim()) result.push(current.trim());
+      current = "";
+    } else {
+      current += piece;
+    }
+  }
+  if (current.trim()) result.push(current.trim());
+  return result;
+};
+
 export const parseShoppingList = (input: string) =>
-  input.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean).map(parseShoppingLine);
+  input
+    .split(/\r?\n/u)
+    .flatMap((line) => splitShoppingLine(line.trim()))
+    .filter(Boolean)
+    .map(parseShoppingLine);
 
 export const searchQueryForShoppingLine = (line: Pick<ShoppingRequestLine, "productName" | "unitSizeValue" | "unitSizeUnit" | "packageContentCount" | "packageContentUnit">) => {
   const product = line.productName.trim();

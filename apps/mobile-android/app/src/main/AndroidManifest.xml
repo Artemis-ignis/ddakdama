@@ -1,0 +1,32 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <application
+    android:allowBackup="false"
+    android:dataExtractionRules="@xml/data_extraction_rules"
+    android:fullBackupContent="false"
+    android:icon="@mipmap/ic_launcher"
+    android:label="@string/app_name"
+    android:roundIcon="@mipmap/ic_launcher_round"
+    android:theme="@style/Theme.DdakDama"
+    android:usesCleartextTraffic="false">
+    <activity android:name=".MainActivity" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+      <!-- A custom scheme works before a custom domain / assetlinks.json exists. -->
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="https" android:host="ddakdama.artemis-clunk.workers.dev" android:pathPrefix="/open"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="ddakdama" android:host="execute"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="ddakdama" android:host="plan"/>
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>

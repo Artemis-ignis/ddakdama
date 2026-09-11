@@ -6,8 +6,9 @@ import {
   shardFromOpaqueToken,
   ttl,
 } from "../src/helpers.js";
-import { authorization } from "../src/partners.js";
+import { authorization, normalizeDeepLinkPayload, normalizeSearchPayload } from "../src/partners.js";
 import { landingPage, privacyPage, supportPage, termsPage } from "../src/site.js";
+import { readFileSync } from "node:fs";
 
 describe("public Worker helper contracts", () => {
   it("normalizes a pairing code and isolates opaque token shards", () => {
@@ -38,6 +39,16 @@ describe("public Worker helper contracts", () => {
     );
   });
 
+  it("keeps canonical product URLs and verified affiliate URLs separate", () => {
+    const [candidate] = normalizeSearchPayload({ data: { productData: [{ productId: 123, productName: "생수 1L 12병", productUrl: "https://www.coupang.com/vp/products/123?vendorItemId=4" }] } });
+    expect(candidate?.canonicalUrl).toBe("https://www.coupang.com/vp/products/123?vendorItemId=4");
+    expect(candidate?.partnersSearchUrl).toBe(candidate?.canonicalUrl);
+    expect(candidate?.affiliateUrl).toBeNull();
+    expect(candidate?.affiliateVerified).toBe(false);
+    const [link] = normalizeDeepLinkPayload({ data: [{ originalUrl: candidate?.canonicalUrl, landingUrl: "https://link.coupang.com/a/test" }] });
+    expect(link).toMatchObject({ originalUrl: candidate?.canonicalUrl, affiliateVerified: true });
+  });
+
   it("renders public landing, privacy, terms, and support pages", () => {
     const appIcon = "data:image/png;base64,aWNvbg==";
     const landing = landingPage(appIcon);
@@ -51,5 +62,19 @@ describe("public Worker helper contracts", () => {
     expect(support).toContain('action="/api/support"');
     expect(support).toContain("DD-12345678");
     expect(support).toContain("API 키, 비밀번호, 인증 코드, 결제 정보");
+  });
+
+  it("keeps plan expiry, clarification, and explicit execution approval in the Worker contract", () => {
+    const source = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
+    expect(source).toContain("/clarify$/i");
+    expect(source).toContain("PLAN_TTL_SECONDS");
+    expect(source).toContain("user_approval_required");
+    expect(source).toContain("preflight_required");
+    expect(source).toContain("preflightToken");
+    expect(source).toContain("consentToStoreRaw");
+    expect(source).toContain("redactPlanRawText");
+    expect(source).toContain("/api/events");
+    expect(source).toContain("recordAnonymousEvent");
+    expect(source).toContain("/preflight$/i");
   });
 });

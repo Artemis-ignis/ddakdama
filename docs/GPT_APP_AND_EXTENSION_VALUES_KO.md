@@ -13,14 +13,14 @@ OpenAI API 키는 이 연결에 필요하지 않으며, 목록 파싱·페어링
 | 이름 | 딱담아 |
 | 부제 | 쇼핑 목록을 장바구니로 |
 | 연결 방식 | Server URL |
-| MCP 서버 URL | `https://ddakdama.ddakdama.workers.dev/mcp` |
+| MCP 서버 URL | `https://ddakdama.artemis-clunk.workers.dev/mcp` |
 | 인증 | 인증 없음 |
 | 아이콘 | `apps/extension/assets/icon-256.png` |
 | 작성자 | IGNIS |
-| 웹사이트 | `https://ddakdama.ddakdama.workers.dev` |
-| 고객지원 | `https://ddakdama.ddakdama.workers.dev/support` |
-| 개인정보 처리방침 | `https://ddakdama.ddakdama.workers.dev/privacy` |
-| 이용약관 | `https://ddakdama.ddakdama.workers.dev/terms` |
+| 웹사이트 | `https://ddakdama.artemis-clunk.workers.dev` |
+| 고객지원 | `https://ddakdama.artemis-clunk.workers.dev/support` |
+| 개인정보 처리방침 | `https://ddakdama.artemis-clunk.workers.dev/privacy` |
+| 이용약관 | `https://ddakdama.artemis-clunk.workers.dev/terms` |
 
 설명:
 

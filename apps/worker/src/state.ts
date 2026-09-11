@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import type { CartExecution, CartExecutionItem, CartPlan } from "@ddakdama/core";
 import { normalizePairingCode } from "./helpers.js";
 
 export {
@@ -41,9 +42,47 @@ export type SupportTicket = {
   resolvedAt: number | null;
 };
 
+type StoredPlan = {
+  plan: CartPlan;
+  expiresAt?: number;
+  preflightTokenHash?: string;
+  preflightPlanVersion?: number;
+  preflightExpiresAt?: number;
+  /** Older deployments used a single capability; retain it during migration. */
+  accessTokenHash?: string;
+  accessTokenHashes?: string[];
+  /**
+   * A short-lived capability created for the public GPT beta.  It is scoped to
+   * one plan and deliberately cannot authenticate a device, an execution, or
+   * any Coupang endpoint.
+   */
+  gptPlanGrantHash?: string;
+  gptPlanGrantExpiresAt?: number;
+};
+type StoredPlanClaim = {
+  claimTokenHash: string;
+  expiresAt: number;
+  claimedDeviceId: string | null;
+};
+type StoredExecution = {
+  execution: CartExecution;
+  claimTokenHash: string;
+  claimedDeviceId: string | null;
+};
+
 type AttemptWindow = {
   count: number;
   resetAt: number;
+};
+
+export type AnonymousEvent = {
+  id: string;
+  name: string;
+  sessionId: string;
+  planId?: string;
+  properties: Record<string, string | number | boolean>;
+  createdAt: number;
+  expiresAt: number;
 };
 
 type StateEnv = Record<string, never>;
@@ -105,6 +144,18 @@ export class DdakDamaState extends DurableObject<StateEnv> {
       maximum,
       60 * 60 * 1_000,
     );
+  }
+
+  async allowGptPlan(clientKey: string, maximum = 12) {
+    return this.allow(
+      `rate:gpt-plan:${await hash(clientKey)}`,
+      maximum,
+      60 * 60 * 1_000,
+    );
+  }
+
+  async allowAnonymousEvent(clientKey: string, maximum = 120) {
+    return this.allow(`rate:event:${await hash(clientKey)}`, maximum);
   }
 
   async startPairing(
@@ -302,6 +353,213 @@ export class DdakDamaState extends DurableObject<StateEnv> {
       return { received: false, expired: true };
     }
     return { received: Boolean(item.ackedAt), expired: false };
+  }
+
+  async createPlan(plan: CartPlan, ttlMs = 24 * 60 * 60 * 1_000) {
+    const accessToken = randomSecret();
+    await this.ctx.storage.put(`plan:${plan.id}`, {
+      plan,
+      expiresAt: Date.now() + ttlMs,
+      accessTokenHashes: [await hash(accessToken)],
+    } satisfies StoredPlan);
+    return { plan, accessToken };
+  }
+
+  async recordAnonymousEvent(
+    input: Omit<AnonymousEvent, "id" | "createdAt" | "expiresAt">,
+    ttlMs = 24 * 60 * 60 * 1_000,
+  ) {
+    const createdAt = Date.now();
+    const oldEvents = await this.ctx.storage.list<AnonymousEvent>({ prefix: "event:", limit: 100 });
+    const expiredKeys = [...oldEvents.entries()]
+      .filter(([, event]) => event.expiresAt <= createdAt)
+      .map(([key]) => key);
+    if (expiredKeys.length) await this.ctx.storage.delete(expiredKeys);
+    const event: AnonymousEvent = {
+      id: crypto.randomUUID(),
+      ...input,
+      createdAt,
+      expiresAt: createdAt + ttlMs,
+    };
+    await this.ctx.storage.put(`event:${createdAt}:${event.id}`, event);
+    return event;
+  }
+
+  async createGptPlan(plan: CartPlan, grantTtlMs: number, planTtlMs = 24 * 60 * 60 * 1_000) {
+    const planGrant = randomSecret();
+    const expiresAt = Date.now() + grantTtlMs;
+    await this.ctx.storage.put(`plan:${plan.id}`, {
+      plan,
+      expiresAt: Date.now() + planTtlMs,
+      gptPlanGrantHash: await hash(planGrant),
+      gptPlanGrantExpiresAt: expiresAt,
+    } satisfies StoredPlan);
+    return { plan, planGrant, expiresAt };
+  }
+
+  private async authorizedPlan(record: StoredPlan, accessToken: string) {
+    if (record.expiresAt !== undefined && record.expiresAt <= Date.now()) return false;
+    const candidate = await hash(accessToken);
+    if (record.accessTokenHash === candidate || (record.accessTokenHashes ?? []).includes(candidate)) {
+      return true;
+    }
+    return Boolean(
+      record.gptPlanGrantHash === candidate &&
+      record.gptPlanGrantExpiresAt &&
+      record.gptPlanGrantExpiresAt > Date.now(),
+    );
+  }
+
+  async readPlan(id: string, accessToken: string) {
+    const record = await this.ctx.storage.get<StoredPlan>(`plan:${id}`);
+    if (!record || !(await this.authorizedPlan(record, accessToken))) {
+      if (record?.expiresAt !== undefined && record.expiresAt <= Date.now()) await this.ctx.storage.delete(`plan:${id}`);
+      return null;
+    }
+    return record.plan;
+  }
+
+  async updatePlan(id: string, accessToken: string, expectedVersion: number, next: CartPlan) {
+    const record = await this.ctx.storage.get<StoredPlan>(`plan:${id}`);
+    if (!record || !(await this.authorizedPlan(record, accessToken))) return { kind: "unauthorized" as const };
+    if (record.plan.version !== expectedVersion) return { kind: "conflict" as const, plan: record.plan };
+    await this.ctx.storage.put(`plan:${id}`, { ...record, plan: next } satisfies StoredPlan);
+    return { kind: "updated" as const, plan: next };
+  }
+
+  async issuePlanPreflightToken(id: string, planVersion: number, ttlMs = 5 * 60 * 1_000) {
+    const record = await this.ctx.storage.get<StoredPlan>(`plan:${id}`);
+    if (!record || record.plan.version !== planVersion) return null;
+    if (record.expiresAt !== undefined && record.expiresAt <= Date.now()) {
+      await this.ctx.storage.delete(`plan:${id}`);
+      return null;
+    }
+    const preflightToken = randomSecret();
+    const expiresAt = Date.now() + ttlMs;
+    await this.ctx.storage.put(`plan:${id}`, {
+      ...record,
+      preflightTokenHash: await hash(preflightToken),
+      preflightPlanVersion: planVersion,
+      preflightExpiresAt: expiresAt,
+    } satisfies StoredPlan);
+    return { preflightToken, expiresAt };
+  }
+
+  async consumePlanPreflightToken(id: string, preflightToken: string, planVersion: number) {
+    const record = await this.ctx.storage.get<StoredPlan>(`plan:${id}`);
+    if (!record || record.plan.version !== planVersion || !record.preflightTokenHash || record.preflightPlanVersion !== planVersion || !record.preflightExpiresAt || record.preflightExpiresAt <= Date.now()) return false;
+    if (record.preflightTokenHash !== await hash(preflightToken)) return false;
+    const withoutPreflight = { ...record };
+    delete withoutPreflight.preflightTokenHash;
+    delete withoutPreflight.preflightPlanVersion;
+    delete withoutPreflight.preflightExpiresAt;
+    await this.ctx.storage.put(`plan:${id}`, withoutPreflight satisfies StoredPlan);
+    return true;
+  }
+
+  async issuePlanClaimToken(id: string, ttlMs: number) {
+    const record = await this.ctx.storage.get<StoredPlan>(`plan:${id}`);
+    if (!record) return null;
+    if (record.expiresAt !== undefined && record.expiresAt <= Date.now()) {
+      await this.ctx.storage.delete(`plan:${id}`);
+      return null;
+    }
+    const existingClaim = await this.ctx.storage.get<StoredPlanClaim>(`plan-claim:${id}`);
+    if (existingClaim?.claimedDeviceId && existingClaim.expiresAt > Date.now()) return null;
+    const claimToken = randomSecret();
+    const expiresAt = Date.now() + ttlMs;
+    await this.ctx.storage.put(`plan-claim:${id}`, {
+      claimTokenHash: await hash(claimToken),
+      expiresAt,
+      claimedDeviceId: null,
+    } satisfies StoredPlanClaim);
+    return { claimToken, expiresAt };
+  }
+
+  async claimPlan(id: string, claimToken: string, deviceId: string) {
+    const [record, claim] = await Promise.all([
+      this.ctx.storage.get<StoredPlan>(`plan:${id}`),
+      this.ctx.storage.get<StoredPlanClaim>(`plan-claim:${id}`),
+    ]);
+    if (!record || !claim || claim.expiresAt <= Date.now() || claim.claimedDeviceId || claim.claimTokenHash !== await hash(claimToken)) return null;
+    if (record.expiresAt !== undefined && record.expiresAt <= Date.now()) {
+      await this.ctx.storage.delete(`plan:${id}`);
+      return null;
+    }
+    const accessToken = randomSecret();
+    const accessTokenHashes = [...(record.accessTokenHashes ?? (record.accessTokenHash ? [record.accessTokenHash] : [])), await hash(accessToken)].slice(-4);
+    await this.ctx.storage.put({
+      [`plan:${id}`]: { plan: record.plan, expiresAt: record.expiresAt, accessTokenHashes } satisfies StoredPlan,
+      [`plan-claim:${id}`]: { ...claim, claimedDeviceId: deviceId } satisfies StoredPlanClaim,
+    });
+    return { plan: record.plan, accessToken };
+  }
+
+  async createExecution(execution: CartExecution) {
+    const claimToken = randomSecret();
+    await this.ctx.storage.put(`execution:${execution.id}`, {
+      execution,
+      claimTokenHash: await hash(claimToken),
+      claimedDeviceId: null,
+    } satisfies StoredExecution);
+    return { execution, claimToken };
+  }
+
+  async issueExecutionClaimToken(id: string) {
+    const record = await this.readExecution(id);
+    if (!record || record.claimedDeviceId || record.execution.status === "EXPIRED") return null;
+    const claimToken = randomSecret();
+    await this.ctx.storage.put(`execution:${id}`, {
+      ...record,
+      claimTokenHash: await hash(claimToken),
+    } satisfies StoredExecution);
+    return { claimToken, expiresAt: record.execution.expiresAt };
+  }
+
+  async readExecution(id: string) {
+    const record = await this.ctx.storage.get<StoredExecution>(`execution:${id}`);
+    if (!record) return null;
+    if (record.execution.expiresAt <= Date.now()) {
+      const expired = { ...record.execution, status: "EXPIRED" as const, updatedAt: Date.now() };
+      await this.ctx.storage.put(`execution:${id}`, { ...record, execution: expired } satisfies StoredExecution);
+      return { ...record, execution: expired };
+    }
+    return record;
+  }
+
+  async claimExecution(id: string, claimToken: string, deviceId: string) {
+    const record = await this.readExecution(id);
+    if (!record || record.claimTokenHash !== await hash(claimToken)) return null;
+    if (record.claimedDeviceId && record.claimedDeviceId !== deviceId) return null;
+    if (record.execution.status === "EXPIRED" || record.execution.status === "CANCELLED") return null;
+    const execution = {
+      ...record.execution,
+      status: record.execution.status === "WAITING_FOR_DEVICE" || record.execution.status === "CREATED" ? "READY" as const : record.execution.status,
+      updatedAt: Date.now(),
+    };
+    await this.ctx.storage.put(`execution:${id}`, { ...record, claimedDeviceId: deviceId, execution } satisfies StoredExecution);
+    return execution;
+  }
+
+  async updateExecutionItem(id: string, deviceId: string, itemId: string, status: CartExecutionItem["status"], message: string | null) {
+    const record = await this.readExecution(id);
+    if (!record || record.claimedDeviceId !== deviceId || record.execution.status === "EXPIRED") return null;
+    const existing = record.execution.items.find((item) => item.id === itemId);
+    if (!existing) return null;
+    if (["ADDED", "SKIPPED", "FAILED"].includes(existing.status)) {
+      return existing.status === status ? record.execution : null;
+    }
+    const now = Date.now();
+    const items = record.execution.items.map((item) => item.id === itemId ? { ...item, status, message, updatedAt: now } : item);
+    const done = items.every((item) => ["ADDED", "SKIPPED", "FAILED"].includes(item.status));
+    const added = items.filter((item) => item.status === "ADDED").length;
+    const nextStatus = done
+      ? added === items.length ? "COMPLETED" as const : added > 0 ? "PARTIALLY_COMPLETED" as const : "FAILED" as const
+      : ["OPTION_REQUIRED", "PRICE_CHANGED"].includes(status) ? "PAUSED_FOR_USER" as const
+      : "RUNNING" as const;
+    const execution = { ...record.execution, status: nextStatus, items, updatedAt: now };
+    await this.ctx.storage.put(`execution:${id}`, { ...record, execution } satisfies StoredExecution);
+    return execution;
   }
 
   async revokeByToken(kind: "token" | "grant", value: string) {

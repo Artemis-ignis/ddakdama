@@ -28,10 +28,12 @@ DdakDama makes that transition explicit and verifiable.
 
 | Surface | Responsibility |
 | --- | --- |
+| **Android app** | GPT 없이 목록을 검토하고 App Link로 실행 계획을 열며, fixture 기반 모바일 cart runner를 검증합니다. 실제 쿠팡 자동화는 기본 비활성화입니다. |
 | **Chrome extension** | List input, candidate comparison, quantity planning, Coupang detail validation, cart actions, and cart-result review. |
-| **ChatGPT app** | Structured list review and secure handoff to a paired extension. |
-| **Cloudflare Worker + Durable Object** | Public MCP endpoint, short-lived pairing codes, device-scoped handoffs, isolation, and rate limits. |
-| **Shared core package** | Deterministic parser, unit classifier, quantity planner, product matching, and cart-result contracts. |
+| **ChatGPT app** | Structured list review and secure handoff to a paired extension. It is optional; a user can start from the web or Android surfaces. |
+| **Standalone web app** | One public page at `/` for direct list entry, candidate selection, user-clicked Coupang links, and GPT beta guidance. The old `/app/` address redirects to `/`. |
+| **Cloudflare Worker + Durable Object** | Public MCP endpoint, short-lived pairing codes, device-scoped handoffs, anonymous plan/execution snapshots, isolation, and rate limits. |
+| **Shared core package** | Deterministic parser, unit classifier, quantity planner, product matching, cart-plan/execution, delivery, and affiliate-link contracts. |
 
 ## The quantity problem
 
@@ -58,6 +60,8 @@ Codex was used throughout development to analyze the repository, design and impl
 
 ```text
 apps/
+  mobile-android/  Kotlin/Compose Android fixture MVP
+  web/        Standalone React/Vite PWA-style entry surface
   extension/  Manifest V3 Chrome Side Panel extension
   server/     Local development MCP service and widget tooling
   worker/     Public Cloudflare Worker and Durable Object service
@@ -82,11 +86,11 @@ For an unpacked extension build, use the directory containing the generated `man
 
 ## Public service
 
-- Website: https://ddakdama.ddakdama.workers.dev
-- MCP endpoint: https://ddakdama.ddakdama.workers.dev/mcp
-- Privacy: https://ddakdama.ddakdama.workers.dev/privacy
-- Terms: https://ddakdama.ddakdama.workers.dev/terms
-- Support: https://ddakdama.ddakdama.workers.dev/support
+- Website: https://ddakdama.ddakdama-app.workers.dev
+- MCP endpoint: https://ddakdama.ddakdama-app.workers.dev/mcp
+- Privacy: https://ddakdama.ddakdama-app.workers.dev/privacy
+- Terms: https://ddakdama.ddakdama-app.workers.dev/terms
+- Support: https://ddakdama.ddakdama-app.workers.dev/support
 
 The public Worker is designed so normal users do not need to run a laptop-hosted server. The local server is for development only.
 

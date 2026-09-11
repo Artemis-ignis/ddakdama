@@ -16,6 +16,15 @@ const record = (value: unknown): JsonRecord =>
     ? (value as JsonRecord)
     : {};
 
+const httpsUrl = (value: string) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+};
+
 export const configured = (config: PartnersConfig) =>
   Boolean(config.accessKey && config.secretKey);
 
@@ -176,7 +185,7 @@ export function normalizeSearchPayload(payload: unknown) {
       const query = new URLSearchParams();
       if (itemId) query.set("itemId", itemId);
       if (vendorItemId) query.set("vendorItemId", vendorItemId);
-      const productUrl = productId
+      const canonicalUrl = productId
         ? `https://www.coupang.com/vp/products/${productId}${query.size ? `?${query}` : ""}`
         : rawUrl;
       return {
@@ -188,7 +197,15 @@ export function normalizeSearchPayload(payload: unknown) {
         currentPrice:
           Number(item.productPrice ?? item.product_price) || null,
         unitsPerPackage: parseUnitsPerPackage(title),
-        productUrl,
+        // `productUrl` remains only as a legacy extension compatibility alias.
+        // New callers must keep the search response and execution URL distinct.
+        productUrl: canonicalUrl,
+        canonicalUrl,
+        partnersSearchUrl: httpsUrl(rawUrl),
+        affiliateUrl: null,
+        affiliateVerified: false,
+        affiliateResolvedAt: null,
+        affiliateSubId: null,
         imageUrl: item.productImage ?? item.product_image ?? null,
         rocketDelivery: Boolean(item.isRocket ?? item.is_rocket),
         rating: null,
@@ -197,7 +214,7 @@ export function normalizeSearchPayload(payload: unknown) {
         source: "PARTNERS" as const,
       };
     })
-    .filter((item) => item.productId && item.title && item.productUrl);
+    .filter((item) => item.productId && item.title && httpsUrl(item.canonicalUrl));
 }
 
 export function normalizeDeepLinkPayload(payload: unknown) {
@@ -206,17 +223,20 @@ export function normalizeDeepLinkPayload(payload: unknown) {
   return raw
     .map((value) => {
       const item = record(value);
-      return {
-        originalUrl: String(item.originalUrl ?? item.original_url ?? ""),
-        shortenUrl: String(item.shortenUrl ?? item.shorten_url ?? ""),
-        landingUrl: String(
+      const originalUrl = String(item.originalUrl ?? item.original_url ?? "");
+      const shortenUrl = String(item.shortenUrl ?? item.shorten_url ?? "");
+      const landingUrl = String(
           item.landingUrl ??
             item.landing_url ??
-            item.shortenUrl ??
-            item.shorten_url ??
-            "",
-        ),
+            shortenUrl,
+        );
+      return {
+        originalUrl,
+        shortenUrl: httpsUrl(shortenUrl) ?? "",
+        landingUrl: httpsUrl(landingUrl) ?? "",
+        affiliateVerified: Boolean(httpsUrl(originalUrl) && httpsUrl(landingUrl)),
+        affiliateResolvedAt: Date.now(),
       };
     })
-    .filter((item) => item.originalUrl && item.landingUrl);
+    .filter((item) => item.originalUrl && item.landingUrl && item.affiliateVerified);
 }

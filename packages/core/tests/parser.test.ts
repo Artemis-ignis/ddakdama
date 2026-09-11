@@ -27,5 +27,13 @@ it("브랜드와 제품 핵심 토큰이 모두 있어야 같은 상품이다",(
 });
 it("붙은 배수와 본품·리필 복합 구성을 분리한다",()=>{const [multiplied,combined]=parseShoppingList("선 세럼 150ml×2\n세정제 본품 1개 + 리필 2개");expect(multiplied).toMatchObject({unitSizeValue:150,unitSizeUnit:"mL",requestedPhysicalUnits:2});expect(combined).toMatchObject({productName:"세정제",requestedPhysicalUnits:3,variantTokens:["본품 1개","리필 2개"]})});
 it("한글 용량 단위를 제품명과 수량에서 분리한다",()=>{const [water,refill]=parseShoppingList("삼다수 2리터 16개\n세정제 500밀리리터 2개");expect(water).toMatchObject({productName:"삼다수",unitSizeValue:2,unitSizeUnit:"L",requestedPhysicalUnits:16});expect(refill).toMatchObject({productName:"세정제",unitSizeValue:500,unitSizeUnit:"mL",requestedPhysicalUnits:2})});
+it("쉼표로 구분한 여러 상품은 독립 장바구니 항목으로 만든다",()=>{const lines=parseShoppingList("생수 1L 12병, 비빔면 5개입; 제로콜라 355mL 12캔");expect(lines).toHaveLength(3);expect(lines.map(line=>line.productName)).toEqual(["생수","비빔면","제로콜라"])});
+it("수량 앞 쉼표는 같은 상품의 구성 표기로 유지한다",()=>{const [cola]=parseShoppingList("제로콜라 355mL, 12캔");expect(cola).toMatchObject({productName:"제로콜라",unitSizeValue:355,unitSizeUnit:"mL",requestedPhysicalUnits:12})});
 it("1+1과 증정 문구가 있어도 실제 판매 묶음을 읽는다",()=>{expect(parseUnitsPerPackage("[본사 정품] 스킨1004 히알루-시카 선세럼 더블기획 1+1 (+여행용 미니 추가 증정), 2개, 50ml")).toBe(2);expect(parseUnitsPerPackage("스킨1004 선 세럼 +샘플20ml 세트, 2개, 50ml")).toBe(2)});
+it("한국 장보기의 모·구·단 단위를 제품명과 수량에서 분리한다",()=>{
+ const [tofu,eggs,scallion]=parseShoppingList("두부 1모\n계란 6구 1팩\n대파 1단");
+ expect(tofu).toMatchObject({productName:"두부",requestedPhysicalUnits:1});
+ expect(eggs).toMatchObject({productName:"계란",packageContentCount:6,packageContentUnit:"구",requestedPhysicalUnits:1});
+ expect(scallion).toMatchObject({productName:"대파",requestedPhysicalUnits:1});
+});
 });

@@ -1,11 +1,13 @@
 import{describe,expect,it}from"vitest";import{readFileSync}from"node:fs";
 describe("사용자 UI 계약",()=>{const source=readFileSync(new URL("../src/ui/App.tsx",import.meta.url),"utf8");
+it("목록 수신은 자동 상품 검색을 실행하지 않는다",()=>{const receive=source.slice(source.indexOf("const importFromGpt ="),source.indexOf("const disconnectGpt ="));expect(receive).toContain("/api/handoffs/latest");expect(receive).not.toContain("searchPreparedLines(");});
 it("개발자 용어를 노출하지 않는다",()=>{for(const word of["MCP URL","Server Origin","Extension Token","Access Key","Secret Key","Mock Adapter","API Endpoint"])expect(source).not.toContain(word)});
 it("정확한 숫자와 장바구니 행동을 표시한다",()=>{expect(source).toContain("상품 {lines.length}종");expect(source).toContain("장바구니에 담기")});
-it("GPT 앱 연결은 사용자 용어로 제공한다",()=>{expect(source).toContain("ChatGPT에서 목록 받기");expect(source).toContain("목록 받기");expect(source).toContain("6자리 코드")});
+it("공개 배포본의 사용자 시작 흐름에는 실제 상품 찾기가 있다",()=>{expect(source).toContain("CART_AUTOMATION_ENABLED");expect(source).toContain("실제 상품 찾기")});
+it("기존 코드 연결을 접지 않고 먼저 표시하고 링크 경로도 유지한다",()=>{expect(source).toContain("웹·GPTs 링크로 불러오기 (선택)");expect(source).toContain("Chrome 확장프로그램으로 계속하기를 누르면 같은 계획이 자동으로 열립니다.");expect(source).not.toContain('<details className="legacy-pairing"');expect(source).toContain("6자리 코드");expect(source).toContain("계획 링크는 필요 없습니다.")});
 it("기기 토큰 발급과 실제 GPT 앱 연결 완료를 상태 API로 구분한다",()=>{expect(source).toContain("/api/pairing/status");expect(source).toContain("if (!status.connected)");expect(source).not.toContain('} else {\n        setPairingState("connected");')});
 it("제휴 고지는 제휴 빌드에서만 표시한다",()=>{expect(source).toContain("AFFILIATE_ENABLED &&");expect(source).toContain("쿠팡 파트너스 활동")});
 it("상품 확인 단계에서 품목을 제외하고 다시 포함할 수 있다",()=>{expect(source).toContain("이 품목 빼기");expect(source).toContain("다시 포함")});
 it("supports system, light, and dark themes without developer settings",()=>{expect(source).toContain("ddakdama-theme");expect(source).toContain('data-testid="theme-toggle"');expect(source).toContain('type ThemeMode = "system" | "light" | "dark"')});
-it("현재 확장 프로그램 버전을 사용자 화면에 표시한다",()=>{expect(source).toContain('확장 프로그램 v{manifest.version}')});
+it("현재 확장 프로그램 버전을 사용자 화면에 표시한다",()=>{expect(source).toContain('확장 프로그램 v{EXTENSION_VERSION}')});
 });

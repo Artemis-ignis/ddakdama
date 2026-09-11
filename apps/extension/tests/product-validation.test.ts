@@ -95,6 +95,8 @@ describe("쿠팡 상세페이지 preflight", () => {
   });
 
   it("보안·로그인·가격·옵션·재고를 구분한다", () => {
+    expect(detailStatus(job, { ...detail, membershipRequired: true, inStock: false, price: null })).toBe("MEMBERSHIP_REQUIRED");
+    expect(detailStatus(job, { ...detail, inStock: false, stockStatus: "UNKNOWN" })).toBe("PURCHASE_UNAVAILABLE");
     expect(detailStatus(job, { ...detail, securityRequired: true })).toBe("SECURITY_CHECK_REQUIRED");
     expect(detailStatus(job, { ...detail, loginRequired: true })).toBe("LOGIN_REQUIRED");
     expect(detailStatus(job, { ...detail, price: null })).toBe("PRICE_UNVERIFIED");

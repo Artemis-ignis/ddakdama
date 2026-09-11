@@ -14,6 +14,18 @@ import {
 type MaybePromise<T> = T | Promise<T>;
 
 export type McpStore = {
+  /** Optional v2 bridge for a ChatGPT plan persisted by the Worker. */
+  createPersistedPlan?: (
+    shoppingList: string,
+  ) => MaybePromise<{ planId: string; accessToken: string }>;
+  validatePlanCapability?: (
+    planId: string,
+    accessToken: string,
+  ) => MaybePromise<{ version: number } | null>;
+  createMobilePlanLink?: (
+    planId: string,
+    accessToken: string,
+  ) => MaybePromise<{ appLink: string; expiresAt: number } | null>;
   completePairing: (
     code: string,
     clientKey?: string,
@@ -168,6 +180,38 @@ export function createMcpServer({
   // Data-only tool: it must not attach a widget template.
   registerAppTool(
     server,
+    "create_mobile_plan_link",
+    {
+      title: "Android 앱에서 계속하기",
+      description:
+        "현재 딱담아 계획을 Android 앱으로 한 번만 안전하게 전달합니다. 앱에서 상품 후보를 찾고 검토한 뒤 실행하며, 이 동작은 결제나 주문을 진행하지 않습니다.",
+      inputSchema: {
+        plan_id: z.uuid(),
+        plan_access_token: z.string().min(32).max(128),
+      },
+      outputSchema: { ready: z.boolean(), app_link: z.string().url().optional(), message: z.string() },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true, idempotentHint: false },
+      _meta: { ui: { visibility: ["app"] }, ...invocationMeta("Android 앱 준비 중…", "Android 앱에서 계속할 수 있습니다") },
+    },
+    async ({ plan_id, plan_access_token }) => {
+      const link = await store.createMobilePlanLink?.(plan_id, plan_access_token);
+      if (!link) {
+        return {
+          isError: true,
+          structuredContent: { ready: false, message: "계획 전달 권한이 만료됐습니다." },
+          content: [{ type: "text", text: "Android 앱으로 넘길 계획을 확인하지 못했습니다. 새 계획을 만들어 다시 시도해 주세요." }],
+        };
+      }
+      return {
+        structuredContent: { ready: true, app_link: link.appLink, message: "Android 앱에서 계속할 수 있습니다." },
+        content: [{ type: "text", text: `Android 앱에서 계속하기: ${link.appLink}` }],
+        _meta: { appLink: link.appLink, expiresAt: link.expiresAt },
+      };
+    },
+  );
+
+  registerAppTool(
+    server,
     "parse_shopping_list",
     {
       title: "쇼핑 목록 분석",
@@ -228,18 +272,25 @@ export function createMcpServer({
         ...invocationMeta("장바구니 계획을 만드는 중…", "장바구니 계획 준비 완료"),
       },
     },
-    async ({ shopping_list }) => ({
-      structuredContent: {
-        ...parsePlan(shopping_list),
-        planId: crypto.randomUUID(),
-      },
-      content: [
-        {
-          type: "text",
-          text: "딱담아 위젯에서 규격과 수량을 확인해 주세요.",
+    async ({ shopping_list }) => {
+      // Persist once: planId and its transient capability must always describe
+      // the same CartPlan. The fallback keeps local MCP/widget development
+      // usable when it is not backed by the Worker.
+      const persisted = await store.createPersistedPlan?.(shopping_list);
+      return {
+        structuredContent: {
+          ...parsePlan(shopping_list),
+          planId: persisted?.planId ?? crypto.randomUUID(),
         },
-      ],
-    }),
+        content: [
+          {
+            type: "text",
+            text: "딱담아 위젯에서 규격과 수량을 확인해 주세요.",
+          },
+        ],
+        _meta: persisted ? { planAccessToken: persisted.accessToken } : {},
+      };
+    },
   );
 
   registerAppTool(
@@ -311,6 +362,8 @@ export function createMcpServer({
         items: z.array(handoffItemSchema).min(1).max(50),
         connection_grant: z.string().min(32),
         idempotency_key: z.string().min(8).max(128),
+        plan_id: z.uuid().optional(),
+        plan_access_token: z.string().min(32).max(128).optional(),
       },
       outputSchema: { sent: z.boolean(), message: z.string() },
       annotations: {
@@ -324,7 +377,24 @@ export function createMcpServer({
         ...invocationMeta("딱담아로 보내는 중…", "전송 완료"),
       },
     },
-    async ({ items, connection_grant, idempotency_key }) => {
+    async ({ items, connection_grant, idempotency_key, plan_id, plan_access_token }) => {
+      if (Boolean(plan_id) !== Boolean(plan_access_token)) {
+        return {
+          isError: true,
+          structuredContent: { sent: false, message: "PLAN_CAPABILITY_INCOMPLETE" },
+          content: [{ type: "text", text: "공유 계획 정보를 확인하지 못했습니다. 계획을 다시 열어 주세요." }],
+        };
+      }
+      const persistedPlan = plan_id && plan_access_token
+        ? await store.validatePlanCapability?.(plan_id, plan_access_token)
+        : undefined;
+      if (plan_id && !persistedPlan) {
+        return {
+          isError: true,
+          structuredContent: { sent: false, message: "PLAN_CAPABILITY_INVALID" },
+          content: [{ type: "text", text: "공유 계획 권한이 만료됐습니다. 새 계획을 만들어 다시 시도해 주세요." }],
+        };
+      }
       let normalizedItems: ReturnType<typeof normalizeHandoffItems>;
       try {
         normalizedItems = normalizeHandoffItems(items);
@@ -355,7 +425,15 @@ export function createMcpServer({
       }
       const handoff = await store.createHandoff(
         deviceId,
-        { items: normalizedItems },
+        {
+          items: normalizedItems,
+          // This capability is carried only in the authenticated, one-time
+          // device handoff. It lets the paired extension hydrate the exact
+          // CartPlan choices instead of re-searching the raw text.
+          ...(plan_id && plan_access_token && persistedPlan
+            ? { cartPlan: { id: plan_id, version: persistedPlan.version, accessToken: plan_access_token } }
+            : {}),
+        },
         idempotency_key,
       );
       return {

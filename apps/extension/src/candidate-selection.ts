@@ -1,4 +1,4 @@
-import { titleContainsProductIdentity, type ShoppingRequestLine } from "@ddakdama/core";
+import { parseShoppingLine, titleContainsProductIdentity, type ShoppingRequestLine } from "@ddakdama/core";
 
 export type CandidateForSelection = {
   title: string;
@@ -12,6 +12,11 @@ export type CandidateMatchLevel = "EXACT" | "REVIEW" | "NONE";
 export type CandidateMatch = { level: CandidateMatchLevel; reasons: string[] };
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^0-9a-z가-힣]/gu, "");
+const isKitchenToolMismatch = (line: ShoppingRequestLine, title: string) => {
+  const tools = /채칼|파채칼|다지기|분쇄기|슬라이서|필러|야채칼|보관통|씨앗|모종/u;
+  return /대파|양파|고추|마늘|감자|당근|애호박|상추|김치/u.test(line.productName)
+    && !tools.test(line.productName) && tools.test(title);
+};
 
 /**
  * A request such as "제로 또는 저당 아이스크림 바" is a preference set, not
@@ -68,6 +73,7 @@ export function candidateMatchesRequest(
   line: ShoppingRequestLine,
   candidate: CandidateForSelection,
 ): boolean {
+  if (isKitchenToolMismatch(line, candidate.title)) return false;
   if (!Number.isInteger(candidate.unitsPerPackage) || candidate.unitsPerPackage <= 0) return false;
   if (line.requestedPhysicalUnits % candidate.unitsPerPackage !== 0) return false;
   if (!matchesProductIdentity(candidate.title, line)) return false;
@@ -83,6 +89,7 @@ export function classifyCandidate(
   line: ShoppingRequestLine,
   candidate: CandidateForSelection,
 ): CandidateMatch {
+  if (isKitchenToolMismatch(line, candidate.title)) return { level: "NONE", reasons: ["PRODUCT_NAME"] };
   if (candidateMatchesRequest(line, candidate)) return { level: "EXACT", reasons: [] };
   const reasons: string[] = [];
   if (!matchesProductIdentity(candidate.title, line)) reasons.push("PRODUCT_NAME");
@@ -127,4 +134,26 @@ export function selectBestCandidate<T extends CandidateForSelection>(
       const bSubtotal = (b.currentPrice ?? Infinity) * (line.requestedPhysicalUnits / b.unitsPerPackage);
       return aSubtotal - bSubtotal;
     })[0] ?? null;
+}
+
+/** A visible, editable draft is not approval to add it to a cart. Keep the
+ * strict matcher above unchanged; prefer it, then show the first usable result. */
+export function selectDefaultCandidate<T extends CandidateForSelection>(
+  line: ShoppingRequestLine,
+  results: T[],
+): T | null {
+  return selectBestCandidate(line, results)
+    ?? results.find((candidate) => !isKitchenToolMismatch(line, candidate.title) && Number.isInteger(candidate.unitsPerPackage) && candidate.unitsPerPackage > 0)
+    ?? null;
+}
+
+/** Read one already-open results page, then keep the useful eight. Ads and
+ * multi-packs at the top of the page must not hide an exact SKU further down. */
+export function shortlistSearchCandidates<T extends CandidateForSelection>(rawText: string, results: T[]): T[] {
+  const line = parseShoppingLine(rawText);
+  const priority = (candidate: T) => {
+    const match = classifyCandidate(line, candidate);
+    return match.level === "EXACT" ? 0 : match.reasons.includes("PRODUCT_NAME") ? 100 + match.reasons.length : 10 + match.reasons.length;
+  };
+  return results.filter(candidate => !isKitchenToolMismatch(line, candidate.title)).sort((a, b) => priority(a) - priority(b)).slice(0, 8);
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseShoppingList } from "@ddakdama/core";
-import { candidateMatchesRequest, classifyCandidate, classifySearchCandidates, selectBestCandidate } from "../src/candidate-selection.js";
+import { candidateMatchesRequest, classifyCandidate, classifySearchCandidates, selectBestCandidate, selectDefaultCandidate, shortlistSearchCandidates } from "../src/candidate-selection.js";
 
 const [sun] = parseShoppingList("스킨1004 히알루 시카 워터핏 선 세럼 50ml 2개");
 const base = {
@@ -12,6 +12,37 @@ const base = {
 };
 
 describe("상품 후보 자동선택", () => {
+  it("대파 식재료에 채칼을 선택하지 않고 채칼 요청 자체는 보존한다", () => {
+    const [food] = parseShoppingList("대파 1단");
+    const tool = { ...base, title: "대파 채칼 파채", unitsPerPackage: 1 };
+    const vegetable = { ...tool, title: "국내산 대파 1단" };
+    expect(candidateMatchesRequest(food!, tool)).toBe(false);
+    expect(selectDefaultCandidate(food!, [tool])).toBeNull();
+    expect(shortlistSearchCandidates("대파 1단", [tool, vegetable])).toEqual([vegetable]);
+    const [toolRequest] = parseShoppingList("대파 채칼 1개");
+    expect(selectDefaultCandidate(toolRequest!, [tool])).toBe(tool);
+  });
+  it("구체적인 일치 후보가 없어도 첫 후보를 편집 가능한 기본 선택으로 보여준다", () => {
+    const [request] = parseShoppingList("약산성 젤 클렌저 저자극 1개");
+    const first = { ...base, title: "브랜드A 약산성 클렌저 150ml 1개", unitsPerPackage: 1 };
+    const second = { ...first, title: "브랜드B 클렌징 젤 200ml 1개" };
+    expect(selectDefaultCandidate(request!, [first, second])).toBe(first);
+    expect(selectBestCandidate(request!, [first, second])).toBeNull();
+    expect(classifyCandidate(request!, first).level).toBe("REVIEW");
+  });
+  it("기본 선택도 정확한 후보가 있으면 이를 우선하고 빈 결과를 만들지 않는다", () => {
+    const first = { ...base, title: "다른 선크림" };
+    expect(selectDefaultCandidate(sun!, [first, base])).toBe(base);
+    expect(selectDefaultCandidate(sun!, [])).toBeNull();
+    expect(selectDefaultCandidate(sun!, [{ ...first, unitsPerPackage: 0 }])).toBeNull();
+  });
+  it("앞의 광고 8개 뒤에 있는 규격 일치 상품도 후보에 포함한다", () => {
+    const ads = Array.from({ length: 10 }, (_, i) => ({ ...base, title: `다른 선크림 ${i} 50ml`, advertised: true }));
+    const result = shortlistSearchCandidates("스킨1004 히알루 시카 워터핏 선 세럼 50ml 2개", [...ads, base]);
+    expect(result).toHaveLength(8);
+    expect(result[0]).toBe(base);
+    expect(selectBestCandidate(sun!, result)).toBe(base);
+  });
   it("범위 용량 요청은 범위 안의 후보만 자동 선택한다", () => {
     const [iceBar] = parseShoppingList("\uC81C\uB85C \uC544\uC774\uC2A4\uD06C\uB9BC \uBC14 80~100ml \u00d7 10\uAC1C, 1\uC138\uD2B8");
     const insideRange = {

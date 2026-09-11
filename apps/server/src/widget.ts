@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 
-export const WIDGET_URI = "ui://widget/ddakdama-cart-v13.html";
+export const WIDGET_URI = "ui://widget/ddakdama-cart-v14.html";
 export const LEGACY_WIDGET_URIS = [
+  "ui://widget/ddakdama-cart-v13.html",
   "ui://widget/ddakdama-cart-v12.html",
   "ui://widget/ddakdama-cart-v11.html",
   "ui://widget/ddakdama-cart-v10.html",
@@ -191,7 +192,12 @@ export const widgetHtml = `<!doctype html>
       <div class="brand"><img class="logo" src="${WIDGET_ICON}" alt=""><div><p class="eyebrow">쇼핑 목록을 한 번에</p><h2>딱담아</h2></div></div>
       <span class="connection" id="connection">연결 안 됨</span>
     </header>
-    <p class="sub">상품 규격과 수량을 확인한 뒤 Chrome 확장 프로그램으로 보내세요. 실제 상품과 가격은 확장 프로그램에서 다시 확인합니다.</p>
+    <p class="sub">여기서 목록과 수량을 정리하고 쿠팡에서 직접 구매할 수 있습니다. 자동 상품 확인·일괄 담기는 Chrome 확장 프로그램을 연결해 사용하세요.</p>
+    <section class="connect-card" aria-label="쿠팡에서 직접 구매">
+      <p class="connect-title">쿠팡 로그인 상태: 확인 불가</p>
+      <p class="connect-help">이 앱은 쿠팡 로그인 정보를 읽지 않습니다. 쿠팡에서 직접 로그인해 주세요. 확장 연결과 쿠팡 로그인은 별개입니다.</p>
+      <div class="actions"><a class="button secondary" href="https://login.coupang.com/login/login.pang" target="_blank" rel="noopener noreferrer" data-shop-link>쿠팡 로그인하기</a><a class="button secondary" href="https://cart.coupang.com/cartView.pang" target="_blank" rel="noopener noreferrer" data-shop-link>쿠팡 장바구니 열기</a></div>
+    </section>
     <div class="summary"><span id="kinds">목록 불러오는 중</span><span id="units">잠시만 기다려 주세요</span></div>
     <div class="items" id="items"></div>
     <section class="connect-card" id="connectCard">
@@ -200,8 +206,9 @@ export const widgetHtml = `<!doctype html>
       <div class="pair"><input id="pairing" inputmode="numeric" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-label="확장 프로그램 연결 코드"><button class="button" id="pair">연결</button></div>
     </section>
     <div class="actions"><button class="button primary" id="send" disabled>확장 프로그램으로 보내기</button><button class="button secondary" id="disconnect" hidden>연결 해제</button></div>
+    <div class="actions"><button class="button secondary" id="mobile" disabled>Android 앱에서 계속하기</button></div>
     <div class="received" id="received">확장 프로그램이 목록을 받았습니다. 이제 확장 프로그램에서 상품과 가격을 확인해 주세요.</div>
-    <p class="status" id="status" aria-live="polite">먼저 확장 프로그램을 6자리 코드로 연결해 주세요.</p>
+    <p class="status" id="status" aria-live="polite">목록을 확인하세요. 자동 담기를 사용하려면 확장 프로그램을 연결해 주세요.</p>
   </main>
   <script type="module">
     const STATE_VERSION = 4;
@@ -352,6 +359,16 @@ export const widgetHtml = `<!doctype html>
       .replace(/[^0-9]/g, "")
       .slice(0, 6);
     let latestToolMeta = {};
+    // A CartPlan capability is transient bridge metadata. Keep it in memory
+    // only; never put it in widget state or localStorage.
+    let planAccessToken = null;
+    const capturePlanCapability = (meta) => {
+      const token = meta?.planAccessToken;
+      if (typeof plan?.planId === "string" && typeof token === "string" && token.length >= 32) {
+        planAccessToken = token;
+        updateSendButton();
+      }
+    };
     let hostMetaBeforeCall = null;
     const structuredContentOf = (response) => structuredContentFromToolResponse(response);
     const isToolError = (response) => toolResponseIsError(response);
@@ -376,9 +393,10 @@ export const widgetHtml = `<!doctype html>
       const hasItems = Boolean(plan.items?.length);
       $("#send").textContent = handoffReceived ? RECEIVED_LABEL : handoffId ? CHECK_LABEL : SEND_LABEL;
       $("#send").disabled = !connectionGrant || !hasItems || handoffReceived;
+      $("#mobile").disabled = !hasItems || !planAccessToken || typeof plan.planId !== "string";
     };
     const setConnected = (connected) => {
-      $("#connection").textContent = connected ? "연결됨" : "연결 안 됨";
+      $("#connection").textContent = connected ? "확장 연결됨" : "확장 연결 안 됨";
       $("#connection").className = "connection" + (connected ? " connected" : "");
       $("#connectCard").hidden = connected;
       $("#disconnect").hidden = !connected;
@@ -413,6 +431,16 @@ export const widgetHtml = `<!doctype html>
       const items = plan.items || [];
       summary();
       $("#items").innerHTML = items.map((item, index) => '<div class="item"><b>' + escapeHtml(item.productName || item.rawText) + '</b><div class="specs">' + field(index, "unitSizeValue", "용량", item.unitSizeValue) + field(index, "strengthValue", "함량", item.strengthValue) + field(index, "packageContentCount", "포장", item.packageContentCount) + field(index, "requestedPhysicalUnits", "수량", item.requestedPhysicalUnits) + '</div>' + renderWarnings(item) + '</div>').join("");
+      $("#items").querySelectorAll(".item").forEach((row, index) => {
+        const link = document.createElement("a");
+        link.className = "button secondary";
+        link.textContent = "쿠팡에서 직접 검색";
+        link.href = "https://www.coupang.com/np/search?q=" + encodeURIComponent(items[index].productName || items[index].rawText || "");
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.dataset.shopLink = "";
+        row.append(link);
+      });
     };
 
     let rpcId = 0;
@@ -454,6 +482,7 @@ export const widgetHtml = `<!doctype html>
       if (message.method === "ui/notifications/tool-result") {
         latestToolMeta = message.params?.toolResponseMetadata || message.params?._meta || message.params?.call_tool_result?._meta || message.params?.mcp_tool_result?._meta || latestToolMeta;
         applyPlan(structuredContentOf(message.params));
+        capturePlanCapability(latestToolMeta);
       }
       if (message.method === "ui/notifications/host-context-changed") {
         applyHostContext(message.params);
@@ -464,6 +493,7 @@ export const widgetHtml = `<!doctype html>
       if (globals?.theme !== undefined) applyHostContext({theme:globals.theme});
       if (globals?.toolResponseMetadata) latestToolMeta = globals.toolResponseMetadata;
       if (globals?.toolOutput !== undefined) applyPlan(globals.toolOutput);
+      capturePlanCapability(latestToolMeta);
     }, {passive:true});
     const initializeBridgeOnce = async () => {
       if (window.parent === window) return false;
@@ -483,6 +513,23 @@ export const widgetHtml = `<!doctype html>
       return false;
     };
     const bridgeReady = initializeBridge();
+    document.addEventListener("click", async (event) => {
+      const link = event.target.closest?.("a[data-shop-link]");
+      if (!link) return;
+      event.preventDefault();
+      try {
+        if (await bridgeReady) {
+          const result = await rpcRequest("ui/open-link", {url:link.href});
+          if (result?.isError) throw new Error("LINK_REJECTED");
+        } else if (window.openai?.openExternal) {
+          window.openai.openExternal({href:link.href});
+        } else {
+          throw new Error("LINK_BRIDGE_UNAVAILABLE");
+        }
+      } catch {
+        setStatus("외부 페이지를 열지 못했습니다. 링크 주소를 복사해 브라우저에서 열어 주세요.", "error");
+      }
+    });
     const recoverInitialPlan = async () => {
       for (let attempt = 0; attempt < 40 && !plan.items?.length; attempt += 1) {
         const compatibilityOutput = window.openai?.toolOutput;
@@ -614,7 +661,14 @@ export const widgetHtml = `<!doctype html>
       $("#send").disabled = true;
       setStatus("확장 프로그램으로 목록을 보내는 중입니다.", "busy");
       try {
-        const response = await callTool("send_cart_plan", {items:plan.items, connection_grant:connectionGrant, idempotency_key:idempotencyKey});
+        const response = await callTool("send_cart_plan", {
+          items:plan.items,
+          connection_grant:connectionGrant,
+          idempotency_key:idempotencyKey,
+          ...(planAccessToken && typeof plan.planId === "string"
+            ? {plan_id:plan.planId, plan_access_token:planAccessToken}
+            : {}),
+        });
         const result = structuredContentOf(response);
         if (isToolError(response) || !result.sent) {
           if (String(result.message || "").includes("만료")) {
@@ -644,6 +698,24 @@ export const widgetHtml = `<!doctype html>
       }
     };
     $("#send").onclick = () => void sendPlan();
+    $("#mobile").onclick = async () => {
+      if (!planAccessToken || typeof plan.planId !== "string") return;
+      $("#mobile").disabled = true;
+      setStatus("Android 앱에서 열 수 있는 일회용 계획을 준비하는 중입니다.", "busy");
+      try {
+        const response = await callTool("create_mobile_plan_link", {plan_id:plan.planId, plan_access_token:planAccessToken});
+        const result = structuredContentOf(response);
+        const meta = await waitForToolMeta(response, (candidate) => typeof candidate.appLink === "string");
+        const appLink = typeof meta.appLink === "string" ? meta.appLink : result.app_link;
+        if (isToolError(response) || !result.ready || typeof appLink !== "string") throw new Error("MOBILE_LINK_REJECTED");
+        setStatus("Android 앱으로 전환합니다. 앱이 없으면 설치 후 이 계획을 다시 열어 주세요.", "success");
+        window.location.assign(appLink);
+      } catch {
+        setStatus("Android 앱용 계획을 만들지 못했습니다. 이 목록을 새로 열어 다시 시도해 주세요.", "error");
+      } finally {
+        updateSendButton();
+      }
+    };
     $("#disconnect").onclick = async () => {
       if (!connectionGrant) return;
       $("#disconnect").disabled = true;

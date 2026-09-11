@@ -57,15 +57,51 @@ test("Manifest V3 서비스 워커와 Side Panel이 실제 Chromium에서 동작
  expect(extensionWorker.url()).toContain(`chrome-extension://${extensionId}/dist/background.js`);
  await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
  await expect(page.getByRole("heading",{name:"쇼핑 목록을 준비해 주세요"})).toBeVisible();
+ const login=page.getByRole("link",{name:"쿠팡 로그인하기"});
+ await expect(login).toBeVisible();
+ await expect(login).toHaveAttribute("href","https://login.coupang.com/login/login.pang");
+ await expect(login).toHaveAttribute("target","_blank");
  await expect(page.getByRole("button",{name:"목록을 입력해 주세요"})).toBeDisabled();
+ await expect(page.getByRole("region",{name:"딱담아 계획 바로 이어하기"})).toBeVisible();
+ await expect(page.getByRole("button",{name:"딱담아 GPTs에서 목록 만들기"})).toBeVisible();
+ await expect(page.getByRole("textbox",{name:"직접 붙여넣기"})).toBeVisible();
  await expect(page.getByText("ChatGPT에서 목록 받기")).toBeVisible();
+ await expect(page.getByRole("button",{name:"6자리 코드 만들기"})).toBeVisible();
+ await expect(page.getByRole("textbox",{name:"딱담아 계획 링크"})).toHaveCount(1);
  await expect(page.getByText("MCP URL")).toHaveCount(0);
  const ping=await page.evaluate(()=>chrome.runtime.sendMessage({type:"DDAKDAMA_PING"}));
- expect(ping).toEqual({ok:true,name:"ddakdama",version:"1.0.2",affiliateEnabled:false});
+ expect(ping).toMatchObject({ok:true,name:"ddakdama",version:"1.0.13",affiliateEnabled:false,supportsPlanImport:true,cartAutomationEnabled:true});
  await page.evaluate(async()=>{await chrome.storage.local.set({"playwright-storage-check":"ok"})});
  expect(await page.evaluate(async()=>(await chrome.storage.local.get("playwright-storage-check"))["playwright-storage-check"])).toBe("ok");
 });
 
+test("웹 계획 링크를 기능 확인 후 코드 없이 확장프로그램으로 넘긴다",async({context,page,extensionWorker})=>{
+ const planUrl=LIVE_ORIGIN+"/app/?plan=00000000-0000-4000-8000-000000000099&grant=test-plan-grant";
+ await context.route(LIVE_ORIGIN+"/app/**",route=>route.fulfill({status:200,headers:{"content-type":"text/html; charset=utf-8"},body:"<!doctype html><html lang='ko'><head><meta charset='utf-8'><title>딱담아 계획</title></head><body><main>딱담아 계획</main></body></html>"}));
+ await page.goto(planUrl);
+ const ready=await page.evaluate(()=>new Promise<{supportsPlanImport?:boolean;type?:string;version?:string}>((resolve,reject)=>{
+  const timeout=window.setTimeout(()=>reject(new Error("EXTENSION_PROBE_TIMEOUT")),3000);
+  const handler=(event:MessageEvent)=>{
+   if(event.source!==window||event.data?.type!=="DDAKDAMA_EXTENSION_READY")return;
+   window.clearTimeout(timeout);window.removeEventListener("message",handler);resolve(event.data);
+  };
+  window.addEventListener("message",handler);
+  window.postMessage({type:"DDAKDAMA_EXTENSION_PROBE"},window.location.origin);
+ }));
+ expect(ready).toMatchObject({type:"DDAKDAMA_EXTENSION_READY",version:"1.0.13",supportsPlanImport:true});
+ const imported=await page.evaluate(plan=>new Promise<{error?:string;ok?:boolean;type?:string}>((resolve,reject)=>{
+  const timeout=window.setTimeout(()=>reject(new Error("EXTENSION_IMPORT_TIMEOUT")),3000);
+  const handler=(event:MessageEvent)=>{
+   if(event.source!==window||event.data?.type!=="DDAKDAMA_EXTENSION_IMPORT_RESULT")return;
+   window.clearTimeout(timeout);window.removeEventListener("message",handler);resolve(event.data);
+  };
+  window.addEventListener("message",handler);
+  window.postMessage({type:"DDAKDAMA_EXTENSION_IMPORT_PLAN",planUrl:plan},window.location.origin);
+ }),planUrl);
+ expect(imported).toMatchObject({type:"DDAKDAMA_EXTENSION_IMPORT_RESULT",ok:true});
+ const stored=await extensionWorker.evaluate(async()=>(await chrome.storage.local.get("ddakdama-pending-plan-link"))["ddakdama-pending-plan-link"]);
+ expect(stored).toBe(planUrl);
+});
 test("공개 서버에서 코드 발급만으로 연결 완료를 오인하지 않고 새 코드로 재시도한다",async({page,extensionId})=>{
  test.skip(process.env.DDAKDAMA_LIVE_PAIRING!=="1","공개 서버를 호출하는 선택적 실연결 검사");
  await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
@@ -89,6 +125,7 @@ test("공개 서버에서 코드 발급만으로 연결 완료를 오인하지 �
 test("공개 MCP와 실제 확장 프로그램이 페어링하고 5종·실물 7개 목록을 끝까지 수신한다",async({page,extensionId})=>{
  test.skip(process.env.DDAKDAMA_LIVE_PAIRING!=="1","공개 서버를 호출하는 선택적 실연결 검사");
  test.setTimeout(60_000);
+ await installCartFixture(goldenProducts());
  await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
  await page.evaluate(async()=>chrome.storage.local.remove(["ddakdama-device-id","ddakdama-device-token","ddakdama-pairing-code","ddakdama-pairing-expires-at"]));
  await page.reload();
@@ -119,14 +156,19 @@ test("공개 MCP와 실제 확장 프로그램이 페어링하고 5종·실물 7
   expect(sent.structuredContent).toMatchObject({sent:true});
   expect(handoffId).not.toBe("");
 
-  await page.getByRole("button",{name:"목록 받기"}).click();
+  // Receiving the handoff does not search. Only the explicit CTA starts it.
   await expect(page.getByRole("heading",{name:"상품 5종 · 실물 7개"})).toBeVisible({timeout:15_000});
   await expect(page.locator("#shopping-list")).toHaveValue(GOLDEN_LIST);
   await expect(page.getByText("연결됨 · 보낸 목록을 바로 받을 수 있어요",{exact:true})).toBeVisible();
+  const beforeSearch=await fetch("http://127.0.0.1:4174/fixture/state").then(response=>response.json());
+  expect(beforeSearch.searchRequests).toHaveLength(0);
+  await page.getByRole("button",{name:"실제 상품 찾기",exact:true}).click();
+  await expect(page.getByText("5/5종 선택",{exact:true})).toBeVisible({timeout:30_000});
 
   const status=await client.callTool({name:"get_cart_plan_status",arguments:{handoff_id:handoffId,connection_grant:connectionGrant}});
   expect(status.structuredContent).toMatchObject({received:true,expired:false});
 
+  await page.getByRole("button",{name:"이전",exact:true}).click();
   await page.getByRole("button",{name:"연결 해제"}).click();
   await expect(page.getByRole("button",{name:"6자리 코드 만들기"})).toBeVisible();
   const revoked=await fetch(`${LIVE_ORIGIN}/api/pairing/status`,{headers:{authorization:`Bearer ${deviceToken}`}});
@@ -175,6 +217,38 @@ test("검색가격이 없어도 고정 5종을 선택하고 상세가격 5/5를 
  await expect(page.getByText("상세에서 가격 확인")).toHaveCount(5);
  const preflight=await page.evaluate(jobs=>chrome.runtime.sendMessage({type:"DDAKDAMA_PREFLIGHT",jobs}),products.map(product=>cartJob(product)));
  expect(preflight.results.map((result:{status:string})=>result.status)).toEqual(["READY","READY","READY","READY","READY"]);
+});
+
+test("추천 조건형 5종은 첫 후보가 기본 선택되고 명시 확인 전에는 담지 않는다",async({page,extensionId})=>{
+ const products:CartFixtureProduct[]=[
+  {query:"약산성",productId:"740001",vendorItemId:"840001",itemId:"940001",title:"브랜드A 약산성 클렌저, 150ml, 2개",price:12000},
+  {query:"수분 토너",productId:"740002",vendorItemId:"840002",itemId:"940002",title:"브랜드B 수분 토너, 200ml, 1개",price:13000},
+  {query:"나이아신아마이드",productId:"740003",vendorItemId:"840003",itemId:"940003",title:"브랜드C 나이아신아마이드 세럼, 30ml, 1개",price:14000},
+  {query:"수분 젤 크림",productId:"740004",vendorItemId:"840004",itemId:"940004",title:"브랜드D 수분 젤 크림, 50ml, 1개",price:15000},
+  {query:"자외선",productId:"740005",vendorItemId:"840005",itemId:"940005",title:"브랜드E 자외선 차단제, 50ml, 1개",price:16000},
+ ];
+ await installCartFixture(products);
+ await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
+ await page.getByRole("textbox",{name:"직접 붙여넣기"}).fill([
+  "약산성 젤 클렌저 저자극 1개",
+  "수분 토너 무알코올 워터타입 1개",
+  "나이아신아마이드 세럼 저농도 가벼운제형 1개",
+  "수분 젤 크림 오일프리 1개",
+  "자외선 차단제 가벼운 플루이드 1개",
+ ].join("\n"));
+ await page.getByRole("button",{name:"목록 인식하기",exact:true}).click();
+ await page.getByRole("button",{name:"실제 상품 찾기",exact:true}).click();
+ await expect(page.getByText("5/5종 선택",{exact:true})).toBeVisible({timeout:20000});
+ await expect(page.getByText("기본 선택 · 확인 필요",{exact:true})).toHaveCount(5);
+ await expect(page.getByRole("region",{name:"기본 선택 안내"})).toBeVisible();
+ await expect(page.getByTestId("product-0").getByText(/실물 2개 \(1개 초과\)/).first()).toBeVisible();
+ expect(Object.values(await fixtureQuantities())).toEqual([0,0,0,0,0]);
+ await expect(page.getByRole("button",{name:"5종 장바구니에 담기",exact:true})).toHaveCount(0);
+ await page.getByRole("button",{name:"선택한 상품 확인하기",exact:true}).click();
+ await expect(page.getByRole("heading",{name:"담기 전 확인",exact:true})).toBeVisible({timeout:25000});
+ await expect(page.getByRole("button",{name:"5종 장바구니에 담기",exact:true})).toBeEnabled();
+ expect(Object.values(await fixtureQuantities())).toEqual([0,0,0,0,0]);
+ await expect(page.getByTestId("estimated-total")).toHaveText("70,000원");
 });
 
 test("고정 5종을 실제 UI로 검증·담기하고 가격 합계·장바구니 이동·새 목록을 제공한다",async({context,page,extensionId})=>{

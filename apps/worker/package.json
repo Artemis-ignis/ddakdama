@@ -6,12 +6,13 @@
   "scripts": {
     "generate:widget": "tsx scripts/generate-widget.ts",
     "dev": "pnpm generate:widget && wrangler dev",
-    "deploy": "pnpm generate:widget && wrangler deploy",
+    "deploy": "pnpm --filter @ddakdama/web build && pnpm generate:widget && wrangler deploy",
     "build": "pnpm generate:widget && wrangler deploy --dry-run --outdir .wrangler-dist",
     "cf-typegen": "wrangler types",
     "lint": "eslint src scripts tests --max-warnings=0",
     "typecheck": "pnpm generate:widget && tsc --noEmit",
-    "test": "pnpm generate:widget && vitest run tests"
+    "test": "pnpm generate:widget && vitest run tests",
+    "test:fixture-flow": "node tests/fixture-flow.mjs"
   },
   "dependencies": {
     "@ddakdama/core": "workspace:*",

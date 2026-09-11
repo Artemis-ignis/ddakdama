@@ -111,5 +111,6 @@ Set-Content -LiteralPath (Join-Path $root "dist\PUBLIC_RELEASE_URLS.txt") -Value
 Write-Host ""
 Write-Host "DdakDama public release is ready." -ForegroundColor Green
 Write-Host "ChatGPT MCP URL: $PublicOrigin/mcp"
-Write-Host "Extension ZIP: $(Join-Path $root 'dist\ddakdama-extension-v1.0.2.zip')"
+$extensionVersion = [string](Get-Content -LiteralPath (Join-Path $root "apps\extension\package.json") -Raw -Encoding utf8 | ConvertFrom-Json).version
+Write-Host "Extension ZIP: $(Join-Path $root "dist\ddakdama-extension-v$extensionVersion.zip")"
 Write-Host "Connection URLs: $(Join-Path $root 'dist\PUBLIC_RELEASE_URLS.txt')"

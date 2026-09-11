@@ -1,0 +1,28 @@
+{
+  "name": "@ddakdama/web",
+  "version": "1.0.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "lint": "eslint src --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ddakdama/core": "workspace:*",
+    "@vitejs/plugin-react": "6.0.3",
+    "lucide-react": "0.468.0",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "vite": "8.1.4"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "eslint": "9.39.2",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

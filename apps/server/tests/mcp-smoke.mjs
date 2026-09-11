@@ -40,6 +40,9 @@ for (const legacyWidgetUri of legacyWidgetUris) {
   }
 }
 if (!widgetText.includes('src="data:image/png;base64,')) throw new Error("WIDGET_ICON_MISSING");
+if (!widgetText.includes('id="mobile"') || !widgetText.includes('create_mobile_plan_link')) {
+  throw new Error("WIDGET_MOBILE_CONTINUATION_MISSING");
+}
 if (widgetText.includes('maxlength="6"') || !widgetText.includes("/^[0-9]{6}$/")) {
   throw new Error("PAIRING_INPUT_FIX_MISSING");
 }
@@ -57,10 +60,60 @@ const appOnlyTools = tools.tools
   .filter((tool) => tool._meta?.ui?.visibility?.includes("app"))
   .map((tool) => tool.name)
   .sort();
-const expectedAppOnlyTools = ["disconnect_extension_device", "get_cart_plan_status", "pair_extension_device", "send_cart_plan"];
+const expectedAppOnlyTools = ["create_mobile_plan_link", "disconnect_extension_device", "get_cart_plan_status", "pair_extension_device", "send_cart_plan"];
 if (JSON.stringify(appOnlyTools) !== JSON.stringify(expectedAppOnlyTools)) {
   throw new Error(`APP_ONLY_TOOL_CONTRACT_VIOLATION:${appOnlyTools.join(",")}`);
 }
+
+const persistedPlan = await client.callTool({
+  name: "create_cart_plan",
+  arguments: {shopping_list: "생수 1L 12병"},
+});
+const persistedPlanId = persistedPlan.structuredContent?.planId;
+const planAccessToken = persistedPlan._meta?.planAccessToken;
+if (!/^[0-9a-f-]{36}$/i.test(persistedPlanId ?? "") || typeof planAccessToken !== "string") {
+  throw new Error("PERSISTED_CART_PLAN_CAPABILITY_MISSING");
+}
+const persistedPlanResponse = await fetch(`${origin}/api/plans/${persistedPlanId}`, {
+  headers: {authorization: `Bearer ${planAccessToken}`},
+});
+const persistedPlanBody = await persistedPlanResponse.json();
+if (persistedPlanResponse.status !== 200 || persistedPlanBody.plan?.id !== persistedPlanId) {
+  throw new Error("PERSISTED_CART_PLAN_NOT_READABLE");
+}
+
+const mobileInstallation = await fetch(`${origin}/api/mobile/installations/register`, {
+  method: "POST",
+  headers: {"content-type": "application/json"},
+  body: "{}",
+}).then((response) => response.json());
+const mobileLink = await client.callTool({
+  name: "create_mobile_plan_link",
+  arguments: {plan_id: persistedPlanId, plan_access_token: planAccessToken},
+});
+const mobileAppLink = mobileLink.structuredContent?.app_link;
+const parsedMobileLink = new URL(mobileAppLink);
+if (parsedMobileLink.protocol !== "ddakdama:" || parsedMobileLink.hostname !== "plan" || !parsedMobileLink.searchParams.get("claim")) {
+  throw new Error("MOBILE_PLAN_LINK_MISSING");
+}
+const mobileClaim = await fetch(`${origin}/api/plans/${persistedPlanId}/claim`, {
+  method: "POST",
+  headers: {
+    "content-type": "application/json",
+    authorization: `Bearer ${mobileInstallation.deviceToken}`,
+  },
+  body: JSON.stringify({claimToken: parsedMobileLink.searchParams.get("claim")}),
+});
+const mobileClaimBody = await mobileClaim.json();
+if (mobileClaim.status !== 200 || mobileClaimBody.plan?.id !== persistedPlanId || typeof mobileClaimBody.accessToken !== "string") {
+  throw new Error("MOBILE_PLAN_CLAIM_FAILED");
+}
+const replayedMobileClaim = await fetch(`${origin}/api/plans/${persistedPlanId}/claim`, {
+  method: "POST",
+  headers: {"content-type": "application/json", authorization: `Bearer ${mobileInstallation.deviceToken}`},
+  body: JSON.stringify({claimToken: parsedMobileLink.searchParams.get("claim")}),
+});
+if (replayedMobileClaim.status !== 404) throw new Error("MOBILE_PLAN_CLAIM_REPLAY_ALLOWED");
 
 const pairingNonce = crypto.randomUUID();
 const pairingArguments = {
@@ -117,6 +170,8 @@ const sendArguments = {
   items: parsedItems,
   connection_grant: paired._meta.connectionGrant,
   idempotency_key: idempotencyKey,
+  plan_id: persistedPlanId,
+  plan_access_token: planAccessToken,
 };
 const sent = await client.callTool({
   name: "send_cart_plan",
@@ -133,6 +188,12 @@ const latest = await fetch(`${origin}/api/handoffs/latest`, {
 }).then((response) => response.json());
 if (!latest.handoff) throw new Error("HANDOFF_NOT_RECEIVED");
 if (latest.handoff.id !== sent._meta.handoffId) throw new Error("LATEST_HANDOFF_MISMATCH");
+if (latest.handoff.payload?.cartPlan?.id !== persistedPlanId) {
+  throw new Error("PERSISTED_PLAN_NOT_ATTACHED_TO_HANDOFF");
+}
+if (latest.handoff.payload?.cartPlan?.accessToken !== planAccessToken) {
+  throw new Error("PERSISTED_PLAN_CAPABILITY_NOT_ATTACHED_TO_HANDOFF");
+}
 const ack = await fetch(`${origin}/api/handoffs/${latest.handoff.id}/ack`, {
   method: "POST",
   headers: {authorization: `Bearer ${pairing.deviceToken}`},

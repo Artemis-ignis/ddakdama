@@ -18,3 +18,7 @@ apps/worker/.generated/
 apps/worker/.wrangler/
 apps/worker/.wrangler-dist/
 artifacts/devpost-gallery/source/
+apps/mobile-android/.gradle/
+apps/mobile-android/.kotlin/
+apps/mobile-android/local.properties
+apps/mobile-android/app/build/

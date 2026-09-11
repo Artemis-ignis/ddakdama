@@ -4,7 +4,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$zipPath = Join-Path $root "dist\ddakdama-extension-v1.0.2.zip"
+$extensionVersion = [string](Get-Content -LiteralPath (Join-Path $root "apps\extension\package.json") -Raw -Encoding utf8 | ConvertFrom-Json).version
+$zipPath = Join-Path $root "dist\ddakdama-extension-v$extensionVersion.zip"
 
 $uri = $null
 if (-not [Uri]::TryCreate($PublicOrigin, [UriKind]::Absolute, [ref]$uri) -or $uri.Scheme -ne "https" -or $uri.IsLoopback) {
@@ -31,6 +32,10 @@ try {
   $reader = [IO.StreamReader]::new($manifestEntry.Open())
   try { $manifest = ($reader.ReadToEnd() | ConvertFrom-Json) } finally { $reader.Dispose() }
 
+  if ($manifest.version -ne $extensionVersion) {
+    throw "Manifest version does not match the extension package version."
+  }
+
   $expectedPermission = "$origin/*"
   if ($expectedPermission -notin @($manifest.host_permissions)) {
     throw "The manifest does not contain the public service permission: $expectedPermission"
@@ -42,6 +47,9 @@ try {
   $metadataEntry = $entries | Where-Object { $_.FullName.Replace('\', '/') -eq "release-metadata.json" } | Select-Object -First 1
   $reader = [IO.StreamReader]::new($metadataEntry.Open())
   try { $metadata = ($reader.ReadToEnd() | ConvertFrom-Json) } finally { $reader.Dispose() }
+  if ($metadata.version -ne $extensionVersion) {
+    throw "Release metadata version does not match the extension package version."
+  }
   if ($metadata.serverOrigin -ne $origin) {
     throw "Release metadata origin does not match the deployed service."
   }
