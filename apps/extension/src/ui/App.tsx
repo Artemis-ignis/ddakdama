@@ -43,7 +43,7 @@ TS 골드플러스 샴푸 500g
 
 const AFFILIATE_ENABLED = import.meta.env.VITE_DDAKDAMA_AFFILIATE_ENABLED === "true";
 const CHATGPT_APP_URL = import.meta.env.VITE_DDAKDAMA_CHATGPT_APP_URL?.trim() || "https://chatgpt.com/g/g-6a5ec60a6c308191bc5b342f67c2772d-ddagdama-syoping-doumi";
-const EXTENSION_VERSION = import.meta.env.VITE_DDAKDAMA_EXTENSION_VERSION;
+const EXTENSION_VERSION = import.meta.env.VITE_DDAKDAMA_EXTENSION_VERSION?.trim() || "1.0.13";
 const CART_AUTOMATION_ENABLED = import.meta.env.VITE_DDAKDAMA_REAL_COUPANG_AUTOMATION_ENABLED !== "false";
 const STEP_LABELS = ["목록", "상품 확인", "담기 전 확인", "완료"];
 
@@ -1329,8 +1329,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     <>
       {renderGptConnection()}
       <section className="plan-link-import primary-plan-bridge" aria-label="딱담아 계획 바로 이어하기">
-        <strong>웹·GPTs 링크로 불러오기 (선택)</strong>
-        <small>코드로 연결했다면 링크는 필요 없습니다. 공유할 때만 입력 목록의 링크를 만드세요. 상품 선택·담기 승인은 포함되지 않습니다.</small>
+        <small>공유용 링크를 생성하거나, 웹·GPTs에서 복사한 계획 링크를 붙여넣어 시작할 수 있습니다.</small>
         <button type="button" disabled={shareBusy || !input.trim()} onClick={async () => {
           setShareBusy(true); setShareLink("");
           try {
@@ -1343,7 +1342,6 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
           finally { setShareBusy(false); }
         }}>{shareBusy ? "링크 만드는 중…" : "입력 목록 공유 링크 만들기"}</button>
         {shareLink && <label>공유 링크 (링크를 가진 사람이 목록을 볼 수 있습니다)<input aria-label="생성된 공유 링크" readOnly value={shareLink} onFocus={event => event.target.select()} /></label>}
-        <small>GPT 또는 딱담아 웹에서 Chrome 확장프로그램으로 계속하기를 누르면 같은 계획이 자동으로 열립니다.</small>
         <div>
           <input
             value={planLinkInput}
@@ -1642,10 +1640,15 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
               </div>
             </section>
             <section className="coupang-login-card" aria-label="쿠팡 로그인 안내">
-              <p role="status">쿠팡 로그인: {shopLogin === "SIGNED_IN" ? "로그인됨 (열린 페이지 기준)" : shopLogin === "SIGNED_OUT" ? "로그인 안 됨 (열린 페이지 기준)" : shopLogin === "CHECKING" ? "확인 중…" : "확인 불가 — 쿠팡 페이지를 연 뒤 확인해 주세요"}</p>
-              <button type="button" onClick={() => void checkShopLogin()} disabled={shopLogin === "CHECKING"}>로그인 상태 확인</button>
-              <div><strong>장보기 전에 쿠팡에 로그인해 주세요</strong><p>같은 Chrome에서 로그인한 뒤 돌아와 ‘실제 상품 찾기’를 눌러 주세요. 이미 로그인했다면 그대로 진행하셔도 됩니다.</p></div>
-              <a href="https://login.coupang.com/login/login.pang" target="_blank" rel="noopener noreferrer">쿠팡 로그인하기 <ExternalLink size={16} aria-hidden="true" /></a>
+              <div className="coupang-login-status-row">
+                <span className={`coupang-status-dot ${shopLogin.toLowerCase()}`} aria-hidden="true" />
+                <p role="status">쿠팡 로그인: {shopLogin === "SIGNED_IN" ? "로그인됨 (열린 페이지 기준)" : shopLogin === "SIGNED_OUT" ? "로그인 안 됨 (열린 페이지 기준)" : shopLogin === "CHECKING" ? "확인 중…" : "확인 불가 — 쿠팡 페이지를 연 뒤 확인해 주세요"}</p>
+                <button type="button" className="coupang-login-check-btn" onClick={() => void checkShopLogin()} disabled={shopLogin === "CHECKING"}>로그인 상태 확인</button>
+              </div>
+              <div className="coupang-login-help">
+                <small>장바구니 담기를 위해 같은 브라우저에서 쿠팡 로그인이 필요합니다.</small>
+                <a href="https://login.coupang.com/login/login.pang" target="_blank" rel="noopener noreferrer">쿠팡 로그인하기 <ExternalLink size={13} aria-hidden="true" /></a>
+              </div>
             </section>
             {recoverable && (
               <section className="recovery" aria-label="중단된 장바구니 작업">
