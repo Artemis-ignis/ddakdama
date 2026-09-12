@@ -58,6 +58,8 @@ The first requests two physical 50 mL units. The second requests one bottle; `10
 
 The repository has regression coverage for parsing, quantity planning, pairing, candidate selection, cart verification, and rendered UI states. The public demo uses fixture-backed store data for repeatability; fixture results are not presented as customer or revenue metrics.
 
+The evidence boundary is explicit: automated and fixture checks cover the contracts above, while a live Coupang cart mutation requires a separately dated account run.
+
 ```powershell
 pnpm install
 pnpm lint
@@ -80,6 +82,7 @@ The important product boundary is not “AI selected an item”. It is whether t
 - MCP endpoint: <https://ddakdama.ddakdama.workers.dev/mcp>
 - Privacy: <https://ddakdama.ddakdama.workers.dev/privacy>
 - Demo: <https://youtu.be/hpRkAGgw03c>
+- PM case: <https://github.com/Artemis-ignis/Artemis-ignis/blob/main/docs/cases/ddakdama.md>
 
 ## Safety boundaries
 
