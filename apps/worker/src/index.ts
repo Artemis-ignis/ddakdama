@@ -24,7 +24,9 @@ import {
   privacyPage,
   supportPage,
   termsPage,
+  tryPage,
 } from "./site.js";
+import { tryCoreJs } from "../.generated/try.js";
 import {
   DdakDamaState,
   normalizePairingCode,
@@ -462,21 +464,26 @@ export default {
           ? privacyPage
           : url.pathname === "/terms"
             ? termsPage
-            : url.pathname === "/support"
-              ? (icon: string) =>
-                  supportPage(icon, {
-                    submitted: url.searchParams.get("submitted") === "1",
-                    ticketId: url.searchParams.get("ticket") ?? undefined,
-                    rateLimited: url.searchParams.get("error") === "rate",
-                  })
-              : null;
+            : url.pathname === "/try"
+              ? (icon: string) => tryPage(icon, tryCoreJs)
+              : url.pathname === "/support"
+                ? (icon: string) =>
+                    supportPage(icon, {
+                      submitted: url.searchParams.get("submitted") === "1",
+                      ticketId: url.searchParams.get("ticket") ?? undefined,
+                      rateLimited: url.searchParams.get("error") === "rate",
+                    })
+                : null;
       if (publicPage) {
         return new Response(publicPage(appIconDataUrl), {
           headers: {
             "content-type": "text/html; charset=utf-8",
             "cache-control": "public, max-age=300",
             "x-content-type-options": "nosniff",
-            "content-security-policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+            "content-security-policy":
+              url.pathname === "/try"
+                ? "default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+                : "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
           },
         });
       }

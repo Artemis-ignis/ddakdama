@@ -41,10 +41,10 @@ export const landingPage = (iconDataUrl: string) =>
   shell(
     "쇼핑 목록을 정확한 장바구니로",
     `<main>
-      <section class="hero-wrap"><div class="hero"><div class="hero-copy"><h1>쇼핑 목록을,<strong>정확한 장바구니로.</strong></h1><p class="lead">딱담아는 상품명·규격·묶음 수량을 분리해 확인하고, 사용자가 고른 상품만 장바구니까지 이어드립니다.</p><div class="actions"><a class="button primary" href="#start">시작 방법 보기 ${icon("arrow")}</a><a class="button secondary" href="https://chatgpt.com/apps" rel="noreferrer">ChatGPT 앱 열기</a></div><p class="helper">${icon("lock")} 비밀번호·카드번호·결제수단을 저장하거나 자동 결제하지 않습니다.</p></div><section class="preview" aria-label="딱담아 장바구니 계획 예시"><div class="preview-head"><strong class="preview-title">장바구니 계획 미리보기</strong><span class="verified">${icon("check")} 검토 가능</span></div><div class="preview-labels"><span>상품 정보</span><span>수량</span><span>확인 가격</span></div>${previewRow("생수", "2 L · 6개 묶음", "1", "5,960원", "list")}${previewRow("잡곡", "4 kg · 단품", "1", "26,900원", "search")}${previewRow("화장지", "30 m · 30롤", "1", "12,900원", "cart")}<div class="preview-total"><span>예상 상품 합계</span><b>45,760원</b></div></section></div></section>
+      <section class="hero-wrap"><div class="hero"><div class="hero-copy"><h1>쇼핑 목록을,<strong>정확한 장바구니로.</strong></h1><p class="lead">딱담아는 상품명·규격·묶음 수량을 분리해 확인하고, 사용자가 고른 상품만 장바구니까지 이어드립니다.</p><div class="actions"><a class="button primary" href="/try">지금 바로 써보기 ${icon("arrow")}</a><a class="button secondary" href="https://chatgpt.com/apps" rel="noreferrer">ChatGPT 앱 열기</a></div><p class="helper">${icon("lock")} 비밀번호·카드번호·결제수단을 저장하거나 자동 결제하지 않습니다.</p></div><section class="preview" aria-label="딱담아 장바구니 계획 예시"><div class="preview-head"><strong class="preview-title">장바구니 계획 미리보기</strong><span class="verified">${icon("check")} 검토 가능</span></div><div class="preview-labels"><span>상품 정보</span><span>수량</span><span>확인 가격</span></div>${previewRow("생수", "2 L · 6개 묶음", "1", "5,960원", "list")}${previewRow("잡곡", "4 kg · 단품", "1", "26,900원", "search")}${previewRow("화장지", "30 m · 30롤", "1", "12,900원", "cart")}<div class="preview-total"><span>예상 상품 합계</span><b>45,760원</b></div></section></div></section>
       <section class="section" id="how"><h2 class="section-title">목록은 자유롭게, 확인은 정확하게.</h2><p class="section-copy">추천받은 목록을 그대로 넣어도 되고, 확장 프로그램에서 직접 항목을 추가해도 됩니다.</p><div class="steps"><article class="step"><span class="step-icon">${icon("list")}</span><div><p class="step-num">01</p><h3>목록 입력</h3><p>한 줄에 상품 하나씩, 평소 쓰는 말로 입력합니다.</p></div></article><span class="step-arrow">${icon("arrow")}</span><article class="step"><span class="step-icon">${icon("search")}</span><div><p class="step-num">02</p><h3>후보 확인</h3><p>용량·함량·묶음과 가격을 보고 직접 고릅니다.</p></div></article><span class="step-arrow">${icon("arrow")}</span><article class="step"><span class="step-icon">${icon("cart")}</span><div><p class="step-num">03</p><h3>장바구니 담기</h3><p>담긴 수량을 다시 확인한 뒤 쿠팡에서 결제합니다.</p></div></article></div></section>
       <section class="trust-band" id="safety"><div class="trust"><div class="trust-heading"><h2>확신할 수 있을 때만 담습니다.</h2><p>추천 결과와 실제 구매 사이에 필요한 확인 단계를 숨기지 않습니다.</p></div><article class="trust-item">${icon("search")}<h3>규격을 분리</h3><p>100 mg과 240정, 2개와 2개 묶음을 서로 다르게 해석합니다.</p></article><article class="trust-item">${icon("check")}<h3>가격을 재확인</h3><p>검색 결과가 아니라 상품 상세페이지에서 확인한 가격을 기준으로 합니다.</p></article><article class="trust-item">${icon("lock")}<h3>최종 선택은 사용자</h3><p>자동 결제나 주문 확정은 하지 않으며, 사용자가 마지막으로 확인합니다.</p></article></div></section>
-      <section class="install" id="start"><div><h2>딱담아를 시작할 준비가 되셨나요?</h2><p>Chrome 확장 프로그램으로 목록을 직접 처리할 수 있고, ChatGPT 앱을 연결하면 대화에서 만든 목록을 바로 가져올 수 있습니다.</p><div class="actions"><a class="button primary" href="/support">설치 및 연결 도움받기 ${icon("arrow")}</a><a class="button secondary" href="https://chatgpt.com/apps" rel="noreferrer">ChatGPT 앱 목록 열기</a></div></div></section>
+      <section class="install" id="start"><div><h2>딱담아를 시작할 준비가 되셨나요?</h2><p>Chrome 확장 프로그램으로 목록을 직접 처리할 수 있고, ChatGPT 앱을 연결하면 대화에서 만든 목록을 바로 가져올 수 있습니다.</p><div class="actions"><a class="button primary" href="/try">설치 없이 바로 써보기 ${icon("arrow")}</a><a class="button secondary" href="https://chatgpt.com/apps" rel="noreferrer">ChatGPT 앱 목록 열기</a></div></div></section>
     </main>`,
     iconDataUrl,
   );
@@ -54,6 +54,44 @@ export const privacyPage = (iconDataUrl: string) =>
 
 export const termsPage = (iconDataUrl: string) =>
   shell("이용약관", `<main class="doc-page"><article class="document"><h1>이용약관</h1><p>시행일: 2026년 7월 14일</p><h2>서비스 범위</h2><p>딱담아는 쇼핑 목록 분석, 후보 비교, 사용자 확인 후 장바구니 추가를 돕는 보조 서비스입니다.</p><h2>사용자 확인</h2><p>가격, 재고, 배송비, 옵션과 최종 주문 금액은 변동될 수 있습니다. 사용자는 결제 전에 쿠팡 장바구니와 주문 화면의 정보를 직접 확인해야 합니다.</p><h2>금지 사항</h2><p>보안 확인 우회, 비정상적 대량 요청, 다른 사람의 계정이나 연결 코드 무단 사용은 금지됩니다.</p><h2>책임 제한</h2><p>딱담아는 자동 결제나 주문 확정을 실행하지 않습니다. 표시된 정보 또는 링크만으로 구매 결과가 보장되지는 않습니다.</p></article></main>`, iconDataUrl);
+
+const TRY_PAGE_JS = `(function(){
+  var core = window.DDAKDAMA_CORE;
+  var ta = document.getElementById("try-input");
+  var btn = document.getElementById("try-run");
+  var out = document.getElementById("try-out");
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function specOf(l){
+    var parts = [];
+    if (l.unitSizeValue && l.unitSizeUnit) parts.push(l.unitSizeValue + l.unitSizeUnit);
+    if (l.strengthValue && l.strengthUnit) parts.push(l.strengthValue + l.strengthUnit);
+    if (l.packageContentCount && l.packageContentUnit) parts.push(l.packageContentCount + l.packageContentUnit);
+    return parts.join(" \u00b7 ") || "\uaddc\uaca9 \uc815\ubcf4 \uc5c6\uc74c";
+  }
+  btn.addEventListener("click", function(){
+    var text = ta.value.trim();
+    if (!text) { out.innerHTML = '<div class="notice error">\ubaa9\ub85d\uc744 \ud55c \uc904 \uc774\uc0c1 \uc785\ub825\ud574 \uc8fc\uc138\uc694.</div>'; return; }
+    var lines;
+    try { lines = core.parseShoppingList(text); } catch(e){ out.innerHTML = '<div class="notice error">\ubaa9\ub85d\uc744 \ud574\uc11d\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.</div>'; return; }
+    if (!lines.length) { out.innerHTML = '<div class="notice error">\uc778\uc2dd\ub41c \uc0c1\ud488\uc774 \uc5c6\uc2b5\ub2c8\ub2e4.</div>'; return; }
+    var totalUnits = 0;
+    var rows = lines.map(function(l){
+      totalUnits += l.requestedPhysicalUnits;
+      var q = encodeURIComponent(core.searchQueryForShoppingLine(l));
+      var link = "https://www.coupang.com/np/search?q=" + q;
+      return '<div class="preview-row"><div class="product"><span class="product-text"><span class="product-name">' + esc(l.productName) + '</span><span class="product-spec">' + esc(specOf(l)) + '</span></span></div><div class="quantity">' + l.requestedPhysicalUnits + '\uac1c</div><a class="price" style="color:#1769e0;text-decoration:none;font-weight:800" href="' + link + '" target="_blank" rel="noreferrer">\ucfe0\ud301\uc5d0\uc11c \ucc3e\uae30</a></div>';
+    }).join("");
+    out.innerHTML = '<div class="preview" style="margin-top:24px"><div class="preview-head"><strong class="preview-title">\ubd84\uc11d \uacb0\uacfc</strong><span class="verified">\uac80\ud1a0 \uac00\ub2a5</span></div>' + rows + '<div class="preview-total"><span>\uc778\uc2dd\ub41c \uc0c1\ud488</span><b>' + lines.length + '\uc885 \u00b7 \uc2e4\ubb3c ' + totalUnits + '\uac1c</b></div></div>' +
+      '<div class="notice">\uc7a5\ubc14\uad6c\ub2c8\uc5d0 \uc790\ub3d9\uc73c\ub85c \ub2f4\uc73c\ub824\uba74 <a href="/support">Chrome \ud655\uc7a5 \ud504\ub85c\uadf8\ub7a8</a>\uc744 \uc124\uce58\ud558\uc138\uc694. ChatGPT \uc571\uacfc \uc5f0\uacb0\ud558\uba74 \ub300\ud654\uc5d0\uc11c \ub9cc\ub4e0 \ubaa9\ub85d\uc744 \ubc14\ub85c \uac00\uc838\uc62c \uc218 \uc788\uc2b5\ub2c8\ub2e4.</div>';
+  });
+})();`;
+
+export const tryPage = (iconDataUrl: string, coreJs: string) =>
+  shell(
+    "지금 바로 써보기",
+    `<main class="doc-page"><article class="document"><h1>지금 바로 써보기</h1><p>설치 없이 쇼핑 목록을 상품·규격·수량으로 분석해 드립니다. 분석은 이 브라우저에서만 이루어지며 서버로 전송되지 않습니다.</p><div class="support-form"><label class="field"><span>쇼핑 목록</span><textarea id="try-input" rows="6" placeholder="한 줄에 상품 하나씩 입력하세요.&#10;예: 생수 2L 6개"></textarea></label><button class="primary" id="try-run" type="button">목록 분석하기</button></div><div id="try-out" aria-live="polite"></div><p class="helper">장바구니에 자동으로 담으려면 Chrome 확장 프로그램이 필요합니다. ChatGPT 앱과 연결하면 대화에서 만든 목록을 바로 가져올 수 있습니다.</p></article></main><script>${coreJs}</script><script>${TRY_PAGE_JS}</script>`,
+    iconDataUrl,
+  );
 
 export type SupportPageOptions = { submitted?: boolean; ticketId?: string; rateLimited?: boolean };
 

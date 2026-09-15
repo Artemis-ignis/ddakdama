@@ -5,13 +5,15 @@
   "type": "module",
   "scripts": {
     "generate:widget": "tsx scripts/generate-widget.ts",
-    "dev": "pnpm generate:widget && wrangler dev",
-    "deploy": "pnpm generate:widget && wrangler deploy",
-    "build": "pnpm generate:widget && wrangler deploy --dry-run --outdir .wrangler-dist",
+    "generate:try": "tsx scripts/generate-try.ts",
+    "generate": "pnpm generate:widget && pnpm generate:try",
+    "dev": "pnpm generate && wrangler dev",
+    "deploy": "pnpm generate && wrangler deploy",
+    "build": "pnpm generate && wrangler deploy --dry-run --outdir .wrangler-dist",
     "cf-typegen": "wrangler types",
     "lint": "eslint src scripts tests --max-warnings=0",
-    "typecheck": "pnpm generate:widget && tsc --noEmit",
-    "test": "pnpm generate:widget && vitest run tests"
+    "typecheck": "pnpm generate && tsc --noEmit",
+    "test": "pnpm generate && vitest run tests"
   },
   "dependencies": {
     "@ddakdama/core": "workspace:*",
@@ -23,6 +25,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260714.1",
     "@types/node": "24.10.1",
+    "esbuild": "0.28.1",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
     "vitest": "4.1.10",
