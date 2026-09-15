@@ -69,9 +69,10 @@ test("Manifest V3 서비스 워커와 Side Panel이 실제 Chromium에서 동작
 test("공개 서버에서 코드 발급만으로 연결 완료를 오인하지 않고 새 코드로 재시도한다",async({page,extensionId})=>{
  test.skip(process.env.DDAKDAMA_LIVE_PAIRING!=="1","공개 서버를 호출하는 선택적 실연결 검사");
  await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
- await page.evaluate(async()=>chrome.storage.local.remove(["ddakdama-device-id","ddakdama-device-token","ddakdama-pairing-code","ddakdama-pairing-expires-at"]));
+ await page.evaluate(async()=>chrome.storage.local.remove(["ddakdama-device-id","ddakdama-device-token","ddakdama-pairing-code","ddakdama-pairing-expires-at","ddakdama-terms-consent"]));
  await page.reload();
- await page.getByRole("button",{name:"6자리 코드 만들기"}).click();
+ await page.getByRole("checkbox",{name:/동의합니다/}).check();
+ await page.getByRole("button",{name:"동의하고 연결 코드 만들기"}).click();
  const firstCode=page.locator("output.pairing-code");
  await expect(firstCode).toHaveText(/^\d{3} \d{3}$/,{timeout:15_000});
  const firstCodeText=(await firstCode.textContent())?.trim();
@@ -90,9 +91,10 @@ test("공개 MCP와 실제 확장 프로그램이 페어링하고 5종·실물 7
  test.skip(process.env.DDAKDAMA_LIVE_PAIRING!=="1","공개 서버를 호출하는 선택적 실연결 검사");
  test.setTimeout(60_000);
  await page.goto(`chrome-extension://${extensionId}/dist/index.html`);
- await page.evaluate(async()=>chrome.storage.local.remove(["ddakdama-device-id","ddakdama-device-token","ddakdama-pairing-code","ddakdama-pairing-expires-at"]));
+ await page.evaluate(async()=>chrome.storage.local.remove(["ddakdama-device-id","ddakdama-device-token","ddakdama-pairing-code","ddakdama-pairing-expires-at","ddakdama-terms-consent"]));
  await page.reload();
- await page.getByRole("button",{name:"6자리 코드 만들기"}).click();
+ await page.getByRole("checkbox",{name:/동의합니다/}).check();
+ await page.getByRole("button",{name:"동의하고 연결 코드 만들기"}).click();
  const code=(await page.locator("output.pairing-code").textContent())?.replace(/\s/g,"")??"";
  expect(code).toMatch(/^\d{6}$/);
  const deviceToken=await page.evaluate(async()=>String((await chrome.storage.local.get("ddakdama-device-token"))["ddakdama-device-token"]??""));

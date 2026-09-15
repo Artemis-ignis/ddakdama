@@ -40,6 +40,17 @@ const AFFILIATE_ENABLED = import.meta.env.VITE_DDAKDAMA_AFFILIATE_ENABLED === "t
 const CHATGPT_APP_URL = import.meta.env.VITE_DDAKDAMA_CHATGPT_APP_URL?.trim() || "https://chatgpt.com/apps";
 const HAS_PUBLIC_CHATGPT_APP_LINK = Boolean(import.meta.env.VITE_DDAKDAMA_CHATGPT_APP_URL?.trim());
 const STEP_LABELS = ["목록", "상품 확인", "담기 전 확인", "완료"];
+const TERMS_CONSENT_KEY = "ddakdama-terms-consent";
+const TERMS_URL = SERVER_ORIGIN + "/terms";
+const PRIVACY_URL = SERVER_ORIGIN + "/privacy";
+const LOCAL_DATA_KEYS = [
+  "ddakdama-device-id",
+  "ddakdama-device-token",
+  "ddakdama-pairing-code",
+  "ddakdama-pairing-expires-at",
+  "ddakdama-cart-journal",
+  "ddakdama-search-trace",
+] as const;
 
 export type SearchCandidate = {
   id: string;
@@ -298,6 +309,9 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
   const [pairingExpiresAt, setPairingExpiresAt] = useState<number | null>(null);
   const [pairingState, setPairingState] = useState<PairingState>("idle");
   const [pairingBusy, setPairingBusy] = useState(false);
+  const [termsConsent, setTermsConsent] = useState<boolean | null>(null);
+  const [termsChecked, setTermsChecked] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [recoverable, setRecoverable] = useState<RecoverableJournal | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(preview?.theme ?? "system");
   const cartRunId = useRef<string | null>(null);
@@ -327,6 +341,9 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     void chrome.runtime.sendMessage({ type: "DDAKDAMA_GET_CART_JOURNAL" })
       .then((response) => setRecoverable(response?.journal ?? null))
       .catch(() => undefined);
+    void chrome.storage.local.get([TERMS_CONSENT_KEY]).then((stored) => {
+      if (!cancelled) setTermsConsent(stored[TERMS_CONSENT_KEY] === true);
+    }).catch(() => { if (!cancelled) setTermsConsent(false); });
     void chrome.storage.local.get([...pairingStorageKeys]).then(async (stored) => {
       const token = String(stored["ddakdama-device-token"] ?? "");
       if (!token || cancelled) return;
@@ -753,7 +770,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     setNotice("중단된 작업 기록을 정리했습니다. 실제 장바구니 상품은 변경하지 않았습니다.");
   };
 
-  const startPairing = async () => {
+  const runPairing = async () => {
     setPairingBusy(true);
     try {
       const stored = await chrome.storage.local.get(["ddakdama-device-token"]);
@@ -792,6 +809,14 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
     } finally {
       setPairingBusy(false);
     }
+  };
+
+  const startPairing = async () => {
+    if (termsConsent !== true) {
+      setNotice("서비스 이용을 위해 이용약관과 개인정보처리방침에 동의해 주세요.");
+      return;
+    }
+    await runPairing();
   };
 
   const importFromGpt = async () => {
@@ -883,6 +908,47 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
       setPairingState("idle");
       setPairingBusy(false);
       setNotice("연결을 해제했습니다. 다시 연결하려면 새 6자리 코드를 만들어 주세요.");
+    }
+  };
+
+  const confirmTerms = async () => {
+    if (!termsChecked) {
+      setNotice("이용약관과 개인정보처리방침을 확인한 뒤 동의해 주세요.");
+      return;
+    }
+    try {
+      await chrome.storage.local.set({ [TERMS_CONSENT_KEY]: true });
+    } catch {
+      // Storage write failures should not block an explicit user consent.
+    }
+    setTermsConsent(true);
+    await runPairing();
+  };
+
+  const deleteAllData = async () => {
+    setPairingBusy(true);
+    try {
+      const stored = await chrome.storage.local.get(["ddakdama-device-token"]);
+      const token = String(stored["ddakdama-device-token"] ?? "");
+      if (token) {
+        // Server-side wipe: removes this device's tokens, grants, pairings, and handoffs.
+        await fetch(SERVER_ORIGIN + "/api/device/revoke", {
+          method: "POST",
+          headers: { authorization: "Bearer " + token },
+        }).catch(() => undefined);
+      }
+    } finally {
+      // Local wipe: clears every ddakdama-* key including the cart journal and search trace.
+      await chrome.storage.local.remove([...LOCAL_DATA_KEYS, TERMS_CONSENT_KEY]);
+      setPairingCode(null);
+      setPairingExpiresAt(null);
+      setPairingState("idle");
+      setRecoverable(null);
+      setTermsConsent(false);
+      setTermsChecked(false);
+      setConfirmingDelete(false);
+      setPairingBusy(false);
+      setNotice("기기와 서버에 저장된 딱담아 데이터를 모두 삭제했습니다.");
     }
   };
 
@@ -990,6 +1056,24 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
           </button>
           <button type="button" className="secondary-action" onClick={startPairing} disabled={pairingBusy}>새 코드</button>
         </div>
+      ) : termsConsent === false && pairingState !== "connected" ? (
+        <div className="consent-box" role="group" aria-label="약관 동의">
+          <label className="consent-check">
+            <input
+              type="checkbox"
+              checked={termsChecked}
+              onChange={(event) => setTermsChecked(event.target.checked)}
+            />
+            <span>
+              <a href={TERMS_URL} target="_blank" rel="noreferrer">이용약관</a>과{" "}
+              <a href={PRIVACY_URL} target="_blank" rel="noreferrer">개인정보처리방침</a>을
+              확인했고 동의합니다
+            </span>
+          </label>
+          <button type="button" className="consent-continue" onClick={confirmTerms} disabled={!termsChecked}>
+            동의하고 연결 코드 만들기
+          </button>
+        </div>
       ) : (
         <div className="gpt-bridge-actions">
           {pairingState === "idle" || pairingState === "unavailable" ? (
@@ -1002,7 +1086,17 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
             </button>
           )}
           {pairingState === "connected" && (
-            <button type="button" className="disconnect-action" onClick={disconnectGpt} disabled={pairingBusy}><Unlink size={15} /> 연결 해제</button>
+            <>
+              <button type="button" className="disconnect-action" onClick={disconnectGpt} disabled={pairingBusy}><Unlink size={15} /> 연결 해제</button>
+              {confirmingDelete ? (
+                <>
+                  <button type="button" className="disconnect-action danger" onClick={deleteAllData} disabled={pairingBusy}>정말 삭제</button>
+                  <button type="button" className="secondary-action" onClick={() => setConfirmingDelete(false)} disabled={pairingBusy}>취소</button>
+                </>
+              ) : (
+                <button type="button" className="disconnect-action danger" onClick={() => setConfirmingDelete(true)} disabled={pairingBusy}>내 데이터 삭제</button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -1271,6 +1365,7 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
               <div>
                 <h1>{lines.length ? `상품 ${lines.length}종 · 실물 ${physicalUnits(lines)}개` : "쇼핑 목록을 준비해 주세요"}</h1>
                 <p>{lines.length ? "규격과 수량을 확인한 뒤 실제 상품을 찾아요." : "ChatGPT에서 받거나 직접 붙여넣을 수 있어요."}</p>
+                <p>{lines.length ? "규격과 수량을 확인한 뒤 실제 상품을 찾아요." : "목록을 붙여넣거나, ChatGPT에서 가져올 수 있어요."}</p>
               </div>
             </section>
             {recoverable && (
@@ -1279,13 +1374,13 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
                 <div><button type="button" onClick={clearJournal}>기록 지우기</button><button type="button" className="resume" disabled={adding} onClick={resumeJournal}>이어서 담기</button></div>
               </section>
             )}
-            {renderGptConnection()}
-            <div className="entry-divider"><span>또는</span></div>
             <section className="list-input">
               <label htmlFor="shopping-list">직접 붙여넣기</label>
               <textarea id="shopping-list" value={input} onChange={(event) => setInput(event.target.value)} placeholder={"상품을 한 줄에 하나씩 입력해 주세요.\n예: 생수 2L 6개"} spellCheck={false} />
               <div className="input-actions"><button type="button" onClick={() => { setInput(SAMPLE); resetAfterInput(parseShoppingList(SAMPLE)); }}>예시 불러오기</button><button type="button" onClick={parseOnly}>{lines.length ? "전체 목록 다시 인식" : "목록 인식"}</button></div>
             </section>
+            <div className="entry-divider"><span>또는</span></div>
+            {renderGptConnection()}
             {lines.length > 0 && (
               <section className="list-append" aria-label="기존 목록에 상품 추가">
                 <div><strong>목록 더 추가</strong><small>기존 GPT 목록과 이미 고른 후보는 유지됩니다.</small></div>
