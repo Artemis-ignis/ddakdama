@@ -1203,7 +1203,8 @@ export function App({ preview }: { preview?: PreviewState } = {}) {
                           aria-pressed={active}
                         >
                           <span className="candidate-radio">{active ? <Check size={12} /> : null}</span>
-                          <span><strong>{candidate.title}</strong><small>{candidate.currentPrice ? priceBreakdown(candidate.currentPrice, line, candidate, !exact) : "상세에서 가격 확인"} · {candidate.unitsPerPackage === 1 ? `단품 × ${candidatePurchaseQuantity}` : `${candidate.unitsPerPackage}개 묶음 × ${candidatePurchaseQuantity}`}{candidate.rocketDelivery ? " · 로켓배송" : ""}{candidateWarnings.length ? " · 요청과 다름" : ""}</small></span>
+                          <ProductImage item={candidate} />
+                          <span className="candidate-text"><strong>{candidate.title}</strong><small>{candidate.currentPrice ? priceBreakdown(candidate.currentPrice, line, candidate, !exact) : "상세에서 가격 확인"} · {candidate.unitsPerPackage === 1 ? `단품 × ${candidatePurchaseQuantity}` : `${candidate.unitsPerPackage}개 묶음 × ${candidatePurchaseQuantity}`}{candidate.rocketDelivery ? " · 로켓배송" : ""}{candidateWarnings.length ? " · 요청과 다름" : ""}</small></span>
                           <b>{active ? (manuallySelected ? "직접 선택" : "선택됨") : exact ? "선택" : "직접 선택"}</b>
                         </button>
                       );

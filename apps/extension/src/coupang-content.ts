@@ -60,7 +60,9 @@ function searchResults(){
   const priceMatches=salePriceText.match(/\d[\d,]*\s*원/g)||[];const price=parseWon(priceMatches.at(-1)||"");
   const ratingText=row.querySelector<HTMLElement>('[class*="ProductRating_productRating"]')?.getAttribute("aria-label")||"";const reviewText=row.querySelector<HTMLElement>('[class*="ProductRating_productRating"]')?.innerText||"";
   const image=row.querySelector<HTMLImageElement>("img");
-  results.push({id:id+"-"+(vendor||url.searchParams.get("itemId")||""),productId:id,vendorItemId:vendor,itemId:url.searchParams.get("itemId"),title,currentPrice:price,unitsPerPackage:parseUnitsPerPackage(title),productUrl:url.href,imageUrl:image?.currentSrc||image?.src||image?.dataset.src||image?.dataset.imgSrc||null,rocketDelivery:/로켓|오늘|내일/.test(row.innerText),rating:Number(ratingText.replace(/[^0-9.]/g,""))||null,reviewCount:Number(reviewText.replace(/[^0-9]/g,""))||null,advertised:/광고|Ad information/.test(row.innerText),source:"BROWSER"});if(results.length>=8)break;
+  const rawImage=image?.currentSrc||image?.src||image?.dataset.src||image?.dataset.imgSrc||image?.dataset.lazyImg||image?.srcset?.split(",")[0]?.trim().split(/\s+/u)[0]||null;
+  const imageUrl=(()=>{try{return rawImage?new URL(rawImage,location.href).href:null}catch{return null}})();
+  results.push({id:id+"-"+(vendor||url.searchParams.get("itemId")||""),productId:id,vendorItemId:vendor,itemId:url.searchParams.get("itemId"),title,currentPrice:price,unitsPerPackage:parseUnitsPerPackage(title),productUrl:url.href,imageUrl,rocketDelivery:/로켓|오늘|내일/.test(row.innerText),rating:Number(ratingText.replace(/[^0-9.]/g,""))||null,reviewCount:Number(reviewText.replace(/[^0-9]/g,""))||null,advertised:/광고|Ad information/.test(row.innerText),source:"BROWSER"});if(results.length>=8)break;
  }
  return{results,productCardCount:rows.length};
 }
