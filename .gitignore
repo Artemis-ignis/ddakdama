@@ -18,3 +18,20 @@ apps/worker/.generated/
 apps/worker/.wrangler/
 apps/worker/.wrangler-dist/
 artifacts/devpost-gallery/source/
+
+# Local agent/tool state
+.agents/
+.codex-finalizer/
+.devin/
+.playwright-mcp/
+DEVIN_CONTINUE.md
+
+# Android build debris (no sources yet)
+apps/mobile-android/
+
+# Root-level exploration screenshots
+/*.png
+
+# Verification working outputs (curated gallery stays tracked)
+artifacts/*
+!artifacts/devpost-gallery/
