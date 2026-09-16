@@ -94,4 +94,4 @@
 - 실제 MV3 확장 프로그램과 공개 MCP 사이에서 6자리 페어링, 5종·실물 7개 목록 수신, ACK, 연결 해제 후 토큰 폐기까지 자동 E2E 검증
 - 실제 Side Panel에서 상품 제외·재포함, 5종 상세검증, 장바구니 추가, 합계 표시, 장바구니 열기, 새 목록 시작까지 한 흐름으로 검증
 
-고정 HTTPS Worker와 공개 `/mcp`는 `https://ddakdama.ddakdama.workers.dev`에 배포되어 ChatGPT v12 위젯과 MV3 확장 프로그램의 실연결 검증을 통과했습니다. 승인된 쿠팡 파트너스 키 호출과 로그인된 사용자 Chrome에서의 실제 쿠팡 장바구니 변경은 계정·권한 및 명시적 승인 후 최종 검증해야 합니다.
+고정 HTTPS Worker와 공개 `/mcp`는 `https://ddakdama.artemis-clunk.workers.dev`에 배포되어 ChatGPT v12 위젯과 MV3 확장 프로그램의 실연결 검증을 통과했습니다. 승인된 쿠팡 파트너스 키 호출과 로그인된 사용자 Chrome에서의 실제 쿠팡 장바구니 변경은 계정·권한 및 명시적 승인 후 최종 검증해야 합니다.

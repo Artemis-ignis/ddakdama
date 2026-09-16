@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const envPath = resolve(root, ".env.local");
-const defaultOrigin = "https://ddakdama.ddakdama.workers.dev";
+const defaultOrigin = "https://ddakdama.artemis-clunk.workers.dev";
 
 function parseEnv(text) {
   return Object.fromEntries(

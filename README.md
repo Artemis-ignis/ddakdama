@@ -5,7 +5,7 @@
 
 결제·주문 확정은 절대 자동화하지 않는다. 마지막 확인은 항상 사용자가 쿠팡에서 직접 한다.
 
-- 서비스: <https://ddakdama.ddakdama.workers.dev> · 무설치 체험: [/try](https://ddakdama.ddakdama.workers.dev/try)
+- 서비스: <https://ddakdama.artemis-clunk.workers.dev> · 무설치 체험: [/try](https://ddakdama.artemis-clunk.workers.dev/try)
 - 데모 영상: <https://youtu.be/hpRkAGgw03c> (51초)
 - 상태: 공개 베타 v1.0.2 · OpenAI Build Week Devpost 제출 완료
 
@@ -179,8 +179,8 @@ Job은 '자동화'가 아니라 '검증된 전환'이다. 사용자는 손가락
 
 ### 링크·실행
 
-- 서비스 <https://ddakdama.ddakdama.workers.dev> · [/try](https://ddakdama.ddakdama.workers.dev/try) · [/privacy](https://ddakdama.ddakdama.workers.dev/privacy) · [/terms](https://ddakdama.ddakdama.workers.dev/terms)
-- MCP 엔드포인트 <https://ddakdama.ddakdama.workers.dev/mcp>
+- 서비스 <https://ddakdama.artemis-clunk.workers.dev> · [/try](https://ddakdama.artemis-clunk.workers.dev/try) · [/privacy](https://ddakdama.artemis-clunk.workers.dev/privacy) · [/terms](https://ddakdama.artemis-clunk.workers.dev/terms)
+- MCP 엔드포인트 <https://ddakdama.artemis-clunk.workers.dev/mcp>
 - 데모 <https://youtu.be/hpRkAGgw03c>
 
 ```powershell

@@ -95,7 +95,7 @@ Next, we plan to publish the extension through the Chrome Web Store, expand the 
 
 ## 심사자 설치·테스트 안내
 
-1. ChatGPT 개발자 모드에서 `https://ddakdama.ddakdama.workers.dev/mcp`를 앱 서버로 연결합니다.
+1. ChatGPT 개발자 모드에서 `https://ddakdama.artemis-clunk.workers.dev/mcp`를 앱 서버로 연결합니다.
 2. `pnpm install`, `pnpm test:e2e`, `pnpm build`를 실행한 뒤 Chrome의 `chrome://extensions`에서 개발자 모드를 켜고 `apps/extension`을 압축 해제된 확장 프로그램으로 불러옵니다.
 3. 확장 프로그램의 `GPT 앱 연결`에서 일회용 6자리 코드를 발급합니다.
 4. ChatGPT의 DdakDama 위젯에 코드를 입력해 한 번 연결합니다.
@@ -127,7 +127,7 @@ Next, we plan to publish the extension through the Chrome Web Store, expand the 
 - Country of Residence: `Korea Republic of`
 - Category: `Apps for Your Life`
 - Code repository: `https://github.com/Artemis-ignis/ddakdama`
-- Test URL: `https://ddakdama.ddakdama.workers.dev/mcp`
+- Test URL: `https://ddakdama.artemis-clunk.workers.dev/mcp`
 - `/feedback` Session ID: Devpost 제출 양식에만 기록됨(공개 저장소에는 원문을 보관하지 않음)
 - Demo video URL: `https://youtu.be/hpRkAGgw03c` (51초, 공개 링크 접근 확인)
 - Plugin installation/testing instructions: 위 “심사자 설치·테스트 안내” 사용

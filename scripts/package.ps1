@@ -11,7 +11,7 @@ function Assert-StagingPath([string]$Path) {
 # The production extension has the same public Worker as its runtime fallback.
 # Keeping this default here prevents a locally-set development value from being
 # required just to create a reviewable public package.
-$productionServerOrigin = if ($env:VITE_DDAKDAMA_SERVER_ORIGIN) { $env:VITE_DDAKDAMA_SERVER_ORIGIN } else { "https://ddakdama.ddakdama.workers.dev" }
+$productionServerOrigin = if ($env:VITE_DDAKDAMA_SERVER_ORIGIN) { $env:VITE_DDAKDAMA_SERVER_ORIGIN } else { "https://ddakdama.artemis-clunk.workers.dev" }
 $parsedServerOrigin = $null
 if (-not $productionServerOrigin -or -not [Uri]::TryCreate($productionServerOrigin, [UriKind]::Absolute, [ref]$parsedServerOrigin) -or $parsedServerOrigin.Scheme -ne "https") {
   throw "Public packaging requires a stable HTTPS VITE_DDAKDAMA_SERVER_ORIGIN, for example https://ddakdama.example.workers.dev"

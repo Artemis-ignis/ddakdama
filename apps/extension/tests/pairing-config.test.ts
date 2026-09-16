@@ -7,7 +7,7 @@ const background = readFileSync(new URL("../src/background.ts", import.meta.url)
 
 describe("GPT 앱 재연결 설정", () => {
   it("배포 빌드는 공개 서버를 기본 연결 대상으로 사용한다", () => {
-    expect(config).toContain("https://ddakdama.ddakdama.workers.dev");
+    expect(config).toContain("https://ddakdama.artemis-clunk.workers.dev");
     expect(config).not.toContain("http://localhost:8787");
     expect(app).toContain('import { SERVER_ORIGIN } from "../config.js"');
     expect(background).toContain('import{SERVER_ORIGIN as serverOrigin}from"./config"');

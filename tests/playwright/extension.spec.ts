@@ -2,7 +2,7 @@ import{test,expect}from"./extension-fixture";
 import{Client}from"@modelcontextprotocol/sdk/client/index.js";
 import{StreamableHTTPClientTransport}from"@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-const LIVE_ORIGIN="https://ddakdama.ddakdama.workers.dev";
+const LIVE_ORIGIN="https://ddakdama.artemis-clunk.workers.dev";
 const GOLDEN_LIST=[
  "닥터지 레드 블레미쉬 포 맨 진정 올인원 150ml",
  "스킨1004 히알루 시카 워터핏 선 세럼 50ml 2개",

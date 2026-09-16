@@ -5,7 +5,7 @@ const root = resolve(import.meta.dirname, "..");
 const envText = await readFile(resolve(root, ".env.local"), "utf8");
 const tokenLine = envText.split(/\r?\n/).find((line) => line.startsWith("SUPPORT_ADMIN_TOKEN="));
 const token = tokenLine?.slice("SUPPORT_ADMIN_TOKEN=".length).trim();
-const origin = (process.env.DDAKDAMA_PUBLIC_ORIGIN || "https://ddakdama.ddakdama.workers.dev").replace(/\/$/, "");
+const origin = (process.env.DDAKDAMA_PUBLIC_ORIGIN || "https://ddakdama.artemis-clunk.workers.dev").replace(/\/$/, "");
 
 if (!token) throw new Error("SUPPORT_ADMIN_TOKEN is missing. Run pnpm support:setup first.");
 

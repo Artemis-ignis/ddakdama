@@ -10,7 +10,7 @@
 **딱담아는 자유 형식의 쇼핑 목록을, 사용자가 검토하고 승인한 쿠팡 장바구니로 바꿔주는 ChatGPT 앱 + Chrome 확장 프로그램이다.**
 
 - 결제·주문 확정은 절대 자동화하지 않는다. 마지막 확인은 항상 사용자가 쿠팡에서 직접 한다.
-- 공개 서비스: https://ddakdama.ddakdama.workers.dev (MCP: /mcp)
+- 공개 서비스: https://ddakdama.artemis-clunk.workers.dev (MCP: /mcp)
 - 데모: https://youtu.be/hpRkAGgw03c (51초)
 
 ---
@@ -290,7 +290,7 @@ Firebase/Supabase 대신 **Cloudflare Workers + Durable Objects**를 선택한 �
 
 ## 9. 배포·운영 (Day12 적용)
 
-- **배포 상태**: 공개 Worker ddakdama.ddakdama.workers.dev 운영 중, /privacy·/terms·/support 페이지 공개
+- **배포 상태**: 공개 Worker ddakdama.artemis-clunk.workers.dev 운영 중, /privacy·/terms·/support 페이지 공개
 - **무설치 웹 체험**: /try 페이지에서 설치 없이 목록 파싱·수량 계획을 브라우저에서 바로 제공(코어 파서를 esbuild IIFE로 인라인 번들). 장바구니 자동 담기만 확장 필요로 안내해 진입 장벽을 낮춤
 - **약관**: 개인정보 처리방침·이용약관 초안 작성·공개 완료 — Day12의 "표준 목차 + 사람이 재검토" 절차 적용
 - **로그인·동의·탈퇴**: 무계정 구조(기기 페어링)를 유지하되 Day12 요건을 확장 UI에 반영 — 첫 페어링 전 이용약관·개인정보처리방침 동의 게이트(체크박스 + /terms·/privacy 링크, 미동의 시 코드 발급 차단), 연결 해제 외에 "내 데이터 삭제"로 기기·서버 데이터 전체 폐기(/api/device/revoke + 로컬 스토리지 전체 삭제). 계정 도입 시 구글 로그인으로 확장 가능

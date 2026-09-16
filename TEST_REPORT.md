@@ -32,7 +32,7 @@
 - 동일 클라이언트의 연결 코드 발급은 분산 shard와 무관하게 분당 10회만 허용되고 11번째 요청은 429로 차단
 - 공개 HTTPS origin이 없으면 `pnpm package`가 배포 ZIP 생성을 차단하는 release guard 확인
 - 공개 확장 ZIP에 운영 origin만 포함되고 localhost·비밀정보·제휴 기능이 없는 release 검증 통과
-- 공개 Worker `https://ddakdama.ddakdama.workers.dev`의 `/health`와 `/mcp` 실연결 통과
+- 공개 Worker `https://ddakdama.artemis-clunk.workers.dev`의 `/health`와 `/mcp` 실연결 통과
 - 공개 Durable Object에서 5종·7개 사용자와 1종·3개 사용자의 데이터 격리 통과
 - 공개 ChatGPT 앱 `create_cart_plan` 호출에서 5종·7개·`100mg 240정` 구조화 결과 확인
 - 공개 위젯 v12의 실제 연결 상태 확인·계획 자동 전송·라이트/다크 테마 계약과 실제 다크 렌더링 확인

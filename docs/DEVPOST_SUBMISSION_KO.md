@@ -7,7 +7,7 @@
 | Name | `DdakDama` |
 | Elevator pitch | `Turn a shopping list into a verified, reviewable Coupang cart.` |
 | Category | `Apps for Your Life` |
-| Website | `https://ddakdama.ddakdama.workers.dev` |
+| Website | `https://ddakdama.artemis-clunk.workers.dev` |
 | Code repository | `https://github.com/Artemis-ignis/ddakdama` |
 | Demo video | `https://youtu.be/hpRkAGgw03c` (51초, 공개 접근 확인) |
 
@@ -80,8 +80,8 @@ GPT-5.6, Codex, OpenAI Apps SDK, Model Context Protocol (MCP), TypeScript, React
 Paste this in the private judge-testing field.
 
 ```text
-Live product page: https://ddakdama.ddakdama.workers.dev
-Public MCP endpoint: https://ddakdama.ddakdama.workers.dev/mcp
+Live product page: https://ddakdama.artemis-clunk.workers.dev
+Public MCP endpoint: https://ddakdama.artemis-clunk.workers.dev/mcp
 
 The Chrome extension is required only for the Coupang cart workflow. The repository README contains Windows setup, packaging, and test commands. For a repeatable, no-purchase verification path, run `pnpm install`, `pnpm test:e2e`, and `pnpm build`; the test suite uses fixture-backed shopping pages and never automates checkout or order confirmation.
 
@@ -93,7 +93,7 @@ The public worker serves the MCP endpoint and short-lived pairing/handoff flow. 
 ```text
 Supported platform: Google Chrome on Windows 11 (Manifest V3 Side Panel extension). ChatGPT is used through an OpenAI Apps SDK / MCP app.
 
-1. Open https://ddakdama.ddakdama.workers.dev.
+1. Open https://ddakdama.artemis-clunk.workers.dev.
 2. For source-based verification, follow the README: install Node.js 20+ and pnpm, then run `pnpm install`, `pnpm test:e2e`, and `pnpm build`.
 3. Load the generated extension directory containing `manifest.json` from chrome://extensions with Developer mode enabled.
 4. The extension supports direct list input without ChatGPT. For ChatGPT handoff, connect the MCP endpoint shown in the README, create a short-lived pairing code in the extension, and complete the pairing in the ChatGPT app.
