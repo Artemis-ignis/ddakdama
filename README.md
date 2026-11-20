@@ -7,7 +7,7 @@
 
 - 서비스: <https://ddakdama.artemis-clunk.workers.dev> · 무설치 체험: [/try](https://ddakdama.artemis-clunk.workers.dev/try)
 - 데모 영상: <https://youtu.be/hpRkAGgw03c> (51초)
-- 상태: 공개 베타 v1.0.2 · OpenAI Build Week Devpost 제출 완료
+- 상태: 공개 베타 v1.0.8 · OpenAI Build Week Devpost 제출 완료
 
 > 이 README는 AI 서비스 기획 발표 흐름(문제 정의 → 타깃 → 시장 → 경쟁 → 제안 → BM → 지표 → 로드맵 → 구현 → 회고)을 따른다. 프레임워크별 상세 근거는 [docs/BOOTCAMP_SERVICE_SPEC_KO.md](docs/BOOTCAMP_SERVICE_SPEC_KO.md)에 있다.
 
@@ -156,7 +156,7 @@ Job은 '자동화'가 아니라 '검증된 전환'이다. 사용자는 손가락
 
 | 시점 | 목표 | 검증·개발 항목 |
 |---|---|---|
-| 현재 (v1.0.2) | 공개 베타 운영 | 파싱·후보·사전검사·승인 담기·delta 검증, /try 무설치 체험, Devpost 제출 완료 |
+| 현재 (v1.0.8) | 공개 베타 운영 | 파싱·후보·사전검사·승인 담기·delta 검증, /try 무설치 체험, Devpost 제출 완료 |
 | 1개월 후 | Acquisition 채널 확보 | Chrome 웹스토어 등록, 실사용 Activation 수집 → H1 가설 판정 |
 | 3개월 후 | Revenue 가설 판정 | 파트너스 승인·전환 수수료 검증, 재사용률 측정 |
 | 6개월 후 | TAM 확장·MLP 강화 | 스토어 어댑터 확장(네이버 등), 가격 히스토리·대체품 추천 |
